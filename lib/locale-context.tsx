@@ -13,6 +13,7 @@ import {
   MATCH_ROUND_SF,
   normalizeMatchRoundCode,
 } from "@/lib/matchRoundCode";
+import { buildPathWithLocaleAndSlug } from "@/lib/filterState";
 
 function matchRoundLabel(round: string | null, m: Messages["matchUi"]): string | null {
   if (!round) return null;
@@ -67,14 +68,11 @@ export function LocaleProvider({
       // Flush the state update synchronously so the header re-renders
       // before the navigation starts — prevents the "changes late" lag.
       flushSync(() => setLocaleState(next));
-      const cleanPath =
-        pathname === "/ko" ? "/" : pathname.startsWith("/ko/") ? pathname.slice(3) : pathname;
-      const nextPath = next === "en" ? cleanPath : cleanPath === "/" ? "/ko" : `/ko${cleanPath}`;
       // Read from window.location.search rather than useSearchParams — useUrlParam writes
       // search params via history.replaceState which bypasses Next.js's router, so
       // useSearchParams() would return a stale snapshot and drop the active filters.
-      const qs = window.location.search.slice(1);
-      router.push(qs ? `${nextPath}?${qs}` : nextPath);
+      const nextUrl = buildPathWithLocaleAndSlug(pathname, next, window.location.search);
+      router.push(nextUrl);
     },
     [router, pathname]
   );

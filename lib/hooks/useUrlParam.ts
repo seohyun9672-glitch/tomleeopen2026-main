@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { updateFiltersInUrl } from "@/lib/filterState";
 
 /**
  * Read and write a single URL search param.
@@ -38,16 +39,9 @@ export function useUrlParam(
     (v: string, opts?: { clear?: string[] }) => {
       // Update local state immediately for instant UI feedback.
       setValue(v);
-
-      // Reflect the change in the URL without triggering a Next.js navigation.
-      // Reading window.location.search instead of the hook's searchParams snapshot
-      // keeps this setter stable (no searchParams dep → never recreated mid-render).
-      const params = new URLSearchParams(window.location.search);
-      if (v) params.set(key, v);
-      else params.delete(key);
-      opts?.clear?.forEach((k) => params.delete(k));
-      const qs = params.toString();
-      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+      // Delegate URL mutation to the shared utility so all param writes go
+      // through one place (merges rather than replaces the whole query string).
+      updateFiltersInUrl({ [key]: v }, { clear: opts?.clear });
     },
     [key]
   );

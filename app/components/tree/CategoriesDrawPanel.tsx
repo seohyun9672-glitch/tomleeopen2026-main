@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useLocale } from "@/lib/locale-context";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import type { MatchWithTeamNames } from "@/lib/matches";
@@ -134,11 +134,6 @@ export function CategoriesDrawPanel({
   } = drawData;
 
   const [selectedGroup, setSelectedGroup] = useUrlParam("group");
-
-  // When the draw data changes (new category loaded), reset prelims group filter.
-  useEffect(() => {
-    setSelectedGroup("");
-  }, [drawData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const teamRowsForRank = useMemo(
     () => (drawTeams.length > 0 ? drawTeams : teamRowsFromCategoryMatches(categoryMatches)),
