@@ -1,0 +1,1363 @@
+@import "tailwindcss";
+
+/* ============================================================
+   FONT FACES
+   ============================================================ */
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.2.6/files/ibm-plex-sans-latin-400-normal.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-1Thin.ttf") format("truetype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-2ExtraLight.ttf") format("truetype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-3Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-4Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-5Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-6SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-7Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-8ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-9Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================
+   DESIGN TOKENS (:root)
+   ============================================================ */
+
+:root {
+  /* ----- Primary blue scale (#304DD1 @ 500) ----- */
+  --color-primary-blue-500: #304dd1;
+  --color-primary-blue-50: color-mix(in srgb, var(--color-primary-blue-500) 6%, white);
+  --color-primary-blue-100: color-mix(in srgb, var(--color-primary-blue-500) 12%, white);
+  --color-primary-blue-200: color-mix(in srgb, var(--color-primary-blue-500) 22%, white);
+  --color-primary-blue-300: color-mix(in srgb, var(--color-primary-blue-500) 35%, white);
+  --color-primary-blue-400: color-mix(in srgb, var(--color-primary-blue-500) 50%, white);
+  --color-primary-blue-600: color-mix(in srgb, var(--color-primary-blue-500) 82%, black);
+  --color-primary-blue-700: color-mix(in srgb, var(--color-primary-blue-500) 62%, black);
+  --color-primary-blue-800: color-mix(in srgb, var(--color-primary-blue-500) 42%, black);
+  --color-primary-blue-900: color-mix(in srgb, var(--color-primary-blue-500) 24%, black);
+
+  /* ----- Secondary blue scale (#3A52C0 @ 500) ----- */
+  --color-secondary-blue-500: #3a52c0;
+  --color-secondary-blue-50: color-mix(in srgb, var(--color-secondary-blue-500) 6%, white);
+  --color-secondary-blue-100: color-mix(in srgb, var(--color-secondary-blue-500) 12%, white);
+  --color-secondary-blue-200: color-mix(in srgb, var(--color-secondary-blue-500) 22%, white);
+  --color-secondary-blue-300: color-mix(in srgb, var(--color-secondary-blue-500) 35%, white);
+  --color-secondary-blue-400: color-mix(in srgb, var(--color-secondary-blue-500) 50%, white);
+  --color-secondary-blue-600: color-mix(in srgb, var(--color-secondary-blue-500) 82%, black);
+  --color-secondary-blue-700: color-mix(in srgb, var(--color-secondary-blue-500) 62%, black);
+  --color-secondary-blue-800: color-mix(in srgb, var(--color-secondary-blue-500) 42%, black);
+  --color-secondary-blue-900: color-mix(in srgb, var(--color-secondary-blue-500) 24%, black);
+
+  /* ----- Primary yellow scale (#DFFF00 @ 500) ----- */
+  --color-primary-yellow-500: #dfff00;
+  --color-primary-yellow-50: color-mix(in srgb, var(--color-primary-yellow-500) 8%, white);
+  --color-primary-yellow-100: color-mix(in srgb, var(--color-primary-yellow-500) 16%, white);
+  --color-primary-yellow-200: color-mix(in srgb, var(--color-primary-yellow-500) 28%, white);
+  --color-primary-yellow-300: color-mix(in srgb, var(--color-primary-yellow-500) 42%, white);
+  --color-primary-yellow-400: color-mix(in srgb, var(--color-primary-yellow-500) 58%, white);
+  --color-primary-yellow-600: color-mix(in srgb, var(--color-primary-yellow-500) 82%, black);
+  --color-primary-yellow-700: color-mix(in srgb, var(--color-primary-yellow-500) 64%, black);
+  --color-primary-yellow-800: color-mix(in srgb, var(--color-primary-yellow-500) 46%, black);
+  --color-primary-yellow-900: color-mix(in srgb, var(--color-primary-yellow-500) 30%, black);
+
+  /* Base brand aliases */
+  --color-primary-blue: var(--color-primary-blue-500);
+  --color-secondary-blue: var(--color-secondary-blue-500);
+  --color-primary-yellow: var(--color-primary-yellow-500);
+
+  /* Neutrals
+   * --color-background → page base (body, canvas).
+   * --color-surface → cards, panels, modals, tables. */
+  --color-text-primary: #111111;
+  --color-text-secondary: #525252;
+  --color-background: #fafafa;
+  --color-surface: #fcfcfd;
+  --color-text-tertiary: color-mix(in srgb, var(--color-text-secondary) 72%, var(--color-background));
+  --color-surface-card: var(--color-surface);
+
+  /* Text on brand (header / hero) */
+  --color-text-on-brand: #ffffff;
+  --color-text-on-brand-muted: color-mix(in srgb, var(--color-text-on-brand) 78%, transparent);
+  --color-text-on-brand-subtle: color-mix(in srgb, var(--color-text-on-brand) 58%, transparent);
+
+  /* Surfaces derived from brand + neutrals */
+  --color-surface-muted: color-mix(in srgb, var(--color-primary-blue-500) 3.2%, var(--color-background));
+  --color-surface-strong: color-mix(in srgb, var(--color-primary-blue-500) 5.5%, var(--color-background));
+  --color-surface-hover: color-mix(in srgb, var(--color-text-primary) 4.5%, var(--color-background));
+  --color-border-ui: color-mix(in srgb, var(--color-text-primary) 11%, transparent);
+  --color-border-ui-strong: color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+  --color-shadow-base: color-mix(in srgb, var(--color-primary-blue-900) 22%, transparent);
+
+  /* Blue outline scale — table shell/rows/cells, inputs, filter & chip chrome */
+  --outline-blue-ghost: color-mix(in srgb, var(--color-primary-blue-500) 8%, var(--color-background));
+  --outline-blue-subtle: color-mix(in srgb, var(--color-primary-blue-500) 14%, var(--color-surface-card));
+  --outline-blue-soft: color-mix(in srgb, var(--color-primary-blue-500) 12%, var(--color-background));
+  --outline-blue-default: color-mix(
+    in srgb,
+    var(--color-primary-blue-500) 22%,
+    var(--color-text-primary) 3%,
+    transparent
+  );
+  --outline-blue-emphasis: color-mix(
+    in srgb,
+    var(--color-primary-blue-500) 40%,
+    var(--color-text-primary) 5%,
+    transparent
+  );
+  --outline-blue-focus: color-mix(in srgb, var(--color-primary-blue-500) 78%, var(--color-primary-blue-700) 22%);
+  --outline-blue-focus-ring: color-mix(in srgb, var(--color-primary-blue-500) 38%, transparent);
+  --color-filter-outline: var(--outline-blue-default);
+  --color-focus-ring: var(--outline-blue-focus-ring);
+  --focus-outline-color: var(--outline-blue-focus);
+  --ring-offset-canvas: var(--color-background);
+  --ring-offset-form: var(--form-surface-bg);
+  --ring-offset-table: var(--color-table-bg);
+
+  /* Interactive (focus rings, links, sort) */
+  --color-primary: var(--color-secondary-blue-500);
+  --color-primary-dark: var(--color-secondary-blue-600);
+  --color-primary-darker: var(--color-primary-blue-700);
+  --color-accent: var(--color-primary-yellow-500);
+
+  /* Brand chrome */
+  --color-bg-primary: var(--color-primary-blue-500);
+  --color-bg-secondary: var(--color-secondary-blue-500);
+  --color-bg-surface: var(--color-primary-blue-700);
+  --color-page-body-bg: var(--color-background);
+
+  /* Legacy "on light" text names */
+  --color-text-dark: var(--color-text-primary);
+  --color-text-dark-muted: color-mix(in srgb, var(--color-text-secondary) 88%, var(--color-background));
+  --color-text-dark-subtle: color-mix(in srgb, var(--color-text-secondary) 68%, var(--color-background));
+
+  /* Borders */
+  --color-border-subtle: color-mix(in srgb, var(--color-text-primary) 9%, transparent);
+  --color-border-strong: color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+  --divider-color: var(--color-border-subtle);
+  --color-border-on-brand: color-mix(in srgb, var(--color-text-on-brand) 22%, transparent);
+  --color-border-on-brand-strong: color-mix(in srgb, var(--color-text-on-brand) 42%, transparent);
+
+  /* Tables */
+  --color-table-bg: var(--color-surface-card);
+  --color-table-text: var(--color-text-primary);
+  --color-table-border: var(--outline-blue-default);
+  --form-surface-bg: var(--color-table-bg);
+  --form-max-width: 32rem;
+
+  /* Status */
+  --color-status-success: #4cd964;
+  --color-status-warning: #ffd166;
+  --color-status-error: #ff6b6b;
+  --color-status-orange: #ee592a;
+  --color-success: var(--color-status-success);
+  --color-warning: var(--color-status-warning);
+  --color-error: var(--color-status-error);
+  --color-orange: var(--color-status-orange);
+  --form-field-error-text: color-mix(in srgb, var(--color-status-error) 72%, black);
+  --form-required-mark: color-mix(in srgb, var(--color-status-error) 62%, black);
+  --form-success-callout-bg: color-mix(in srgb, var(--color-status-success) 10%, var(--color-surface-card));
+  --form-success-callout-border: color-mix(in srgb, var(--color-status-success) 28%, var(--color-surface-card));
+  --color-status-error-bg-subtle: color-mix(in srgb, var(--color-status-error) 12%, var(--color-surface-card));
+  --color-status-error-text-strong: color-mix(in srgb, var(--color-status-error) 58%, black);
+
+  /* Admin */
+  --admin-inverse-bg: var(--color-primary-blue-700);
+  --admin-inverse-bg-hover: var(--color-primary-blue-600);
+  --admin-inverse-text: var(--color-text-on-brand);
+  --admin-muted-surface: var(--color-surface-strong);
+  --admin-panel-border: var(--color-border-ui);
+
+  /* Destructive actions */
+  --destructive-action-fill: color-mix(in srgb, var(--color-status-error) 72%, black);
+  --destructive-action-fill-hover: color-mix(in srgb, var(--color-status-error) 62%, black);
+  --destructive-outline-border: color-mix(in srgb, var(--color-status-error) 32%, var(--color-surface-card));
+  --destructive-outline-text: color-mix(in srgb, var(--color-status-error) 48%, black);
+  --destructive-outline-hover-bg: color-mix(in srgb, var(--color-status-error) 7%, var(--color-surface-card));
+
+  /* Overlays / modals */
+  --modal-backdrop-scrim: color-mix(in srgb, var(--color-primary-blue-900) 48%, transparent);
+  --overlay-scrim-strong: color-mix(in srgb, var(--color-primary-blue-900) 88%, black);
+  --overlay-control-bg: color-mix(in srgb, var(--color-primary-blue-900) 42%, transparent);
+  --overlay-control-bg-hover: color-mix(in srgb, var(--color-primary-blue-900) 58%, transparent);
+  --media-thumb-drop-shadow: color-mix(in srgb, var(--color-text-primary) 52%, transparent);
+  --media-thumb-filter: drop-shadow(0 0 1px var(--media-thumb-drop-shadow))
+    drop-shadow(0 1px 2px color-mix(in srgb, var(--media-thumb-drop-shadow) 72%, transparent));
+
+  /* ----- Pastel chip accents ----- */
+  --chip-pastel-ring-mix: color-mix(in srgb, #818cf8 32%, var(--color-surface-card));
+  --chip-pastel-neutral-bg: #eef2ff;
+  --chip-pastel-neutral-fg: #3730a3;
+  --chip-pastel-mint-bg: #d1fae5;
+  --chip-pastel-mint-fg: #047857;
+  --chip-pastel-rose-bg: #ffe4e6;
+  --chip-pastel-rose-fg: #be123c;
+  --chip-pastel-butter-bg: #fef9c3;
+  --chip-pastel-butter-fg: #a16207;
+  --chip-pastel-sky-bg: #e0f2fe;
+  --chip-pastel-sky-fg: #0369a1;
+  --chip-pastel-peach-bg: #ffedd5;
+  --chip-pastel-peach-fg: #9a3412;
+  --chip-pastel-lilac-bg: #ede9fe;
+  --chip-pastel-lilac-fg: #5b21b6;
+  --chip-pastel-aqua-bg: #ccfbf1;
+  --chip-pastel-aqua-fg: #0f766e;
+  --chip-pastel-pink-bg: #fce7f3;
+  --chip-pastel-pink-fg: #9d174d;
+  --chip-pastel-periwinkle-bg: #dbeafe;
+  --chip-pastel-periwinkle-fg: #1e40af;
+
+  /* Global chip palette */
+  --chip-palette-ring: var(--chip-pastel-ring-mix);
+  --chip-palette-neutral-bg: var(--chip-pastel-neutral-bg);
+  --chip-palette-neutral-fg: var(--chip-pastel-neutral-fg);
+  --chip-palette-neutral-border: color-mix(in srgb, #6366f1 28%, transparent);
+  --chip-palette-lemon-bg: var(--chip-pastel-butter-bg);
+  --chip-palette-lemon-fg: var(--chip-pastel-butter-fg);
+  --chip-palette-lemon-border: color-mix(in srgb, #eab308 45%, transparent);
+  --chip-palette-azure-bg: var(--chip-pastel-sky-bg);
+  --chip-palette-azure-fg: var(--chip-pastel-sky-fg);
+  --chip-palette-azure-border: color-mix(in srgb, #0ea5e9 40%, transparent);
+  --chip-palette-cobalt-bg: var(--chip-pastel-periwinkle-bg);
+  --chip-palette-cobalt-fg: var(--chip-pastel-periwinkle-fg);
+  --chip-palette-cobalt-border: color-mix(in srgb, #3b82f6 38%, transparent);
+  --chip-palette-mint-bg: var(--chip-pastel-mint-bg);
+  --chip-palette-mint-fg: var(--chip-pastel-mint-fg);
+  --chip-palette-mint-border: color-mix(in srgb, #10b981 42%, transparent);
+  --chip-palette-coral-bg: var(--chip-pastel-rose-bg);
+  --chip-palette-coral-fg: var(--chip-pastel-rose-fg);
+  --chip-palette-coral-border: color-mix(in srgb, #f43f5e 40%, transparent);
+  --chip-palette-sand-bg: var(--chip-pastel-butter-bg);
+  --chip-palette-sand-fg: var(--chip-pastel-butter-fg);
+  --chip-palette-sand-border: color-mix(in srgb, #f59e0b 42%, transparent);
+  --chip-palette-scheduled-bg: #bfdbfe;
+  --chip-palette-scheduled-fg: #1d4ed8;
+  --chip-palette-scheduled-border: color-mix(in srgb, #2563eb 45%, transparent);
+
+  /* Data chip palette */
+  --data-chip-neutral-bg: var(--chip-palette-neutral-bg);
+  --data-chip-neutral-text: var(--chip-palette-neutral-fg);
+  --data-chip-success-bg: var(--chip-palette-mint-bg);
+  --data-chip-success-text: var(--chip-palette-mint-fg);
+  --data-chip-status-cancelled-bg: var(--chip-palette-coral-bg);
+  --data-chip-status-cancelled-text: var(--chip-palette-coral-fg);
+  --data-chip-status-default-bg: #f1f5f9;
+  --data-chip-status-default-text: #475569;
+  --table-data-pill-note-color: color-mix(in srgb, var(--color-status-warning) 48%, black);
+
+  /* Match card tokens */
+  --match-text-loser: var(--color-text-tertiary);
+  --match-text-winner: var(--color-text-primary);
+  --match-rank-loser-border: var(--color-border-ui-strong);
+  --match-rank-loser-bg: color-mix(in srgb, var(--color-text-secondary) 8%, var(--color-surface-card));
+  --match-rank-loser-text: var(--color-text-secondary);
+  --match-rank-win-border: color-mix(in srgb, var(--color-secondary-blue-500) 35%, var(--color-surface-card));
+  --match-rank-win-bg: color-mix(in srgb, var(--color-secondary-blue-500) 14%, var(--color-surface-card));
+  --match-rank-win-text: var(--color-primary-blue-700);
+  --match-rank-bracket-win-border: color-mix(in srgb, var(--color-secondary-blue-500) 28%, var(--color-surface-card));
+  --match-rank-bracket-win-bg: color-mix(in srgb, var(--color-secondary-blue-500) 22%, var(--color-surface-card));
+  --match-rank-bracket-win-text: var(--color-primary-blue-800);
+  --match-rank-bracket-lose-border: color-mix(in srgb, var(--color-secondary-blue-400) 40%, var(--color-surface-card));
+  --match-rank-bracket-lose-bg: color-mix(in srgb, var(--color-secondary-blue-300) 18%, var(--color-surface-card));
+  --match-rank-bracket-lose-text: var(--color-primary-blue-700);
+  --match-withdrew-border: color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card));
+  --match-withdrew-bg: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card));
+  --match-withdrew-text: color-mix(in srgb, var(--color-status-orange) 55%, black);
+  --match-status-scheduled-border: var(--chip-palette-scheduled-border);
+  --match-status-scheduled-bg: var(--chip-palette-scheduled-bg);
+  --match-status-scheduled-text: var(--chip-palette-scheduled-fg);
+  --match-status-completed-border: var(--chip-palette-mint-border);
+  --match-status-completed-bg: var(--chip-palette-mint-bg);
+  --match-status-completed-text: var(--chip-palette-mint-fg);
+  --match-status-cancelled-border: var(--chip-palette-coral-border);
+  --match-status-cancelled-bg: var(--chip-palette-coral-bg);
+  --match-status-cancelled-text: var(--chip-palette-coral-fg);
+  --match-status-postponed-border: var(--chip-palette-sand-border);
+  --match-status-postponed-bg: var(--chip-palette-sand-bg);
+  --match-status-postponed-text: var(--chip-palette-sand-fg);
+  --match-status-default-border: var(--outline-blue-default);
+  --match-status-default-bg: var(--color-surface-strong);
+  --match-status-default-text: var(--color-text-primary);
+  --match-card-meta-bg: var(--color-surface-strong);
+  --match-card-meta-text: var(--color-text-secondary);
+
+  /* Category table chips */
+  --category-chip-md-b-bg: #ffedd5;
+  --category-chip-md-b-text: #9a3412;
+  --category-chip-md-s-bg: #fed7aa;
+  --category-chip-md-s-text: #7c2d12;
+  --category-chip-md-g-bg: #fdba74;
+  --category-chip-md-g-text: #7c2d12;
+  --category-chip-ms-b-bg: #e0f2fe;
+  --category-chip-ms-b-text: #0369a1;
+  --category-chip-ms-s-bg: #bae6fd;
+  --category-chip-ms-s-text: #075985;
+  --category-chip-ms-g-bg: #7dd3fc;
+  --category-chip-ms-g-text: #0c4a6e;
+  --category-chip-xd-b-bg: #ede9fe;
+  --category-chip-xd-b-text: #5b21b6;
+  --category-chip-xd-s-bg: #ddd6fe;
+  --category-chip-xd-s-text: #5b21b6;
+  --category-chip-xd-g-bg: #c4b5fd;
+  --category-chip-xd-g-text: #4c1d95;
+  --category-chip-wd-b-bg: #fce7f3;
+  --category-chip-wd-b-text: #9d174d;
+  --category-chip-wd-s-bg: #fbcfe8;
+  --category-chip-wd-s-text: #831843;
+  --category-chip-ws-b-bg: #d1fae5;
+  --category-chip-ws-b-text: #047857;
+  --category-chip-ws-s-bg: #a7f3d0;
+  --category-chip-ws-s-text: #065f46;
+  --category-chip-default-bg: var(--data-chip-neutral-bg);
+  --category-chip-default-text: var(--data-chip-neutral-text);
+
+  /* Club chips */
+  --club-chip-harang-bg: #e0f2fe;
+  --club-chip-harang-text: #0369a1;
+  --club-chip-vktc-bg: var(--data-chip-success-bg);
+  --club-chip-vktc-text: var(--data-chip-success-text);
+  --club-chip-ctc-bg: #ede9fe;
+  --club-chip-ctc-text: #5b21b6;
+  --club-chip-clayton-bg: #fef9c3;
+  --club-chip-clayton-text: #a16207;
+  --club-chip-sagol-bg: #ffedd5;
+  --club-chip-sagol-text: #9a3412;
+  --club-chip-machang-bg: #ccfbf1;
+  --club-chip-machang-text: #0f766e;
+  --club-chip-langley-bg: #fce7f3;
+  --club-chip-langley-text: #9d174d;
+  --club-chip-na-bg: #f1f5f9;
+  --club-chip-na-text: #475569;
+  --club-chip-default-bg: var(--data-chip-neutral-bg);
+  --club-chip-default-text: var(--chip-pastel-neutral-fg);
+
+  /* Card chrome */
+  --color-border-card: color-mix(in srgb, var(--color-border-ui) 82%, transparent);
+  --card-accent-border: var(--color-primary-yellow-400);
+  --card-placeholder-stripe: var(--color-border-ui);
+  --card-placeholder-fill: color-mix(in srgb, var(--color-text-secondary) 18%, var(--color-surface-card));
+  --card-label-lesson: color-mix(in srgb, var(--color-status-success) 52%, black);
+
+  /* Tournament calendar cell accents */
+  --calendar-accent-0: color-mix(in srgb, var(--color-secondary-blue-400) 46%, transparent);
+  --calendar-accent-1: color-mix(in srgb, var(--color-status-success) 42%, transparent);
+  --calendar-accent-2: color-mix(in srgb, var(--color-primary-blue-300) 58%, transparent);
+  --calendar-accent-3: color-mix(in srgb, var(--color-primary-blue-500) 36%, transparent);
+  --calendar-accent-4: color-mix(in srgb, var(--color-status-orange) 38%, transparent);
+  --calendar-accent-5: color-mix(in srgb, var(--color-primary-yellow-400) 50%, transparent);
+  --calendar-accent-6: color-mix(in srgb, var(--color-secondary-blue-600) 34%, transparent);
+  --timeline-accent: var(--color-primary-yellow-500);
+  --timeline-card-bg: color-mix(in srgb, var(--color-text-on-brand) 12%, transparent);
+  --timeline-card-text: var(--color-text-on-brand);
+  --timeline-card-text-muted: var(--color-text-on-brand-muted);
+
+  /* Button tokens */
+  --button-on-accent-text: var(--color-text-primary);
+  --button-disabled-border: var(--color-border-ui);
+  --button-disabled-bg: var(--color-surface-strong);
+  --button-disabled-text: var(--color-text-tertiary);
+  --button-secondary-fill: #ffffff;
+  --button-secondary-text: var(--color-text-primary);
+  --button-secondary-hover-bg: color-mix(in srgb, var(--color-text-primary) 6%, #ffffff);
+  --button-secondary-active-bg: color-mix(in srgb, var(--color-text-primary) 11%, #ffffff);
+  --button-secondary-disabled-border: var(--color-border-ui-strong);
+  --icon-button-text: var(--color-text-secondary);
+  --icon-button-hover-bg: var(--color-surface-hover);
+
+  /* Semantic usage aliases */
+  --bg-page: var(--color-page-body-bg);
+  --bg-section: var(--color-bg-secondary);
+  --bg-surface: var(--color-bg-surface);
+  --header-bg: var(--color-bg-primary);
+  --footer-bg: var(--header-bg);
+  --footer-text: var(--color-text-on-brand);
+  --home-zebra-blue: color-mix(in srgb, var(--color-secondary-blue-500) 6.5%, var(--color-background));
+  --text-default: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-tertiary);
+  --text-heading: var(--color-text-primary);
+  --text-accent: var(--color-text-primary);
+  --bg-accent: var(--color-accent);
+  --bg-table: var(--color-table-bg);
+  --text-table: var(--color-table-text);
+  --border-table: var(--color-table-border);
+  --border-table-accent: color-mix(in srgb, var(--color-accent) 35%, var(--color-table-border));
+  --table-header-bg: color-mix(in srgb, var(--color-primary-blue-500) 4.5%, var(--color-surface-card));
+  --table-header-text: var(--color-text-primary);
+  --match-stage-header-bg: color-mix(in srgb, var(--color-secondary-blue-500) 18%, var(--color-surface-card));
+  --match-stage-header-text: var(--color-primary-blue-900);
+  --match-stage-header-text-muted: var(--color-text-secondary);
+  --match-stage-header-font-weight: 600;
+  --tournament-tree-stage-header-bg-solid: var(--color-background);
+  --tournament-tree-stage-header-border-bottom-width: 2px;
+  --tournament-tree-stage-header-border-bottom-color: var(--color-primary-blue-500);
+  --tournament-tree-stage-header-text: var(--color-text-primary);
+  --tournament-tree-stage-header-radius: 0;
+  --bracket-connector-color: var(--color-secondary-blue-200);
+  --table-border-row: var(--outline-blue-subtle);
+  --table-body-text: var(--color-text-primary);
+  --table-row-bg: var(--color-surface-card);
+  --table-row-alt: color-mix(in srgb, var(--color-secondary-blue-500) 4%, var(--color-surface-card));
+  --table-cell-py: var(--element-gap);
+  --table-cell-px: var(--element-gap);
+  --table-radius: 1rem;
+  --table-kv-key-col-pct: 35%;
+  --table-kv-value-col-pct: 65%;
+  --table-row-hover-bg: var(--color-surface-muted);
+  --table-row-min-height: 2.5rem;
+  --table-group-border-width: 2px;
+  --badge-category-bg: var(--color-primary-blue-100);
+  --badge-category-text: var(--color-primary-blue-900);
+  --badge-category-border: var(--color-secondary-blue-300);
+  --link-default: var(--color-secondary-blue-600);
+  --link-hover: var(--color-primary-blue-600);
+  --border-default: var(--color-border-subtle);
+
+  /* Layout grid */
+  --grid-unit: 96px;
+  --grid-line-color: color-mix(in srgb, #dfff00 30%, transparent);
+  --page-grid-layers:
+    linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
+  --page-grid-size: var(--grid-unit) var(--grid-unit);
+
+  /* Filter/chip UI */
+  --chip-accent-text-inactive: var(--color-text-dark-muted);
+  --chip-accent-hover-bg: var(--color-surface-hover);
+  --chip-accent-hover-text: var(--color-text-dark);
+  --tab-row-border: var(--outline-blue-subtle);
+  --surface-pill-border: var(--outline-blue-subtle);
+  --surface-pill-bg: color-mix(in srgb, var(--color-text-primary) 4.5%, transparent);
+  --surface-pill-active-border: var(--outline-blue-default);
+  --surface-pill-active-bg: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  --surface-pill-text: var(--color-text-dark);
+  --surface-pill-text-muted: var(--color-text-dark-muted);
+
+  /* Card elevation shadows */
+  --card-elev-shadow:
+    0 1px 2px color-mix(in srgb, var(--color-shadow-base) 35%, transparent),
+    0 4px 12px color-mix(in srgb, var(--color-shadow-base) 45%, transparent),
+    0 12px 28px color-mix(in srgb, var(--color-shadow-base) 38%, transparent),
+    0 24px 48px color-mix(in srgb, var(--color-shadow-base) 30%, transparent);
+  --card-elev-shadow-hover:
+    0 2px 4px color-mix(in srgb, var(--color-shadow-base) 42%, transparent),
+    0 8px 20px color-mix(in srgb, var(--color-shadow-base) 52%, transparent),
+    0 20px 44px color-mix(in srgb, var(--color-shadow-base) 45%, transparent),
+    0 36px 72px color-mix(in srgb, var(--color-shadow-base) 38%, transparent);
+
+  /* Tailwind theme aliases */
+  --background: var(--color-page-body-bg);
+  --foreground: var(--color-text-primary);
+  --primary: var(--bg-accent);
+  --primary-border: var(--color-border-on-brand-strong);
+  --foreground-on-light: var(--color-text-primary);
+  --section-bg: var(--bg-table);
+  --section-text: var(--text-table);
+  --input-bg: var(--bg-table);
+  --input-border: var(--outline-blue-soft);
+  --input-border-select: var(--outline-blue-soft);
+  --input-text: var(--text-table);
+  --input-focus-border: var(--outline-blue-focus);
+  --input-focus-ring: var(--outline-blue-focus-ring);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* Semantic spacing */
+  --layout-gap: var(--space-12);
+  --section-gap: var(--space-8);
+  --content-gap: var(--space-4);
+  --element-gap: var(--space-2);
+  --grid-gap: var(--space-6);
+  --grid-gap-md: var(--space-6);
+
+  /* Page hero */
+  --page-hero-padding-y: var(--section-gap);
+  --page-hero-padding-x: var(--space-16);
+  --page-hero-padding-inline-start: var(--space-6);
+
+  /* Card system */
+  --card-image-min-h: 80px;
+  --card-image-max-h: 240px;
+  --card-image-h-default: 150px;
+  --card-max-h-default: 300px;
+  --club-card-h: 300px;
+  --lesson-card-h: 364px;
+  --match-card-min-width: 22rem;
+
+  /* Global container */
+  --container-max-w: 1280px;
+  --page-inline-padding: var(--content-gap);
+
+  /* Filter bar widths */
+  --filter-width-year: 7.5rem;
+  --filter-width-round: 10rem;
+  --filter-width-category: 16rem;
+  --filter-width-club: 11rem;
+  --filter-width-locale: 5.75rem;
+  --filter-width-date: 11rem;
+
+  /* Button system */
+  --button-border-radius: 9999px;
+  --button-min-width: 7.5rem;
+  --button-max-width: 7.5rem;
+  --button-inline-safe-pad: 16px;
+  --button-font-size: 0.875rem;
+  --button-height-large: 2.75rem;
+  --button-height-medium: 2.5rem;
+  --button-height-small: 2rem;
+  --button-px-large: 1.25rem;
+  --button-px-medium: 1rem;
+  --button-px-small: 0.75rem;
+  --icon-button-radius: 0.5rem;
+
+  /* Font tokens — English defaults.
+   * --font-heading is provided by Anton via next/font (variable: "--font-heading" on <html>).
+   * Korean overrides are in html[lang="ko"] below. */
+  --font-body: "IBM Plex Sans", sans-serif;
+  --font-korean: "Paperlogy", sans-serif;
+
+  /* Typography scale tokens */
+  --text-title-font: var(--font-heading);
+  --text-title-weight: 400;
+  --text-title-size: clamp(2.75rem, 9vw, 5rem);
+  --text-title-letter-spacing: 0;
+  --text-title-line-height: 1;
+
+  --text-subtitle-font: var(--font-heading);
+  --text-subtitle-weight: 400;
+  --text-subtitle-size: clamp(1.625rem, 1.25rem + 2vw, 2.5rem);
+  --text-subtitle-letter-spacing: 0;
+  --text-subtitle-line-height: 1.05;
+
+  --text-h1-font: var(--font-heading);
+  --text-h1-weight: 400;
+  --text-h1-size: clamp(1.375rem, 1.1rem + 1.4vw, 2rem);
+  --text-h1-letter-spacing: 0;
+  --text-h1-line-height: 1.05;
+
+  --text-h2-font: var(--font-heading);
+  --text-h2-weight: 400;
+  --text-h2-size: clamp(1.125rem, 0.95rem + 0.85vw, 1.5rem);
+  --text-h2-letter-spacing: 0;
+  --text-h2-line-height: 1.1;
+
+  --text-h3-font: var(--font-heading);
+  --text-h3-weight: 400;
+  --text-h3-size: clamp(0.9375rem, 0.85rem + 0.43vw, 1.125rem);
+  --text-h3-display-size: clamp(1rem, 0.9rem + 0.35vw, 1.25rem);
+  --text-h3-letter-spacing: 0;
+  --text-h3-line-height: 1.1;
+  --text-h3-gap: var(--element-gap);
+
+  --text-body-font: var(--font-body);
+  --text-body-weight: 400;
+  --text-body-size: 14px;
+  --text-body-letter-spacing: -0.02em;
+  --text-body-line-height: 1.6;
+  --text-badge-size: calc(var(--text-body-size) * 0.82);
+
+  /* Misc */
+  --radius-heading-accent: 12px;
+  --radius-heading-accent-sm: 8px;
+  --radius-badge: 6px;
+  --calendar-card-padding: var(--section-gap);
+}
+
+/* ============================================================
+   LANGUAGE-SPECIFIC FONT OVERRIDES
+   In Korean mode, Paperlogy replaces Anton for headings.
+   Body text uses IBM Plex Sans in both languages.
+   ============================================================ */
+
+html[lang="ko"] {
+  --font-heading: "Paperlogy", sans-serif;
+}
+
+/* ============================================================
+   TAILWIND THEME MAPPING
+   ============================================================ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-muted: var(--text-muted);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--color-border-ui);
+  --color-surface: var(--color-surface-card);
+  --color-card: var(--color-surface-card);
+  --color-destructive: var(--color-status-error);
+  --color-ring: var(--color-focus-ring);
+  --color-ring-offset: var(--ring-offset-canvas);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ============================================================
+   RESPONSIVE TOKEN OVERRIDES
+   ============================================================ */
+
+@media (min-width: 768px) {
+  :root {
+    --text-title-size: clamp(4rem, 12vw, 7.5rem);
+    --table-cell-py: var(--content-gap);
+    --table-cell-px: var(--content-gap);
+    --table-radius: 0.875rem;
+    --calendar-card-padding: var(--content-gap);
+    --button-font-size: 0.9375rem;
+    --button-inline-safe-pad: 24px;
+    --button-height-large: 2.875rem;
+    --button-height-medium: 2.625rem;
+    --button-height-small: 2.125rem;
+    --button-px-large: 1.5rem;
+    --button-px-medium: 1.25rem;
+    --button-px-small: 0.875rem;
+    --page-inline-padding: var(--section-gap);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --text-title-size: 7.5rem;
+    --calendar-card-padding: var(--section-gap);
+    --button-font-size: 1rem;
+    --button-height-large: 3rem;
+    --button-height-medium: 2.75rem;
+    --button-height-small: 2.25rem;
+    --button-px-large: 1.5rem;
+    --button-px-medium: 1.25rem;
+    --button-px-small: 0.875rem;
+    --page-inline-padding: var(--layout-gap);
+  }
+}
+
+/* ============================================================
+   BASE ELEMENT STYLES
+   Resets for semantic elements — utility classes (.text-h1 etc.)
+   take precedence over these when applied.
+   ============================================================ */
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading), "Paperlogy", sans-serif;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--text-heading);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: var(--text-h1-size);
+    line-height: 1.05;
+  }
+
+  h2 {
+    font-size: var(--text-h2-size);
+    line-height: 1.1;
+  }
+
+  h3 {
+    font-size: var(--text-h3-display-size);
+    line-height: 1.1;
+  }
+
+  h4 {
+    font-size: var(--text-h3-size);
+    line-height: 1.1;
+  }
+
+  p,
+  a,
+  button,
+  label,
+  input,
+  select,
+  textarea,
+  li,
+  nav {
+    font-family: var(--text-body-font);
+    font-weight: var(--text-body-weight);
+    font-size: var(--text-body-size);
+    letter-spacing: var(--text-body-letter-spacing);
+    line-height: var(--text-body-line-height);
+  }
+
+  p {
+    color: var(--text-default);
+  }
+}
+
+/* ============================================================
+   SEMANTIC TYPOGRAPHY UTILITY CLASSES
+   ============================================================ */
+
+.text-title {
+  font-family: var(--font-heading), "Paperlogy", sans-serif;
+  font-weight: 400;
+  font-size: var(--text-title-size);
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.text-subtitle {
+  font-family: var(--font-heading), "Paperlogy", sans-serif;
+  font-weight: 400;
+  font-size: var(--text-subtitle-size);
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+.text-h1 {
+  font-family: var(--font-heading), "Paperlogy", sans-serif;
+  font-weight: 400;
+  font-size: var(--text-h1-size);
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+.text-h2 {
+  font-family: var(--font-heading), "Paperlogy", sans-serif;
+  font-weight: 400;
+  font-size: var(--text-h2-size);
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.text-h3 {
+  font-family: var(--font-heading), "Paperlogy", sans-serif;
+  font-weight: 400;
+  font-size: var(--text-h3-display-size);
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.text-h4 {
+  font-family: var(--font-heading), "Paperlogy", sans-serif;
+  font-weight: 400;
+  font-size: var(--text-h3-size);
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.text-body {
+  font-family: var(--text-body-font);
+  font-weight: var(--text-body-weight);
+  font-size: var(--text-body-size);
+  letter-spacing: var(--text-body-letter-spacing);
+  line-height: var(--text-body-line-height);
+}
+
+/* Reusable hyperlink style */
+.link-default {
+  color: var(--link-default);
+  text-decoration: none;
+}
+.link-default:hover {
+  color: var(--link-hover);
+}
+
+/* ============================================================
+   DOCUMENT / SCROLL ROOT
+   ============================================================ */
+
+html {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  background-color: var(--background);
+  background-image: var(--page-grid-layers);
+  background-size: var(--page-grid-size);
+  color: var(--foreground);
+  font-family: var(--text-body-font);
+  font-size: var(--text-body-size);
+  letter-spacing: var(--text-body-letter-spacing);
+  line-height: var(--text-body-line-height);
+}
+
+/* ============================================================
+   GLOBAL UTILITIES
+   ============================================================ */
+
+/* Hide native scrollbar while keeping scroll */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Token-based focus outline */
+:focus-visible {
+  outline: 2px solid var(--focus-outline-color);
+  outline-offset: 2px;
+}
+
+/* Bullet lists */
+ul.list-disc {
+  list-style-position: outside;
+  padding-left: var(--section-gap);
+}
+
+.table-key-value td ul.list-disc {
+  width: 100%;
+  list-style-position: outside;
+  padding-left: 1.25rem;
+  margin-left: 0;
+}
+
+td ul {
+  padding-left: 1rem;
+}
+
+/* Interactive buttons */
+button:enabled {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   BACKGROUND HELPERS
+   ============================================================ */
+
+.bg-page-with-grid {
+  background-color: var(--background);
+  background-image: var(--page-grid-layers);
+  background-size: var(--page-grid-size);
+}
+
+.bg-home-zebra-with-grid {
+  background-color: var(--home-zebra-blue);
+  background-image: var(--page-grid-layers);
+  background-size: var(--page-grid-size);
+}
+
+.bg-hero-with-grid {
+  background-color: var(--color-bg-primary);
+  background-image: var(--page-grid-layers);
+  background-size: var(--page-grid-size);
+}
+
+/* ============================================================
+   CARD SYSTEM
+   ============================================================ */
+
+.card-elev {
+  box-shadow: var(--card-elev-shadow);
+}
+
+.card-elev--interactive {
+  transition:
+    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+
+/* ============================================================
+   SCROLL FADE-IN
+   ============================================================ */
+
+@keyframes section-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-will-animate {
+  opacity: 0;
+  transform: translateY(22px);
+}
+
+.section-animate-in {
+  animation: section-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-will-animate {
+    opacity: 1;
+    transform: none;
+  }
+  .section-animate-in {
+    animation: none;
+  }
+}
+
+a:hover .card-elev--interactive,
+a:focus-visible .card-elev--interactive {
+  box-shadow: var(--card-elev-shadow-hover);
+}
+
+/* ============================================================
+   SITE LOGO
+   ============================================================ */
+
+.site-logo {
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s ease;
+  text-decoration: none;
+  color: inherit;
+  flex-shrink: 0;
+}
+.site-logo:hover {
+  opacity: 0.85;
+}
+.site-logo:focus-visible {
+  outline: none;
+  border-radius: 0.25rem;
+}
+.site-logo--header:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--header-bg),
+    0 0 0 4px var(--color-focus-ring);
+}
+.site-logo--footer:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--footer-bg),
+    0 0 0 4px var(--color-focus-ring);
+}
+.site-logo__img {
+  display: block;
+  height: 0.75rem;
+  width: auto;
+}
+@media (min-width: 640px) {
+  .site-logo__img {
+    height: 1rem;
+  }
+}
+@media (min-width: 1024px) {
+  .site-logo__img {
+    height: 1.125rem;
+  }
+}
+
+/* ============================================================
+   TOURNAMENT BRACKET
+   ============================================================ */
+
+.tournament-tree-stage-header {
+  border-bottom-width: var(--tournament-tree-stage-header-border-bottom-width);
+  border-bottom-style: solid;
+  border-radius: var(--tournament-tree-stage-header-radius);
+  border-bottom-color: var(--tournament-tree-stage-header-border-bottom-color);
+  background-color: var(--tournament-tree-stage-header-bg-solid);
+  background-image: none;
+}
+
+/* Match stage header */
+.match-stage-header h3 {
+  color: var(--match-stage-header-text);
+  font-weight: var(--match-stage-header-font-weight);
+}
+.match-stage-header .match-stage-header-detail {
+  color: var(--match-stage-header-text-muted);
+  font-weight: var(--match-stage-header-font-weight);
+}
+
+/* ============================================================
+   DATA TABLES
+   ============================================================ */
+
+.table-x-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.table-key-value-shell {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.table-data {
+  table-layout: auto;
+  width: 100%;
+}
+
+.table-data--layout-stable {
+  table-layout: fixed;
+}
+.table-data--layout-stable td {
+  min-width: 0;
+}
+.table-data--layout-stable thead th {
+  min-width: min-content;
+  overflow: visible;
+}
+
+.table-data th,
+.table-data td {
+  overflow-wrap: break-word;
+  vertical-align: top;
+  font-size: var(--text-body-size);
+}
+
+.table-key-value th,
+.table-key-value td {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  vertical-align: top;
+  font-size: var(--text-body-size);
+}
+
+.table-data thead th {
+  vertical-align: top;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+.table-data tbody {
+  font-variant-numeric: tabular-nums;
+}
+.table-data tbody tr {
+  height: var(--table-row-min-height);
+}
+.table-data tbody tr[data-clickable="true"] {
+  cursor: pointer;
+}
+.table-data tbody tr[data-clickable="true"]:hover td {
+  background-color: var(--table-row-hover-bg);
+}
+.table-data tbody tr.is-table-row-group-start td {
+  border-top-width: var(--table-group-border-width);
+  border-top-style: solid;
+  border-top-color: var(--table-border-row);
+}
+
+/* Stacked player / team lines inside table cells */
+.table-stacked-players-root {
+  display: block;
+  min-width: 0;
+  text-align: left;
+}
+.table-stacked-players-multi {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+.table-stacked-players-split {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+.table-stacked-players-line {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 500;
+  color: var(--table-body-text);
+}
+
+/* Bilingual member / player name blocks */
+.table-member-names {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+.table-member-names-primary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--table-body-text);
+}
+.table-member-names-secondary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--table-body-text) 72%, var(--color-surface-card));
+}
+
+.table-player-name-link {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  color: var(--table-body-text);
+  text-decoration: none;
+}
+.table-player-name-link:hover {
+  text-decoration: underline;
+}
+.table-player-name-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+.table-player-name-primary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--table-body-text);
+}
+.table-player-name-secondary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  font-weight: 400;
+  opacity: 0.68;
+}
+
+/* Chip groups in data tables */
+.table-data-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--element-gap);
+  align-items: center;
+  min-width: 0;
+}
+
+/* Secondary line under a link inside a data table cell */
+.table-inline-secondary-line {
+  display: block;
+  margin-top: var(--element-gap);
+  font-size: inherit;
+  color: color-mix(in srgb, var(--table-body-text) 72%, var(--color-surface-card));
+}
+
+.table-cell-technical-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  color: color-mix(in srgb, var(--table-body-text) 88%, var(--color-surface-card));
+  white-space: nowrap;
+}
+
+.table-cell-score-line {
+  display: block;
+  white-space: normal;
+}
+
+.table-match-scores-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap);
+  align-items: flex-start;
+}
+.table-match-scores-stack-line {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.table-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+.table-cell-stack-item {
+  font-size: inherit;
+  font-weight: 500;
+}
+
+.table-cell-icon-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Note under registration status chip */
+.table-data-pill-note {
+  font-size: inherit;
+  line-height: 1.25;
+  color: var(--table-data-pill-note-color);
+}
+
+/* h3 date / section label stacked card layout */
+.h3-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--content-gap);
+}
+
+/* ============================================================
+   FORMS
+   ============================================================ */
+
+.form-field-error {
+  margin-top: var(--element-gap);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--form-field-error-text);
+}
+
+.form-control-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--input-border);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+.form-control-input:focus {
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
+}
+
+.form-control-select {
+  padding-right: 2.5rem;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  background-position: right 0.75rem center;
+}
+
+.form-control-chips-trigger {
+  display: flex;
+  min-height: 2.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: text;
+}
+
+.form-control-button-match:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.form-control-with-leading-icon {
+  position: relative;
+  width: 100%;
+}
+.form-control-leading-icon {
+  pointer-events: none;
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.form-control-input--with-leading-icon {
+  padding-left: 2.5rem;
+}

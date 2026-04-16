@@ -1,0 +1,55 @@
+"use client";
+
+import type React from "react";
+import { Search } from "lucide-react";
+
+import { formInputMatchClass } from "@/app/components/ui/Field";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  id: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  ariaLabel?: string;
+  /** Renders the leading search icon inside the field (aligned with `form-control-leading-icon` in globals). */
+  showLeadingIcon?: boolean;
+  className?: string;
+  placeholder?: string;
+};
+
+/**
+ * Search field using the same control surface as filter selects ({@link formInputMatchClass}) for aligned height and hover.
+ */
+export function SearchBox({
+  id,
+  value,
+  onChange,
+  ariaLabel = "Search",
+  showLeadingIcon = true,
+  className = "",
+  placeholder = "Search",
+}: Props) {
+  return (
+    <div className={cn("form-control-with-leading-icon w-full", className)}>
+      {showLeadingIcon ? (
+        <span className="form-control-leading-icon" aria-hidden>
+          <Search className="size-4 shrink-0" strokeWidth={2} />
+        </span>
+      ) : null}
+      <input
+        id={id}
+        type="search"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        aria-label={ariaLabel}
+        autoComplete="off"
+        className={cn(
+          formInputMatchClass,
+          showLeadingIcon ? "form-control-input--with-leading-icon" : "",
+          "min-w-0 transition-[border-color,box-shadow] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+        )}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,90 @@
+export const shared = {
+  en: {
+    shared: {
+      sectionTitles: {
+        otherClubs: "Other clubs",
+      },
+      buttons: {
+        contact: "Contact",
+        viewDetail: "View detail",
+        signOut: "Sign out",
+      },
+      labels: {
+        coach: "Coach",
+        category: "Category",
+        filters: "Filters",
+        year: "Year",
+        name: "Name",
+        search: "Search",
+        club: "Club",
+        allCategories: "All categories",
+        allClubs: "All clubs",
+        allNtrp: "All NTRP",
+        allCourts: "All courts",
+        round: "Round",
+        allRounds: "All rounds",
+        seed: "Seed",
+        allSeeds: "All seeds",
+        date: "Date",
+        allYears: "All",
+      },
+      aria: {
+        viewDetail: (name: string) => `View ${name} details`,
+        contact: (name: string) => `Contact ${name}`,
+        visit: (name: string) => `Visit ${name}`,
+      },
+      modal: {
+        close: "Close",
+      },
+    },
+    emptyStates: {
+      noMatches: "No matches on this date.",
+      noResults: "No results for this category.",
+      noPlayers: "No players yet.",
+    },
+  },
+  ko: {
+    shared: {
+      sectionTitles: {
+        otherClubs: "다른 클럽",
+      },
+      buttons: {
+        contact: "연락하기",
+        viewDetail: "자세히",
+        signOut: "로그아웃",
+      },
+      labels: {
+        coach: "코치",
+        category: "카테고리",
+        filters: "필터",
+        year: "연도",
+        name: "이름",
+        search: "검색",
+        club: "클럽",
+        allCategories: "전체 카테고리",
+        allClubs: "전체 클럽",
+        allNtrp: "전체 NTRP",
+        allCourts: "전체 코트",
+        round: "라운드",
+        allRounds: "전체 라운드",
+        seed: "시드",
+        allSeeds: "전체 시드",
+        date: "날짜",
+        allYears: "전체",
+      },
+      aria: {
+        viewDetail: (name: string) => `${name} 자세히 보기`,
+        contact: (name: string) => `${name} 연락`,
+        visit: (name: string) => `${name} 방문`,
+      },
+      modal: {
+        close: "닫기",
+      },
+    },
+    emptyStates: {
+      noMatches: "이 날짜에 경기가 없습니다.",
+      noResults: "이 카테고리에 결과가 없습니다.",
+      noPlayers: "등록된 선수가 없습니다.",
+    },
+  },
+} as const;

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+  <defs>
+    <!-- Instagram-style multi-stop gradient (orange/yellow → pink → purple) -->
+    <linearGradient id="ig-fill" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFDC80" />
+      <stop offset="20%" stop-color="#FCAF45" />
+      <stop offset="40%" stop-color="#F77737" />
+      <stop offset="60%" stop-color="#E1306C" />
+      <stop offset="80%" stop-color="#C13584" />
+      <stop offset="100%" stop-color="#833AB4" />
+    </linearGradient>
+  </defs>
+  <rect width="24" height="24" rx="6" fill="url(#ig-fill)" />
+  <!-- White camera glyph (outline on gradient) -->
+  <g fill="none" stroke="#ffffff" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4.35" y="4.35" width="15.3" height="15.3" rx="3.9" />
+    <circle cx="12" cy="12" r="3.45" />
+  </g>
+  <circle cx="17.05" cy="7.2" r="1.12" fill="#ffffff" />
+</svg>

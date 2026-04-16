@@ -1,0 +1,7 @@
+---
+description: Admin UI copy — avoid generic page intros
+globs: app/admin/**/*
+---
+
+- Do not add `pageIntro`, hero blurbs, or long explanatory paragraphs on admin (or similar internal) pages unless the user explicitly asks.
+- Prefer titles, tables, and actions only.
