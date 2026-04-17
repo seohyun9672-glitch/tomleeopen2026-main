@@ -16,7 +16,6 @@ type BracketViewProps = {
   r16Matches?: MatchWithTeamNames[];
   qfMatches: MatchWithTeamNames[];
   sfMatches: MatchWithTeamNames[];
-  bronzeMatches?: MatchWithTeamNames[];
   finalMatches: MatchWithTeamNames[];
   /** Prelim-based category rank (1 = best); omit for unified knockout trees (no seed pills from RR). */
   teamRankById: Map<string, number>;
@@ -347,21 +346,23 @@ export function BracketView({
   r16Matches = [],
   qfMatches,
   sfMatches,
-  bronzeMatches = [],
   finalMatches,
   teamRankById,
   activeKnockoutColumn,
   suppressMobileRoundTitle = false,
   desktopStageControl,
 }: BracketViewProps) {
-  const { t } = useLocale();
-  const tree = t.matchUi;
+  const { locale } = useLocale();
   const r16 = useMemo(() => sortByMatchNumber(r16Matches), [r16Matches]);
   const qf = useMemo(() => sortByMatchNumber(qfMatches), [qfMatches]);
   const sf = useMemo(() => sortByMatchNumber(sfMatches), [sfMatches]);
-  const bronze = useMemo(() => sortByMatchNumber(bronzeMatches), [bronzeMatches]);
   const fin = useMemo(() => sortByMatchNumber(finalMatches), [finalMatches]);
-  const finalCol = useMemo(() => [...fin, ...bronze], [fin, bronze]);
+  const finalCol = fin;
+
+  const rl = (matches: MatchWithTeamNames[]) => {
+    const r = matches[0]?.round;
+    return r ? (locale === "ko" ? r.labelKo : r.labelEn) : "";
+  };
 
   const bracketRowRef = useRef<HTMLDivElement>(null);
   const [slotH, setSlotH] = useState(SLOT_HEIGHT);
@@ -412,14 +413,13 @@ export function BracketView({
     return () => ro.disconnect();
   }, [layoutKey, H]);
 
-  const hasAnyKnockout =
-    r16.length > 0 || qf.length > 0 || sf.length > 0 || fin.length > 0 || bronze.length > 0;
+  const hasAnyKnockout = r16.length > 0 || qf.length > 0 || sf.length > 0 || fin.length > 0;
   if (!hasAnyKnockout) return null;
 
   const singleFinalFullWidth =
     steps.length === 1 && steps[0]!.key === "final" && steps[0]!.matches.length === 1;
 
-  const finalHeaderTitle = bronze.length > 0 ? tree.treeFinalBronze : tree.treeFinal;
+  const finalHeaderTitle = rl(fin);
 
   const r16Geom = geoms.r16;
   const qfGeom = geoms.qf;
@@ -449,13 +449,13 @@ export function BracketView({
     );
 
     if (activeKnockoutColumn === "r16" && r16.length > 0) {
-      return wrap(tree.treeRoundOf16, r16);
+      return wrap(rl(r16), r16);
     }
     if (activeKnockoutColumn === "qf" && qf.length > 0) {
-      return wrap(tree.treeQuarterfinals, qf);
+      return wrap(rl(qf), qf);
     }
     if (activeKnockoutColumn === "sf" && sf.length > 0) {
-      return wrap(tree.treeSemifinals, sf);
+      return wrap(rl(sf), sf);
     }
     if (activeKnockoutColumn === "final" && finalCol.length > 0) {
       return wrap(finalHeaderTitle, finalCol);
@@ -471,7 +471,7 @@ export function BracketView({
     >
       {r16.length > 0 && (
         <>
-          {renderRoundColumn(tree.treeRoundOf16, r16, r16Geom)}
+          {renderRoundColumn(rl(r16), r16, r16Geom)}
           {qf.length > 0 && r16Geom && qfGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
               <BracketConnectorQFToSF
@@ -506,7 +506,7 @@ export function BracketView({
 
       {qf.length > 0 && (
         <>
-          {renderRoundColumn(tree.treeQuarterfinals, qf, qfGeom)}
+          {renderRoundColumn(rl(qf), qf, qfGeom)}
           {sf.length > 0 && qfGeom && sfGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
               <BracketConnectorQFToSF
@@ -527,12 +527,12 @@ export function BracketView({
         </>
       )}
 
-      {(sf.length > 0 || fin.length > 0 || bronze.length > 0) && (
+      {(sf.length > 0 || fin.length > 0) && (
         <>
           {sf.length > 0 && (
             <>
-              {renderRoundColumn(tree.treeSemifinals, sf, sfGeom)}
-              {(fin.length > 0 || bronze.length > 0) && sfGeom && finalGeom && (
+              {renderRoundColumn(rl(sf), sf, sfGeom)}
+              {fin.length > 0 && sfGeom && finalGeom && (
                 <>
                   <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
                     <BracketConnectorSFToFinal leftCenters={sfGeom.centers} height={H} />

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GridContainer } from "@/app/components/layout/GridContainer";
+import { GridContainer } from "@/app/home/GridContainer";
 import { Section } from "@/app/components/Section";
 import { TournamentCalendar } from "@/app/components/TournamentCalendar";
 

@@ -7,26 +7,17 @@ import { unstable_cache } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
 import { categoryDisplayLabelFromDbRow } from "@/lib/categories/labels";
-import { isPreRoundKnockoutFirstRound } from "@/lib/drawStructure";
-import {
-  MATCH_ROUND_BR,
-  MATCH_ROUND_FINAL,
-  MATCH_ROUND_PRE,
-  MATCH_ROUND_QF,
-  MATCH_ROUND_SF,
-  canonicalMatchRoundOrRaw,
-  matchRoundSortRank,
-  normalizeMatchRoundCode,
-} from "@/lib/matchRoundCode";
+import { ROUND_F } from "@/lib/round";
+import type { RoundInfo } from "@/lib/round";
 import { prisma } from "@/lib/prisma";
-import { content } from "@/lib/content";
+
+export type { RoundInfo };
 
 export type MatchWithTeamNames = {
   id: string;
   tournamentYear: number;
   categoryId: string;
-  round: string | null;
-  roundDisplay: string | null;
+  round: RoundInfo | null;
   matchNumber: number | null;
   team1Id: string | null;
   team2Id: string | null;
@@ -75,6 +66,7 @@ type TeamForDisplay = {
 
 const matchInclude = {
   category: { select: { id: true, label: true, labelKo: true, isDoubles: true } },
+  round: { select: { id: true, code: true, labelEn: true, labelKo: true, sortOrder: true } },
   team1: {
     select: {
       id: true,
@@ -139,12 +131,10 @@ function teamDisplayName(
   fallbackWhenMissing?: string | null
 ): string | null {
   if (!team) return null;
-
   const n1 = oneName(team.member1);
   const n2 = team.member2
     ? oneName(team.member2)
     : (fallbackPartnerName?.trim() || fallbackWhenMissing || null);
-
   return n2 ? `${n1} / ${n2}` : n1;
 }
 
@@ -154,50 +144,22 @@ function teamDisplayNameKo(
   fallbackWhenMissing?: string | null
 ): string | null {
   if (!team) return null;
-
   const n1 = oneNameKo(team.member1);
   const n2 = team.member2
     ? oneNameKo(team.member2)
     : (fallbackPartnerKo?.trim() || fallbackWhenMissing || null);
-
   return n2 ? `${n1} / ${n2}` : n1;
-}
-
-function publicMatchRoundLabel(round: string | null): string | null {
-  if (!round) return null;
-
-  const normalized = normalizeMatchRoundCode(round);
-  const ui = content.matchUi;
-
-  switch (normalized) {
-    case MATCH_ROUND_PRE:
-      return ui.roundPreliminaries;
-    case MATCH_ROUND_QF:
-      return ui.roundQuarterfinals;
-    case MATCH_ROUND_SF:
-      return ui.roundSemifinals;
-    case MATCH_ROUND_FINAL:
-      return ui.roundFinal;
-    case MATCH_ROUND_BR:
-      return ui.roundBronze;
-    default:
-      return round;
-  }
 }
 
 function normalizeMatchDate(dateStr: string | null, tournamentYear: number): string | null {
   const value = dateStr?.trim();
   if (!value) return null;
-
   if (ISO_DATE_ONLY.test(value)) return value;
-
   const isoPrefix = value.slice(0, 10);
   if (ISO_DATE_ONLY.test(isoPrefix)) return isoPrefix;
-
   try {
     const parsed = new Date(`${value}, ${tournamentYear}`);
     if (Number.isNaN(parsed.getTime())) return null;
-
     const month = String(parsed.getMonth() + 1).padStart(2, "0");
     const day = String(parsed.getDate()).padStart(2, "0");
     return `${tournamentYear}-${month}-${day}`;
@@ -208,22 +170,16 @@ function normalizeMatchDate(dateStr: string | null, tournamentYear: number): str
 
 function getDateSearchVariants(dateISO: string): string[] {
   const variants = new Set<string>([dateISO]);
-
   try {
     const date = new Date(`${dateISO}T12:00:00`);
     if (!Number.isNaN(date.getTime())) {
       variants.add(
-        date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+        date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       );
     }
   } catch {
     // ignore
   }
-
   return [...variants];
 }
 
@@ -257,7 +213,6 @@ function computeWinner(m: {
     const n1 = a ? parseInt(a, 10) : NaN;
     const n2 = b ? parseInt(b, 10) : NaN;
     if (Number.isNaN(n1) || Number.isNaN(n2)) continue;
-
     completedSets++;
     if (n1 > n2) wins1++;
     else if (n2 > n1) wins2++;
@@ -265,30 +220,26 @@ function computeWinner(m: {
 
   if (wins1 >= 2) return 1;
   if (wins2 >= 2) return 2;
-
   if (completedSets === 1) {
     if (wins1 === 1) return 1;
     if (wins2 === 1) return 2;
   }
-
   return null;
 }
 
 function comparePublicMatchOrder(
-  a: { round: string | null; matchNumber: number | null; id: string },
-  b: { round: string | null; matchNumber: number | null; id: string }
+  a: { round: RoundInfo | null; matchNumber: number | null; id: string },
+  b: { round: RoundInfo | null; matchNumber: number | null; id: string }
 ): number {
-  const roundDiff = matchRoundSortRank(a.round) - matchRoundSortRank(b.round);
-  if (roundDiff !== 0) return roundDiff;
-
+  const rankDiff = (a.round?.sortOrder ?? -1) - (b.round?.sortOrder ?? -1);
+  if (rankDiff !== 0) return rankDiff;
   const matchNumberDiff = (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
   if (matchNumberDiff !== 0) return matchNumberDiff;
-
   return a.id.localeCompare(b.id, undefined, { sensitivity: "base" });
 }
 
 function sortDbMatchesForPublicOrder<
-  T extends { round: string | null; matchNumber: number | null; id: string },
+  T extends { round: RoundInfo | null; matchNumber: number | null; id: string },
 >(rows: readonly T[]): T[] {
   return [...rows].sort(comparePublicMatchOrder);
 }
@@ -306,14 +257,12 @@ function groupMatchesByCategoryYear<T extends { tournamentYear: number; category
   matches: readonly T[]
 ): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
-
   for (const match of matches) {
     const key = `${match.tournamentYear}:${match.categoryId}`;
     const list = grouped.get(key);
     if (list) list.push(match);
     else grouped.set(key, [match]);
   }
-
   return grouped;
 }
 
@@ -322,7 +271,6 @@ function buildPartnerMapsFromRegistrations(
 ): PartnerMaps {
   const en = new Map<string, string>();
   const ko = new Map<string, string>();
-
   for (const reg of regs) {
     const mapKey = `${reg.tournamentYear}:${reg.categoryId}:${reg.playerId}`;
     const enName = reg.partner?.fullNameEn?.trim() || reg.partner?.fullNameKo?.trim() || "";
@@ -330,7 +278,6 @@ function buildPartnerMapsFromRegistrations(
     if (enName) en.set(mapKey, enName);
     if (koName) ko.set(mapKey, koName);
   }
-
   return { en, ko };
 }
 
@@ -346,13 +293,11 @@ async function fetchPartnerMapsByWhere(
       partner: { select: { fullNameEn: true, fullNameKo: true } },
     },
   });
-
   return buildPartnerMapsFromRegistrations(regs);
 }
 
 async function fetchPartnerMapsForMatches(matches: readonly MatchRow[]): Promise<PartnerMaps> {
   const grouped = groupMatchesByCategoryYear(matches);
-
   const neededPartnerKeys = new Set<string>();
   const yearsForPartners = new Set<number>();
   const doublesCategoryIds = new Set<string>();
@@ -361,13 +306,10 @@ async function fetchPartnerMapsForMatches(matches: readonly MatchRow[]): Promise
   for (const [key, list] of grouped) {
     const [yearPart] = key.split(":");
     const year = Number(yearPart);
-
     if (!list[0]?.category.isDoubles) continue;
     const categoryId = list[0].categoryId;
-
     yearsForPartners.add(year);
     doublesCategoryIds.add(categoryId);
-
     const uniquePlayerIds = new Set(list.flatMap(member1PlayerIdsFromMatchSides));
     for (const playerId of uniquePlayerIds) {
       allMember1Ids.add(playerId);
@@ -396,7 +338,6 @@ async function fetchPartnerMapsForMatches(matches: readonly MatchRow[]): Promise
   const filtered = regs.filter((reg) =>
     neededPartnerKeys.has(`${reg.tournamentYear}:${reg.categoryId}:${reg.playerId}`)
   );
-
   return buildPartnerMapsFromRegistrations(filtered);
 }
 
@@ -413,15 +354,13 @@ function mapMatchRow(match: MatchRow, partnerMaps: PartnerMaps): MatchWithTeamNa
   const team2FallbackKo = key2 != null ? (partnerMaps.ko.get(key2) ?? null) : null;
 
   const missingPartnerLabel = match.category.isDoubles ? "Partner TBD" : null;
-  const roundCanon = canonicalMatchRoundOrRaw(match.round);
   const categoryRow = match.category;
 
   return {
     id: match.id,
     tournamentYear: match.tournamentYear,
     categoryId: match.categoryId,
-    round: roundCanon,
-    roundDisplay: publicMatchRoundLabel(roundCanon ?? match.round),
+    round: match.round ?? null,
     matchNumber: match.matchNumber,
     team1Id: match.team1Id,
     team2Id: match.team2Id,
@@ -448,31 +387,13 @@ function mapMatchRow(match: MatchRow, partnerMaps: PartnerMaps): MatchWithTeamNa
   };
 }
 
-function applyRoundDisplayOverrides(matches: MatchWithTeamNames[]): MatchWithTeamNames[] {
-  const grouped = groupMatchesByCategoryYear(matches);
-
-  for (const list of grouped.values()) {
-    if (!isPreRoundKnockoutFirstRound(list)) continue;
-
-    for (const match of list) {
-      if (normalizeMatchRoundCode(match.round) === MATCH_ROUND_PRE) {
-        match.roundDisplay = "Round of 16";
-      }
-    }
-  }
-
-  return matches;
-}
-
 async function mapMatchRows(
   matches: MatchRow[],
   prebuiltPartnerMaps?: PartnerMaps
 ): Promise<MatchWithTeamNames[]> {
   if (matches.length === 0) return [];
-
   const partnerMaps = prebuiltPartnerMaps ?? await fetchPartnerMapsForMatches(matches);
-  const mapped = matches.map((match) => mapMatchRow(match, partnerMaps));
-  return applyRoundDisplayOverrides(mapped);
+  return matches.map((match) => mapMatchRow(match, partnerMaps));
 }
 
 async function fetchRawMatches(args: {
@@ -480,12 +401,7 @@ async function fetchRawMatches(args: {
   orderBy?: Prisma.MatchOrderByWithRelationInput[];
 }): Promise<MatchRow[]> {
   const { where, orderBy } = args;
-
-  return prisma.match.findMany({
-    where,
-    include: matchInclude,
-    orderBy,
-  });
+  return prisma.match.findMany({ where, include: matchInclude, orderBy });
 }
 
 async function fetchMappedMatches(args: {
@@ -494,11 +410,7 @@ async function fetchMappedMatches(args: {
   needsPublicSort?: boolean;
   prebuiltPartnerMaps?: PartnerMaps;
 }): Promise<MatchWithTeamNames[]> {
-  const raw = await fetchRawMatches({
-    where: args.where,
-    orderBy: args.orderBy,
-  });
-
+  const raw = await fetchRawMatches({ where: args.where, orderBy: args.orderBy });
   const sorted = args.needsPublicSort ? sortDbMatchesForPublicOrder(raw) : raw;
   return mapMatchRows(sorted, args.prebuiltPartnerMaps);
 }
@@ -508,16 +420,13 @@ function groupMappedMatchesByCategory(
   categoryIds?: readonly string[]
 ): Record<string, MatchWithTeamNames[]> {
   const out: Record<string, MatchWithTeamNames[]> = {};
-
   if (categoryIds) {
     for (const id of categoryIds) out[id] = [];
   }
-
   for (const match of matches) {
     if (!out[match.categoryId]) out[match.categoryId] = [];
     out[match.categoryId]!.push(match);
   }
-
   return out;
 }
 
@@ -527,12 +436,10 @@ function groupMappedMatchesByYearAndCategory(
   categoryIds: readonly string[]
 ): Record<number, Record<string, MatchWithTeamNames[]>> {
   const out: Record<number, Record<string, MatchWithTeamNames[]>> = {};
-
   for (const year of years) {
     out[year] = {};
     for (const categoryId of categoryIds) out[year]![categoryId] = [];
   }
-
   for (const match of matches) {
     if (!out[match.tournamentYear]) out[match.tournamentYear] = {};
     if (!out[match.tournamentYear]![match.categoryId]) {
@@ -540,17 +447,15 @@ function groupMappedMatchesByYearAndCategory(
     }
     out[match.tournamentYear]![match.categoryId]!.push(match);
   }
-
   return out;
 }
 
 function resolveChampionshipMatch(matches: MatchWithTeamNames[]): MatchWithTeamNames | undefined {
-  const finalRound = matches.find((m) => m.round === MATCH_ROUND_FINAL);
+  const finalRound = matches.find((m) => m.round?.code === ROUND_F);
   if (finalRound) return finalRound;
 
   const championshipRows = matches.filter((m) => /championship/i.test(m.comment ?? ""));
   if (championshipRows.length === 0) return undefined;
-
   return championshipRows.sort((a, b) => (b.matchNumber ?? -1) - (a.matchNumber ?? -1))[0];
 }
 
@@ -559,7 +464,6 @@ export async function getHonourRollByCategoryIds(
 ): Promise<Record<string, HonourRollEntry[]>> {
   const uniqueCategoryIds = [...new Set(categoryIds)];
   const out: Record<string, HonourRollEntry[]> = {};
-
   for (const id of uniqueCategoryIds) out[id] = [];
   if (uniqueCategoryIds.length === 0) return out;
 
@@ -574,22 +478,18 @@ export async function getHonourRollByCategoryIds(
   for (const categoryId of uniqueCategoryIds) {
     const list = byCategory[categoryId] ?? [];
     const byYear = new Map<number, MatchWithTeamNames[]>();
-
     for (const match of list) {
       const yearMatches = byYear.get(match.tournamentYear);
       if (yearMatches) yearMatches.push(match);
       else byYear.set(match.tournamentYear, [match]);
     }
-
     const years = [...byYear.keys()].sort((a, b) => b - a);
     const rows: HonourRollEntry[] = [];
-
     for (const year of years) {
       const championship = resolveChampionshipMatch(byYear.get(year)!);
       if (!championship || championship.winner == null) continue;
       rows.push({ year, match: championship });
     }
-
     out[categoryId] = rows;
   }
 
@@ -621,7 +521,6 @@ export async function getMatchesByCategories(
 ): Promise<Record<string, MatchWithTeamNames[]>> {
   const uniqueCategoryIds = [...new Set(categoryIds)];
   const out: Record<string, MatchWithTeamNames[]> = {};
-
   for (const id of uniqueCategoryIds) out[id] = [];
   if (uniqueCategoryIds.length === 0) return out;
 
@@ -646,10 +545,8 @@ export async function getScheduleCalendarIndex(): Promise<ScheduleCalendarIndex>
 
   for (const row of rows) {
     yearSet.add(row.tournamentYear);
-
     const iso = normalizeMatchDate(row.date, row.tournamentYear);
     if (!iso) continue;
-
     const set = datesByYearMap.get(row.tournamentYear);
     if (set) set.add(iso);
     else datesByYearMap.set(row.tournamentYear, new Set([iso]));
@@ -657,17 +554,14 @@ export async function getScheduleCalendarIndex(): Promise<ScheduleCalendarIndex>
 
   const yearsWithMatches = [...yearSet].sort((a, b) => b - a);
   const datesByYear: Record<number, string[]> = {};
-
   for (const [year, dates] of datesByYearMap) {
     datesByYear[year] = [...dates].sort();
   }
-
   return { yearsWithMatches, datesByYear };
 }
 
 function scheduleDayWhereClause(dateISO: string): Pick<Prisma.MatchWhereInput, "OR"> {
   const variants = getDateSearchVariants(dateISO);
-
   return {
     OR: [
       ...variants.map((date) => ({ date })),
@@ -693,17 +587,13 @@ export async function getMatchesForDate(
       };
 
   const [raw, partnerMaps] = await Promise.all([
-    fetchRawMatches({
-      where,
-      orderBy: [{ time: "asc" }, { id: "asc" }],
-    }),
+    fetchRawMatches({ where, orderBy: [{ time: "asc" }, { id: "asc" }] }),
     fetchPartnerMapsByWhere(registrationWhere),
   ]);
 
   const filtered = raw.filter((match) =>
     isSameMatchDate(match.date, match.tournamentYear, dateISO)
   );
-
   return mapMatchRows(sortDbMatchesForPublicOrder(filtered), partnerMaps);
 }
 
@@ -731,13 +621,11 @@ export async function getMatchesByYearBatch(
 ): Promise<Record<number, Record<string, MatchWithTeamNames[]>>> {
   const uniqueYears = [...new Set(years)];
   const uniqueCategoryIds = [...new Set(categoryIds)];
-
   const out: Record<number, Record<string, MatchWithTeamNames[]>> = {};
   for (const year of uniqueYears) {
     out[year] = {};
     for (const categoryId of uniqueCategoryIds) out[year]![categoryId] = [];
   }
-
   if (uniqueYears.length === 0 || uniqueCategoryIds.length === 0) return out;
 
   const mapped = await fetchMappedMatches({
@@ -748,18 +636,12 @@ export async function getMatchesByYearBatch(
     orderBy: [{ tournamentYear: "asc" }, { categoryId: "asc" }, { id: "asc" }],
     needsPublicSort: true,
   });
-
   return groupMappedMatchesByYearAndCategory(mapped, uniqueYears, uniqueCategoryIds);
 }
 
 export async function getMatchWithTeamNamesById(id: string): Promise<MatchWithTeamNames | null> {
-  const row = await prisma.match.findUnique({
-    where: { id },
-    include: matchInclude,
-  });
-
+  const row = await prisma.match.findUnique({ where: { id }, include: matchInclude });
   if (!row) return null;
-
   const mapped = await mapMatchRows([row]);
   return mapped[0] ?? null;
 }

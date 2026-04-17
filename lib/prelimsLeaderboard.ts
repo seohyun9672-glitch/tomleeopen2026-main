@@ -1,5 +1,5 @@
 import type { MatchWithTeamNames } from "@/lib/matches";
-import { MATCH_ROUND_PRE } from "@/lib/matchRoundCode";
+import { ROUND_PRE } from "@/lib/round";
 
 export type PrelimsLeaderboardRow = {
   rank: number;
@@ -46,7 +46,7 @@ export function buildPrelimsLeaderboard(categoryMatches: MatchWithTeamNames[]): 
   groups: string[];
   rowsByGroup: Record<string, PrelimsLeaderboardRow[]>;
 } | null {
-  const prelims = categoryMatches.filter((m) => m.round === MATCH_ROUND_PRE);
+  const prelims = categoryMatches.filter((m) => m.round?.code === ROUND_PRE);
   if (prelims.length === 0) return null;
 
   const stats = new Map<

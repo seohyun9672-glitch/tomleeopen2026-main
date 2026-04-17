@@ -16,7 +16,7 @@ import { useLocale } from "@/lib/locale-context";
 import { Modal } from "@/app/components/ui/Modal";
 import { Field } from "@/app/components/ui/Field";
 import { Label } from "@/app/components/ui/Label";
-import type { RegistrationRow } from "@/app/admin/tables/RegistrationsTable";
+import type { RegistrationRow } from "@/app/tables/RegistrationsTable";
 
 type Props = {
   category: CategoryYearListItem;

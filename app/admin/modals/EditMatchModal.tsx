@@ -132,7 +132,7 @@ export function EditMatchModal({
     match.categoryDisplayLabel?.trim() ||
     match.categoryId;
 
-  const roundLabel = (match.roundDisplay ?? match.round ?? "").trim() || "—";
+  const roundLabel = (match.round?.labelEn ?? "").trim() || "—";
 
   const subtitle = useMemo(() => {
     const numberPart = match.matchNumber != null ? ` #${match.matchNumber}` : "";

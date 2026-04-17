@@ -2,24 +2,25 @@
 
 import { useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { mergeFilterParams } from "@/lib/filterState";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";
 import { deriveYearOptions } from "@/lib/filterUtils";
 import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
-import { matchRoundAdminDefaultRank } from "@/lib/matchRoundCode";
 import { isCategoryConfirmedInYearMap } from "@/lib/categories/yearStatus";
 import { TabList } from "@/app/components/ui/TabList";
 import { Table } from "@/app/components/ui/table/Table";
-import { RegistrationsTable } from "./tables/RegistrationsTable";
-import { CategoryStatusTable } from "./tables/CategoryStatusTable";
-import { MatchesTable } from "./tables/MatchesTable";
-import { PlayersTable } from "./tables/PlayersTable";
+import { RegistrationsTable } from "../tables/RegistrationsTable";
+import { CategoryStatusTable } from "../tables/CategoryStatusTable";
+import { MatchesTable } from "../tables/MatchesTable";
+import { PlayersTable } from "../tables/PlayersTable";
 import { useLocale } from "@/lib/locale-context";
+import type { RoundInfo } from "@/lib/matches";
 import type { CategoryRecord } from "@/lib/categories/types";
-import type { RegistrationRow } from "./tables/RegistrationsTable";
-import type { PlayerTableRow } from "./tables/PlayersTable";
+import type { RegistrationRow } from "../tables/RegistrationsTable";
+import type { PlayerTableRow } from "../tables/PlayersTable";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import type {
   CategoryYearListItem,
@@ -54,7 +55,7 @@ export function AdminHub({
   players,
   adminUsers,
 }: Props) {
-  const { t, locale, matchRoundLabel } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
 
   const viewTabs = [
@@ -65,18 +66,12 @@ export function AdminHub({
     { value: "matches" as const, label: t.adminMatches.title },
   ];
 
-  const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "seed", "club"]);
+  const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "seed", "club", "group"]);
 
-  // Year switching triggers a server re-render so only the selected year's data is loaded.
   const setYear = useCallback(
     (y: number) => {
-      const params = new URLSearchParams(window.location.search);
-      params.set("year", String(y));
-      params.delete("cat");
-      params.delete("status");
-      params.delete("round");
-      params.delete("seed");
-      router.push(`?${params.toString()}`);
+      const next = mergeFilterParams(window.location.search, { year: String(y) }, ["cat", "status", "round", "seed", "club", "group"]);
+      router.push(`?${next.toString()}`);
     },
     [router]
   );
@@ -133,21 +128,28 @@ export function AdminHub({
     [t]
   );
 
+  // Build round filter options: deduplicate by code, sort newest-first (descending sortOrder).
   const matchesRoundOptions = useMemo(() => {
     const catFiltered = rawCatParam
       ? yearData.matches.filter((m) => m.categoryId === rawCatParam)
       : yearData.matches;
-    const rounds = [...new Set(catFiltered.map((m) => m.round).filter((r): r is string => !!r))];
-    rounds.sort((a, b) => matchRoundAdminDefaultRank(a) - matchRoundAdminDefaultRank(b));
-    return rounds.map((r) => ({ value: r, label: matchRoundLabel(r) ?? r }));
-  }, [yearData.matches, rawCatParam, matchRoundLabel]);
+    const roundMap = new Map<string, RoundInfo>();
+    for (const m of catFiltered) {
+      if (m.round && !roundMap.has(m.round.code)) roundMap.set(m.round.code, m.round);
+    }
+    const rounds = [...roundMap.values()].sort((a, b) => b.sortOrder - a.sortOrder);
+    return rounds.map((r) => ({
+      value: r.code,
+      label: locale === "ko" ? r.labelKo : r.labelEn,
+    }));
+  }, [yearData.matches, rawCatParam, locale]);
 
   const matchesSeedOptions = useMemo(() => {
     if (!rawRoundParam) return [];
     const catFiltered = rawCatParam
       ? yearData.matches.filter((m) => m.categoryId === rawCatParam)
       : yearData.matches;
-    const roundFiltered = catFiltered.filter((m) => m.round === rawRoundParam);
+    const roundFiltered = catFiltered.filter((m) => m.round?.code === rawRoundParam);
     const seeds = new Set<string>();
     roundFiltered.forEach((m) => {
       if (m.team1Seed?.trim()) seeds.add(m.team1Seed.trim());
@@ -156,7 +158,6 @@ export function AdminHub({
     return [...seeds].sort().map((s) => ({ value: s, label: s }));
   }, [yearData.matches, rawCatParam, rawRoundParam]);
 
-  // Validate params against available options to avoid stale URL filtering out all rows.
   const regCategoryFilter = view === "registrations" && registrationCategoryOptions.some(o => o.id === rawCatParam) ? rawCatParam : "";
   const matchesCategoryFilter = view === "matches" && matchesCategoryOptions.some(o => o.id === rawCatParam) ? rawCatParam : "";
   const matchesRoundFilter = view === "matches" && matchesRoundOptions.some(o => o.value === rawRoundParam) ? rawRoundParam : "";
@@ -198,9 +199,7 @@ export function AdminHub({
                     }}
                   >
                     {yearOptions.map((y) => (
-                      <option key={y} value={String(y)}>
-                        {y}
-                      </option>
+                      <option key={y} value={String(y)}>{y}</option>
                     ))}
                   </Filter.Select>
                 </Filter>
@@ -210,16 +209,11 @@ export function AdminHub({
                   <Filter.Select
                     id="admin-registrations-category"
                     value={regCategoryFilter}
-                    onChange={(e) => {
-                      setCatFilter(e.target.value);
-                      e.currentTarget.blur();
-                    }}
+                    onChange={(e) => { setCatFilter(e.target.value); e.currentTarget.blur(); }}
                   >
                     <option value="">{t.shared.labels.allCategories}</option>
                     {registrationCategoryOptions.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.label}</option>
                     ))}
                   </Filter.Select>
                 </Filter>
@@ -230,17 +224,13 @@ export function AdminHub({
                     id="admin-matches-category"
                     value={matchesCategoryFilter}
                     onChange={(e) => {
-                      setCatFilter(e.target.value);
-                      setRoundFilter("");
-                      setSeedFilter("");
+                      setCatFilter(e.target.value, { clear: ["round", "seed"] });
                       e.currentTarget.blur();
                     }}
                   >
                     <option value="">{t.shared.labels.allCategories}</option>
                     {matchesCategoryOptions.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.label}</option>
                     ))}
                   </Filter.Select>
                 </Filter>
@@ -251,16 +241,13 @@ export function AdminHub({
                     id="admin-matches-round"
                     value={matchesRoundFilter}
                     onChange={(e) => {
-                      setRoundFilter(e.target.value);
-                      setSeedFilter("");
+                      setRoundFilter(e.target.value, { clear: ["seed"] });
                       e.currentTarget.blur();
                     }}
                   >
                     <option value="">{t.shared.labels.allRounds}</option>
                     {matchesRoundOptions.map((r) => (
-                      <option key={r.value} value={r.value}>
-                        {r.label}
-                      </option>
+                      <option key={r.value} value={r.value}>{r.label}</option>
                     ))}
                   </Filter.Select>
                 </Filter>
@@ -270,16 +257,11 @@ export function AdminHub({
                   <Filter.Select
                     id="admin-matches-seed"
                     value={matchesSeedFilter}
-                    onChange={(e) => {
-                      setSeedFilter(e.target.value);
-                      e.currentTarget.blur();
-                    }}
+                    onChange={(e) => { setSeedFilter(e.target.value); e.currentTarget.blur(); }}
                   >
                     <option value="">{t.shared.labels.allSeeds}</option>
                     {matchesSeedOptions.map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
-                      </option>
+                      <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
                   </Filter.Select>
                 </Filter>
@@ -295,9 +277,7 @@ export function AdminHub({
                     }}
                   >
                     {categoryStatusFilterOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </Filter.Select>
                 </Filter>

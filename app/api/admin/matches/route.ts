@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { buildMatchId, matchIdUsesPrelimsSeedLetter, matchIdYearSuffix } from "@/lib/matchId";
-import { canonicalMatchRoundOrRaw, matchRoundForPrisma } from "@/lib/matchRoundCode";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +11,7 @@ export async function GET(request: Request) {
   const categoryId = searchParams.get("categoryId")?.trim() || undefined;
   const tournamentYear = year ? parseInt(year, 10) : null;
   if (!Number.isFinite(tournamentYear)) {
-    return NextResponse.json(
-      { error: "year is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "year is required" }, { status: 400 });
   }
   try {
     const matches = await prisma.match.findMany({
@@ -24,10 +20,11 @@ export async function GET(request: Request) {
         ...(categoryId ? { categoryId } : {}),
       },
       include: {
+        round: { select: { id: true, code: true, labelEn: true, labelKo: true, sortOrder: true } },
         team1: { include: { member1: { select: { fullNameEn: true, fullNameKo: true } }, member2: { select: { fullNameEn: true, fullNameKo: true } } } },
         team2: { include: { member1: { select: { fullNameEn: true, fullNameKo: true } }, member2: { select: { fullNameEn: true, fullNameKo: true } } } },
       },
-      orderBy: [{ round: "asc" }, { matchNumber: "asc" }, { id: "asc" }],
+      orderBy: [{ round: { sortOrder: "asc" } }, { matchNumber: "asc" }, { id: "asc" }],
     });
     return NextResponse.json(matches);
   } catch (e) {
@@ -36,7 +33,7 @@ export async function GET(request: Request) {
   }
 }
 
-/** POST — create a match. */
+/** POST — create a match. Accepts `roundCode` (e.g. "Pre", "QF", "SF", "F", "R16"). */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -48,9 +45,17 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const roundRaw = body.round?.trim() || null;
-    const roundForId = roundRaw ? canonicalMatchRoundOrRaw(roundRaw) : null;
-    const round = roundRaw ? matchRoundForPrisma(roundRaw) : null;
+
+    const roundCodeRaw = (body.roundCode ?? body.round)?.toString().trim() || null;
+    let roundId: number | null = null;
+    if (roundCodeRaw) {
+      const roundRecord = await prisma.round.findUnique({ where: { code: roundCodeRaw } });
+      if (!roundRecord) {
+        return NextResponse.json({ error: `Unknown round code: ${roundCodeRaw}` }, { status: 400 });
+      }
+      roundId = roundRecord.id;
+    }
+
     const matchNumber = body.matchNumber != null ? Number(body.matchNumber) : null;
     const prelimsSeedLetterRaw =
       typeof body.prelimsSeedLetter === "string"
@@ -61,29 +66,27 @@ export async function POST(request: Request) {
 
     let id = body.id?.trim() || "";
     if (!id) {
-      if (roundForId && matchNumber != null && Number.isFinite(matchNumber) && matchNumber >= 1) {
-        if (matchIdUsesPrelimsSeedLetter(roundForId) && !String(prelimsSeedLetterRaw ?? "").trim()) {
+      if (roundCodeRaw && matchNumber != null && Number.isFinite(matchNumber) && matchNumber >= 1) {
+        if (matchIdUsesPrelimsSeedLetter(roundCodeRaw) && !String(prelimsSeedLetterRaw ?? "").trim()) {
           return NextResponse.json(
-            {
-              error:
-                "prelimsSeedLetter or seedLetter is required for PRE (prelims) when id is omitted (e.g. A, B, or Pool A)",
-            },
+            { error: "prelimsSeedLetter or seedLetter is required for Pre rounds when id is omitted (e.g. A, B, or Pool A)" },
             { status: 400 }
           );
         }
-        id = buildMatchId(tournamentYear, categoryId, roundForId, matchNumber, {
+        id = buildMatchId(tournamentYear, categoryId, roundCodeRaw, matchNumber, {
           prelimsSeedLetter: prelimsSeedLetterRaw,
         });
       } else {
         id = `${matchIdYearSuffix(tournamentYear)}${categoryId}UNK${Date.now()}`;
       }
     }
+
     const match = await prisma.match.create({
       data: {
         id,
         tournamentYear,
         categoryId,
-        round,
+        roundId,
         matchNumber,
         team1Id: body.team1Id?.trim() || null,
         team2Id: body.team2Id?.trim() || null,

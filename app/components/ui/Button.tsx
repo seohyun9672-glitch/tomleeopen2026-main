@@ -6,8 +6,12 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
-export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
+export type ButtonVariant = NonNullable<
+  VariantProps<typeof buttonVariants>["variant"]
+>;
+export type ButtonSize = NonNullable<
+  VariantProps<typeof buttonVariants>["size"]
+>;
 
 type PresentationProps = {
   variant?: ButtonVariant;
@@ -37,7 +41,10 @@ function linkPassThroughProps({
   children: _children,
   iconRight: _iconRight,
   ...rest
-}: ButtonAsLink): Omit<ComponentProps<typeof Link>, "href" | "className" | "children"> {
+}: ButtonAsLink): Omit<
+  ComponentProps<typeof Link>,
+  "href" | "className" | "children"
+> {
   return rest;
 }
 
@@ -67,9 +74,8 @@ export const buttonVariants = cva(
   [
     "flex w-full items-center justify-center text-center font-medium no-underline whitespace-nowrap",
     "rounded-[var(--button-border-radius)]",
-"min-w-[var(--button-min-width)]",
-"w-auto",
-    "max-w-none",
+    "min-w-[var(--button-min-width)]",
+    "w-auto",
     "cursor-pointer disabled:cursor-not-allowed transition-[color,opacity,background-color,box-shadow,transform] duration-150 ease-out",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
   ].join(" "),
@@ -127,12 +133,12 @@ export const buttonVariants = cva(
       variant: "primary",
       size: "medium",
     },
-  }
+  },
 );
 
 const ICON_BUTTON_CLASS = [
   "inline-flex h-10 max-h-10 w-10 cursor-pointer items-center justify-center",
-  "rounded-[var(--icon-button-radius)] bg-transparent text-[var(--icon-button-text)]",
+  "rounded-[var(--button-border-radius)] bg-transparent]",
   "transition-colors hover:bg-[var(--icon-button-hover-bg)]",
   "focus-visible:outline-none focus-visible:ring-2",
   "focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2",
@@ -145,19 +151,28 @@ const ICON_BUTTON_CLASS = [
 export function getButtonClassName(
   variant: ButtonVariant = "primary",
   size: ButtonSize = "medium",
-  extraClassName = ""
+  extraClassName = "",
 ): string {
   return cn(buttonVariants({ variant, size }), extraClassName);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ButtonContent({ children, iconRight }: { children: ReactNode; iconRight?: ReactNode }) {
+function ButtonContent({
+  children,
+  iconRight,
+}: {
+  children: ReactNode;
+  iconRight?: ReactNode;
+}) {
   return (
     <>
       <span>{children}</span>
       {iconRight ? (
-        <span className="ml-1 inline-flex items-center leading-none [&_svg]:size-[1em]" aria-hidden>
+        <span
+          className="ml-1 inline-flex items-center leading-none [&_svg]:size-[1em]"
+          aria-hidden
+        >
           {iconRight}
         </span>
       ) : null}
@@ -168,10 +183,18 @@ function ButtonContent({ children, iconRight }: { children: ReactNode; iconRight
 // ─── Button ───────────────────────────────────────────────────────────────────
 
 export function Button(props: ButtonProps) {
-  const { variant = "primary", size = "medium", className = "", children, iconRight } = props;
+  const {
+    variant = "primary",
+    size = "medium",
+    className = "",
+    children,
+    iconRight,
+  } = props;
 
   const styles = cn(buttonVariants({ variant, size }), className);
-  const content = <ButtonContent iconRight={iconRight}>{children}</ButtonContent>;
+  const content = (
+    <ButtonContent iconRight={iconRight}>{children}</ButtonContent>
+  );
 
   if (isLinkButton(props)) {
     const href = props.href;
@@ -203,9 +226,19 @@ export type IconButtonProps = {
   children: ReactNode;
 } & Omit<ComponentProps<"button">, "className" | "children" | "type">;
 
-export function IconButton({ className = "", children, title, ...rest }: IconButtonProps) {
+export function IconButton({
+  className = "",
+  children,
+  title,
+  ...rest
+}: IconButtonProps) {
   return (
-    <button type="button" title={title} className={cn(ICON_BUTTON_CLASS, className)} {...rest}>
+    <button
+      type="button"
+      title={title}
+      className={cn(ICON_BUTTON_CLASS, className)}
+      {...rest}
+    >
       {children}
     </button>
   );

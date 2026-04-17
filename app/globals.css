@@ -191,11 +191,6 @@
   --color-bg-surface: var(--color-primary-blue-700);
   --color-page-body-bg: var(--color-background);
 
-  /* Legacy "on light" text names */
-  --color-text-dark: var(--color-text-primary);
-  --color-text-dark-muted: color-mix(in srgb, var(--color-text-secondary) 88%, var(--color-background));
-  --color-text-dark-subtle: color-mix(in srgb, var(--color-text-secondary) 68%, var(--color-background));
-
   /* Borders */
   --color-border-subtle: color-mix(in srgb, var(--color-text-primary) 9%, transparent);
   --color-border-strong: color-mix(in srgb, var(--color-text-primary) 16%, transparent);

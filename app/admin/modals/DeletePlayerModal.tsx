@@ -3,7 +3,7 @@
 import { Modal } from "@/app/components/ui/Modal";
 import { useLocale } from "@/lib/locale-context";
 
-import type { PlayerTableRow } from "../tables/PlayersTable";
+import type { PlayerTableRow } from "../../tables/PlayersTable";
 
 export function DeletePlayerModal({
   player,

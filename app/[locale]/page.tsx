@@ -5,12 +5,12 @@ import { getPartnerClubs } from "@/lib/partnerClubsData";
 import { getSponsors } from "@/lib/sponsors";
 import { getCommunityPartners } from "@/lib/getCommunityPartners";
 import { FadeIn } from "@/app/components/animations/FadeIn";
-import { Hero } from "@/app/home/components/Hero";
-import { ScheduleSection } from "@/app/home/components/ScheduleSection";
-import { SponsorsSection } from "@/app/home/components/SponsorsSection";
-import { CommunityPartnersSection } from "@/app/home/components/CommunityPartnersSection";
-import { ClubsSection } from "@/app/home/components/ClubsSection";
-import { LessonsSection } from "@/app/home/components/LessonsSection";
+import { Hero } from "@/app/home/Hero";
+import { ScheduleSection } from "@/app/home/ScheduleSection";
+import { SponsorsSection } from "@/app/home/SponsorsSection";
+import { CommunityPartnersSection } from "@/app/home/CommunityPartnersSection";
+import { ClubsSection } from "@/app/home/ClubsSection";
+import { LessonsSection } from "@/app/home/LessonsSection";
 
 type Props = { params: Promise<{ locale: string }> };
 

@@ -16,7 +16,7 @@ import {
   isTournamentNavTriggerActive,
 } from "@/app/components/topheader/headerNavActive";
 import { HeaderNavLink, NavDropdown, NavDropdownItem } from "@/app/components/topheader/NavDropdown";
-import { TopHeaderMobileMenu } from "@/app/components/topheader/TopHeaderMobileMenu";
+import { MobileMenu } from "@/app/components/topheader/MobileMenu";
 import { getMenuData } from "@/lib/content/menu";
 import { LocaleSelector } from "@/app/components/LocaleSelector";
 
@@ -283,7 +283,7 @@ export function TopHeader() {
         </div>
       </header>
 
-      <TopHeaderMobileMenu
+      <MobileMenu
         open={menuOpen}
         onClose={closeMenu}
         headerBarRef={headerBarRef}

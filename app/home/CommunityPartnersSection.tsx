@@ -1,4 +1,4 @@
-import { GridContainer } from "@/app/components/layout/GridContainer";
+import { GridContainer } from "@/app/home/GridContainer";
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
 

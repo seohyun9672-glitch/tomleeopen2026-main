@@ -88,6 +88,7 @@ model TournamentRegistration {
   player             Player    @relation("RegistrationPlayer", fields: [playerId], references: [id], onDelete: Cascade)
   category           Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   nameOnEtransfer    String?
+  partnerName        String?
   partnerId          Int?
   partner            Player?   @relation("RegistrationPartner", fields: [partnerId], references: [id], onDelete: SetNull)
   photoVideoConsent  Boolean   @default(false)
@@ -124,13 +125,15 @@ model Team {
   @@index([member2PlayerId])
 }
 
-/// Stored on `Match.round` — single source of truth with Prisma; normalization helpers in `lib/matchRoundCode.ts`.
-enum MatchRound {
-  PRE
-  QF
-  SF
-  BR
-  FINAL
+/// Round lookup table — single source of truth for round codes, labels, and sort order.
+/// Codes: "Pre" | "R16" | "QF" | "SF" | "F". Seeded via prisma/seed.ts.
+model Round {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique  // "Pre" | "R16" | "QF" | "SF" | "F"
+  labelEn   String
+  labelKo   String
+  sortOrder Int
+  matches   Match[]
 }
 
 // Match: canonical id — see `lib/matchId.ts` (prelims: `YY`+cat+`PRE`+pool letter+`n`).
@@ -140,7 +143,8 @@ model Match {
   tournamentYear   Int
   categoryId       String
   category         Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  round            MatchRound?
+  roundId          Int?
+  round            Round?      @relation(fields: [roundId], references: [id])
   matchNumber      Int?
   team1Id          String?
   team2Id          String?
@@ -162,6 +166,7 @@ model Match {
 
   @@index([tournamentYear])
   @@index([categoryId])
+  @@index([roundId])
   @@index([tournamentYear, categoryId])
   @@index([tournamentYear, date])
 }

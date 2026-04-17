@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { matchRoundForPrisma } from "@/lib/matchRoundCode";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** PATCH — update match (scores, date, time, location, status, teams, etc.). */
+/** PATCH — update match (scores, date, time, location, status, teams, round, etc.). */
 export async function PATCH(request: Request, { params }: Params) {
   try {
     const { id } = await params;
@@ -14,9 +13,18 @@ export async function PATCH(request: Request, { params }: Params) {
     const data: Record<string, unknown> = {};
     const str = (v: unknown) => (v == null ? null : typeof v === "string" ? v.trim() || null : String(v));
     const num = (v: unknown) => (v == null ? null : Number(v));
-    if (body.round !== undefined) {
-      const r = str(body.round);
-      data.round = r ? matchRoundForPrisma(r) : null;
+
+    if (body.roundCode !== undefined || body.round !== undefined) {
+      const rawCode = str(body.roundCode ?? body.round);
+      if (rawCode) {
+        const roundRecord = await prisma.round.findUnique({ where: { code: rawCode } });
+        if (!roundRecord) {
+          return NextResponse.json({ error: `Unknown round code: ${rawCode}` }, { status: 400 });
+        }
+        data.roundId = roundRecord.id;
+      } else {
+        data.roundId = null;
+      }
     }
     if (body.matchNumber !== undefined) data.matchNumber = num(body.matchNumber);
     if (body.team1Id !== undefined) data.team1Id = str(body.team1Id);
@@ -33,9 +41,7 @@ export async function PATCH(request: Request, { params }: Params) {
     if (body.set3ScoreTeam2 !== undefined) data.set3ScoreTeam2 = str(body.set3ScoreTeam2);
     if (body.comment !== undefined) data.comment = str(body.comment);
 
-    if (Object.keys(data).length === 0) {
-      return NextResponse.json({ id });
-    }
+    if (Object.keys(data).length === 0) return NextResponse.json({ id });
 
     await prisma.match.update({
       where: { id },

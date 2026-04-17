@@ -1,7 +1,7 @@
 import type { Locale } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
 import { siteContent } from "@/lib/content";
-import { PlayersTable } from "@/app/admin/tables/PlayersTable";
+import { PlayersTable } from "@/app/tables/PlayersTable";
 import { PageContainer } from "@/app/components/PageContainer";
 
 type Props = { params: Promise<{ locale: string }> };

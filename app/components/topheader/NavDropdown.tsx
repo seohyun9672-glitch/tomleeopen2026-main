@@ -10,7 +10,7 @@ import Link from "next/link";
 const navLinkBase =
   "inline-flex h-10 min-h-10 max-h-10 w-full items-center whitespace-nowrap rounded-full px-4 text-sm leading-none font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--header-bg)]";
 const navLinkActive =
-  "bg-[var(--color-surface-card)]/20 text-[var(--color-text-on-brand)]";
+  "bg-[var(--color-surface-card)]/20 text-[var(--color-text-primary)]";
 const navLinkInactive =
   "text-[var(--color-text-on-brand)]/90 hover:bg-[var(--color-surface-card)]/10 hover:text-[var(--color-text-on-brand)]";
 
@@ -59,7 +59,7 @@ export function NavDropdown({
     <div
       ref={dropdownRef}
       style={{ top, left, minWidth }}
-      className="fixed z-[200] overflow-hidden rounded-xl border border-[color:var(--color-border-on-brand)] bg-[var(--header-bg)] py-1 shadow-lg"
+      className="fixed z-[200] overflow-hidden rounded-xl border border-[color:var(--color-border-on-brand)] bg-[var(--color-background)] py-1 shadow-lg"
     >
       {children}
     </div>
@@ -71,9 +71,9 @@ export function NavDropdown({
 // otherwise as <button>.
 
 const itemBase =
-  "flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-surface-card)]/10 hover:text-[var(--color-text-on-brand)]";
-const itemActive = "font-medium text-[var(--color-text-on-brand)]";
-const itemInactive = "font-normal text-[var(--color-text-on-brand)]/90";
+  "flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-surface)]/10 hover:text-[var(--color-text-primary)]";
+const itemActive = "font-medium text-[var(--color-text-primary)]";
+const itemInactive = "font-normal text-[var(--color-text-primary)]/90";
 
 export function NavDropdownItem({
   href,

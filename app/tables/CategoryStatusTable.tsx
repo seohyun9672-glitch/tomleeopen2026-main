@@ -17,8 +17,8 @@ import { TableDataChip } from "@/app/components/ui/Chip";
 import {
   parseRegistrationCategories,
   type RegistrationRow,
-} from "@/app/admin/tables/RegistrationsTable";
-import { CategoryStatusModal } from "../modals/CategoryStatusModal";
+} from "@/app/tables/RegistrationsTable";
+import { CategoryStatusModal } from "../admin/modals/CategoryStatusModal";
 
 type Props = {
   categories: CategoryRecord[];

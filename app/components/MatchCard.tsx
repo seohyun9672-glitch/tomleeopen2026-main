@@ -5,13 +5,8 @@ import { Badge } from "@/app/components/ui/Badge";
 import { matchStatusBadgeClassName } from "@/lib/ui/dataChipPresets";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/locale-context";
-import {
-  MATCH_ROUND_BR,
-  MATCH_ROUND_FINAL,
-  MATCH_ROUND_QF,
-  MATCH_ROUND_SF,
-  showPublicMatchNumberBadge,
-} from "@/lib/matchRoundCode";
+import { showPublicMatchNumberBadge } from "@/lib/round";
+import type { RoundInfo } from "@/lib/round";
 
 /** Format YYYY-MM-DD as locale-aware short date (e.g. "Jun 5" or "6월 5일"); otherwise return as-is. */
 function formatDateDisplay(dateStr: string | null, locale: "en" | "ko" = "en"): string {
@@ -43,16 +38,10 @@ function parseScore(s: string | null): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-/** Rank pills beside names are for knockout finals bracket only — not prelims. */
-const ROUNDS_WITH_BRACKET_RANK_BADGES = new Set<string>([
-  MATCH_ROUND_QF,
-  MATCH_ROUND_SF,
-  MATCH_ROUND_BR,
-  MATCH_ROUND_FINAL,
-]);
-
-function shouldShowBracketRankBadges(round: string | null): boolean {
-  return round != null && ROUNDS_WITH_BRACKET_RANK_BADGES.has(round);
+/** Rank pills beside names are for knockout rounds only — not Pre. */
+function shouldShowBracketRankBadges(round: RoundInfo | null): boolean {
+  const code = round?.code;
+  return code === "R16" || code === "QF" || code === "SF" || code === "F";
 }
 
 function getWithdrew(m: MatchWithTeamNames): { team1: boolean; team2: boolean } {
@@ -241,7 +230,7 @@ export function MatchCard({
   fillHeight = false,
   omitCategoryInHeader = false,
 }: Props) {
-  const { t, matchStatusLabel, matchRoundLabel, locale } = useLocale();
+  const { t, matchStatusLabel, locale } = useLocale();
   const mUi = t.matchUi;
   const bracketRanksEnabled = shouldShowBracketRankBadges(match.round);
   const rank1 = bracketRanksEnabled ? team1Rank : null;
@@ -261,9 +250,9 @@ export function MatchCard({
   const team1Name = locale === "ko" ? (match.team1DisplayNameKo ?? match.team1DisplayName) : match.team1DisplayName;
   const team2Name = locale === "ko" ? (match.team2DisplayNameKo ?? match.team2DisplayName) : match.team2DisplayName;
   const categoryPart = (locale === "ko" ? (match.categoryDisplayLabelKo ?? match.categoryDisplayLabel) : match.categoryDisplayLabel) ?? "—";
-  const roundPart = match.roundDisplay === "Round of 16"
-    ? mUi.treeRoundOf16
-    : (matchRoundLabel(match.round) ?? match.round ?? "—");
+  const roundPart = locale === "ko"
+    ? (match.round?.labelKo ?? match.round?.labelEn ?? "—")
+    : (match.round?.labelEn ?? "—");
   const matchNumSuffix = showPublicMatchNumberBadge(match.round)
     ? match.matchNumber != null
       ? `#${match.matchNumber}`

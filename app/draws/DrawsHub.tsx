@@ -84,15 +84,19 @@ export function DrawsHub({
 
   const VALID_STAGES: DrawStage[] = ["prelims", "qf", "sf", "final"];
   const [stageParam, setStageParam] = useUrlParam("stage");
-  const drawStage: DrawStage = VALID_STAGES.includes(stageParam as DrawStage)
-    ? (stageParam as DrawStage)
-    : computeDefaultDrawStage(drawData, isoDateLocal());
+  const drawStage: DrawStage = (() => {
+    const parsed = VALID_STAGES.includes(stageParam as DrawStage) ? (stageParam as DrawStage) : null;
+    const defaultStage = computeDefaultDrawStage(drawData, isoDateLocal());
+    // Unified knockout has no prelims view — never land on "prelims" for those categories.
+    if ((parsed ?? defaultStage) === "prelims" && drawData.isUnifiedKnockout) return defaultStage;
+    return parsed ?? defaultStage;
+  })();
   const setDrawStage = useCallback((s: DrawStage) => setStageParam(s), [setStageParam]);
 
   // On mount: write the active stage to the URL so language toggles can preserve it.
   // Only runs once — year/category changes reset via setYear/setCategoryId clearing "stage".
   useLayoutEffect(() => {
-    if (!VALID_STAGES.includes(stageParam as DrawStage)) {
+    if (!VALID_STAGES.includes(stageParam as DrawStage) || (stageParam === "prelims" && drawData.isUnifiedKnockout)) {
       setStageParam(computeDefaultDrawStage(drawData, isoDateLocal()));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -151,7 +155,7 @@ export function DrawsHub({
                   }}
                   aria-label={t.drawsPage.drawStageLabel}
                 >
-                  {drawData.hasPrelims ? <option value="prelims">{t.matchUi.roundPreliminaries}</option> : null}
+                  {drawData.hasPrelims ? <option value="prelims">{(() => { const r = drawData.prelimMatches[0]?.round; return r ? (locale === "ko" ? r.labelKo : r.labelEn) : (locale === "ko" ? "예선" : "Preliminaries"); })()}</option> : null}
                   {drawData.hasKnockout ? (
                     <option value="knockout">{t.drawsPage.drawStageFinalsBracket}</option>
                   ) : null}

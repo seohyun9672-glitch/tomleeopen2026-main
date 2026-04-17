@@ -5,15 +5,11 @@ import { useRouter } from "next/navigation";
 import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
 import type { CategoryRecord } from "@/lib/categories/types";
 import type { MatchWithTeamNames } from "@/lib/matches";
+import type { RoundInfo } from "@/lib/round";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";
 import { useLocale } from "@/lib/locale-context";
-import {
-  MATCH_ROUND_PRE,
-  matchRoundAdminDefaultRank,
-  normalizeMatchRoundCode,
-  sortMatchesAdminDefault,
-} from "@/lib/matchRoundCode";
+import { ROUND_PRE, sortMatchesAdminDefault } from "@/lib/round";
 import { Table } from "@/app/components/ui/table/Table";
 import {
   TableMatchScoresStacked,
@@ -21,7 +17,7 @@ import {
   TableStackedPlayersCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
-import { EditMatchModal } from "../modals/EditMatchModal";
+import { EditMatchModal } from "../admin/modals/EditMatchModal";
 import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories/yearStatus";
 
 function formatMatchDateShort(isoDate: string | null | undefined, locale: "en" | "ko" = "en"): string {
@@ -57,16 +53,12 @@ type Props = {
   year: number;
   categories: CategoryRecord[];
   matches: MatchWithTeamNames[];
-  /** When set, categories marked cancelled for this admin year are omitted from the category filter. */
   categoryStatusById?: Record<string, CategoryYearStatus>;
   totalCount?: number;
-  /** When set with {@link onCategoryFilterChange}, category filter UI is omitted (parent renders it). */
   categoryFilter?: string;
   onCategoryFilterChange?: (value: string) => void;
-  /** When set with {@link onRoundFilterChange}, round filter UI is omitted (parent renders it). */
   roundFilter?: string;
   onRoundFilterChange?: (value: string) => void;
-  /** When set with {@link onSeedFilterChange}, seed filter UI is omitted (parent renders it). */
   seedFilter?: string;
   onSeedFilterChange?: (value: string) => void;
 };
@@ -83,9 +75,14 @@ type MatchSortKey =
   | "status";
 
 function roundSortKey(m: MatchWithTeamNames): string {
-  const rank = matchRoundAdminDefaultRank(m.round);
+  const adminRank = m.round ? 99 - m.round.sortOrder : 999;
   const n = m.matchNumber ?? 0;
-  return `${String(rank).padStart(3, "0")}\0${String(n).padStart(6, "0")}\0${m.id}`;
+  return `${String(adminRank).padStart(3, "0")}\0${String(n).padStart(6, "0")}\0${m.id}`;
+}
+
+function roundLabel(round: RoundInfo | null, locale: "en" | "ko"): string {
+  if (!round) return "—";
+  return locale === "ko" ? round.labelKo : round.labelEn;
 }
 
 export function MatchesTable({
@@ -93,7 +90,7 @@ export function MatchesTable({
   categories,
   matches,
   categoryStatusById,
-  totalCount,
+  totalCount: _totalCount,
   categoryFilter: categoryFilterProp,
   onCategoryFilterChange,
   roundFilter: roundFilterProp,
@@ -101,7 +98,7 @@ export function MatchesTable({
   seedFilter: seedFilterProp,
   onSeedFilterChange,
 }: Props) {
-  const { t, matchStatusLabel, matchRoundLabel, locale } = useLocale();
+  const { t, matchStatusLabel, locale } = useLocale();
   const router = useRouter();
   const am = t.adminMatches;
 
@@ -125,10 +122,7 @@ export function MatchesTable({
   const [sortKey, setSortKey] = useState<MatchSortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  useEffect(() => {
-    setSortKey(null);
-    setSortDir("asc");
-  }, [year]);
+  useEffect(() => { setSortKey(null); setSortDir("asc"); }, [year]);
 
   useEffect(() => {
     setRows(matches);
@@ -141,8 +135,7 @@ export function MatchesTable({
 
   const categoryOptions = useMemo(() => {
     const ids = [...new Set(rows.map((m) => m.categoryId).filter((id): id is string => !!id))].filter(
-      (id) =>
-        categoryStatusById == null || isCategoryConfirmedInYearMap(id, categoryStatusById)
+      (id) => categoryStatusById == null || isCategoryConfirmedInYearMap(id, categoryStatusById)
     );
     return ids
       .map((id) => ({ id, label: categoryLabelForId(categoriesById, id, locale) }))
@@ -150,9 +143,7 @@ export function MatchesTable({
   }, [rows, categoriesById, locale, categoryStatusById]);
 
   useEffect(() => {
-    if (categoryFilter && !categoryOptions.some((c) => c.id === categoryFilter)) {
-      setCategoryFilter("");
-    }
+    if (categoryFilter && !categoryOptions.some((c) => c.id === categoryFilter)) setCategoryFilter("");
   }, [categoryFilter, categoryOptions, setCategoryFilter]);
 
   const categoryFilteredRows = useMemo(
@@ -160,20 +151,23 @@ export function MatchesTable({
     [rows, categoryFilter]
   );
 
+  // Round options: deduplicate by code, admin order (newest first = descending sortOrder).
   const roundOptions = useMemo(() => {
-    const rounds = [...new Set(categoryFilteredRows.map((m) => m.round).filter((r): r is string => !!r))];
-    rounds.sort((a, b) => matchRoundAdminDefaultRank(a) - matchRoundAdminDefaultRank(b));
-    return rounds.map((r) => ({ value: r, label: matchRoundLabel(r) ?? r }));
-  }, [categoryFilteredRows, matchRoundLabel]);
+    const roundMap = new Map<string, RoundInfo>();
+    for (const m of categoryFilteredRows) {
+      if (m.round && !roundMap.has(m.round.code)) roundMap.set(m.round.code, m.round);
+    }
+    return [...roundMap.values()]
+      .sort((a, b) => b.sortOrder - a.sortOrder)
+      .map((r) => ({ value: r.code, label: roundLabel(r, locale) }));
+  }, [categoryFilteredRows, locale]);
 
   useEffect(() => {
-    if (roundFilter && !roundOptions.some((r) => r.value === roundFilter)) {
-      setRoundFilter("");
-    }
+    if (roundFilter && !roundOptions.some((r) => r.value === roundFilter)) setRoundFilter("");
   }, [roundFilter, roundOptions, setRoundFilter]);
 
   const roundFilteredRows = useMemo(
-    () => (roundFilter ? categoryFilteredRows.filter((m) => m.round === roundFilter) : categoryFilteredRows),
+    () => (roundFilter ? categoryFilteredRows.filter((m) => m.round?.code === roundFilter) : categoryFilteredRows),
     [categoryFilteredRows, roundFilter]
   );
 
@@ -188,9 +182,7 @@ export function MatchesTable({
   }, [roundFilteredRows, roundFilter]);
 
   useEffect(() => {
-    if (seedFilter && !seedOptions.some((s) => s.value === seedFilter)) {
-      setSeedFilter("");
-    }
+    if (seedFilter && !seedOptions.some((s) => s.value === seedFilter)) setSeedFilter("");
   }, [seedFilter, seedOptions, setSeedFilter]);
 
   const filteredRows = useMemo(
@@ -202,10 +194,7 @@ export function MatchesTable({
     (key: string) => {
       const k = key as MatchSortKey;
       if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-      else {
-        setSortKey(k);
-        setSortDir("asc");
-      }
+      else { setSortKey(k); setSortDir("asc"); }
     },
     [sortKey]
   );
@@ -218,26 +207,16 @@ export function MatchesTable({
 
     return [...filteredRows].sort((a, b) => {
       switch (sortKey) {
-        case "category":
-          return cmpStr((a.categoryId ?? "").trim(), (b.categoryId ?? "").trim());
-        case "round":
-          return cmpStr(roundSortKey(a), roundSortKey(b));
-        case "team1":
-          return cmpStr((a.team1DisplayName ?? "").trim(), (b.team1DisplayName ?? "").trim());
-        case "team2":
-          return cmpStr((a.team2DisplayName ?? "").trim(), (b.team2DisplayName ?? "").trim());
-        case "date":
-          return cmpNum(matchDateSortMs(a), matchDateSortMs(b));
-        case "time":
-          return cmpStr((a.time ?? "").trim(), (b.time ?? "").trim());
-        case "location":
-          return cmpStr((a.location ?? "").trim(), (b.location ?? "").trim());
-        case "score":
-          return cmpStr(matchScoreLines(a).join("\n"), matchScoreLines(b).join("\n"));
-        case "status":
-          return cmpStr((a.matchStatus ?? "").trim(), (b.matchStatus ?? "").trim());
-        default:
-          return 0;
+        case "category":  return cmpStr((a.categoryId ?? "").trim(), (b.categoryId ?? "").trim());
+        case "round":     return cmpStr(roundSortKey(a), roundSortKey(b));
+        case "team1":     return cmpStr((a.team1DisplayName ?? "").trim(), (b.team1DisplayName ?? "").trim());
+        case "team2":     return cmpStr((a.team2DisplayName ?? "").trim(), (b.team2DisplayName ?? "").trim());
+        case "date":      return cmpNum(matchDateSortMs(a), matchDateSortMs(b));
+        case "time":      return cmpStr((a.time ?? "").trim(), (b.time ?? "").trim());
+        case "location":  return cmpStr((a.location ?? "").trim(), (b.location ?? "").trim());
+        case "score":     return cmpStr(matchScoreLines(a).join("\n"), matchScoreLines(b).join("\n"));
+        case "status":    return cmpStr((a.matchStatus ?? "").trim(), (b.matchStatus ?? "").trim());
+        default:          return 0;
       }
     });
   }, [filteredRows, sortKey, sortDir]);
@@ -260,28 +239,23 @@ export function MatchesTable({
       am.tableScore,
       am.tableStatus,
     ] as const;
-
     const tailKeys: (string | null)[] = [null, "team1", "team2", "date", "time", "location", "score", "status"];
 
     const headersResolved = showCategoryColumn
       ? [am.tableCategory, am.tableRound, ...tailHeaders]
       : [am.tableRound, ...tailHeaders];
-
     const keysResolved: (string | null)[] = showCategoryColumn
       ? ["category", "round", ...tailKeys]
       : ["round", ...tailKeys];
 
     const hasAnyPrelimSeedData = sortedMatches.some((m) => {
-      const isPrelim = normalizeMatchRoundCode(m.round) === MATCH_ROUND_PRE;
-      if (!isPrelim) return false;
-      const s1 = (m.team1Seed ?? "").trim();
-      const s2 = (m.team2Seed ?? "").trim();
-      return s1.length > 0 || s2.length > 0;
+      if (m.round?.code !== ROUND_PRE) return false;
+      return !!(m.team1Seed ?? "").trim() || !!(m.team2Seed ?? "").trim();
     });
 
     const rowsResolved = sortedMatches.map((m) => {
-      const roundCell = matchRoundLabel(m.round) ?? ((m.round ?? "").trim() || "—");
-      const isPrelim = normalizeMatchRoundCode(m.round) === MATCH_ROUND_PRE;
+      const rLabel = roundLabel(m.round, locale);
+      const isPrelim = m.round?.code === ROUND_PRE;
       const s1 = (m.team1Seed ?? "").trim();
       const s2 = (m.team2Seed ?? "").trim();
 
@@ -307,8 +281,8 @@ export function MatchesTable({
       ];
 
       return showCategoryColumn
-        ? [categoryLabelForId(categoriesById, m.categoryId, locale), roundCell, ...tailCells]
-        : [roundCell, ...tailCells];
+        ? [categoryLabelForId(categoriesById, m.categoryId, locale), rLabel, ...tailCells]
+        : [rLabel, ...tailCells];
     });
 
     const columnNoWrapResolved = keysResolved.map((k) => k === "date" || k === "time" || k === "ntrp");
@@ -319,26 +293,20 @@ export function MatchesTable({
       columnNoWrap: columnNoWrapResolved,
       dataRows: rowsResolved,
     };
-  }, [sortedMatches, showCategoryColumn, categoriesById, am, matchStatusLabel]);
+  }, [sortedMatches, showCategoryColumn, categoriesById, am, matchStatusLabel, locale]);
 
   async function handleSaveMatch(formData: Partial<MatchWithTeamNames>) {
     if (!editing) return;
     setError("");
     setSaving(true);
-
     try {
       const res = await fetch(`/api/matches/${editing.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || am.updateFailed);
-        return;
-      }
-
+      if (!res.ok) { setError(data.error || am.updateFailed); return; }
       setRows((prev) =>
         prev.map((m) =>
           m.id === editing.id
@@ -360,7 +328,6 @@ export function MatchesTable({
             : m
         )
       );
-
       setEditing(null);
       router.refresh();
     } finally {
@@ -410,18 +377,11 @@ export function MatchesTable({
               <Filter.Select
                 id="matches-category"
                 value={categoryFilter}
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value);
-                  setRoundFilter("");
-                  setSeedFilter("");
-                  e.currentTarget.blur();
-                }}
+                onChange={(e) => { setCategoryFilter(e.target.value); setRoundFilter(""); setSeedFilter(""); e.currentTarget.blur(); }}
               >
                 <option value="">{t.shared.labels.allCategories}</option>
                 {categoryOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.label}</option>
                 ))}
               </Filter.Select>
             </Filter>
@@ -431,17 +391,11 @@ export function MatchesTable({
               <Filter.Select
                 id="matches-round"
                 value={roundFilter}
-                onChange={(e) => {
-                  setRoundFilter(e.target.value);
-                  setSeedFilter("");
-                  e.currentTarget.blur();
-                }}
+                onChange={(e) => { setRoundFilter(e.target.value); setSeedFilter(""); e.currentTarget.blur(); }}
               >
                 <option value="">{t.shared.labels.allRounds}</option>
                 {roundOptions.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
+                  <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </Filter.Select>
             </Filter>
@@ -451,16 +405,11 @@ export function MatchesTable({
               <Filter.Select
                 id="matches-seed"
                 value={seedFilter}
-                onChange={(e) => {
-                  setSeedFilter(e.target.value);
-                  e.currentTarget.blur();
-                }}
+                onChange={(e) => { setSeedFilter(e.target.value); e.currentTarget.blur(); }}
               >
                 <option value="">{t.shared.labels.allSeeds}</option>
                 {seedOptions.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
+                  <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </Filter.Select>
             </Filter>
@@ -476,12 +425,7 @@ export function MatchesTable({
             variant="data"
             columnNoWrap={columnNoWrap}
             headers={headers}
-            sortConfig={{
-              activeKey: sortKey,
-              direction: sortDir,
-              keys: sortKeys,
-              onSort: handleMatchSort,
-            }}
+            sortConfig={{ activeKey: sortKey, direction: sortDir, keys: sortKeys, onSort: handleMatchSort }}
             dataRows={dataRows}
             onRowClick={(_, rowIndex) => {
               const match = sortedMatches[rowIndex];

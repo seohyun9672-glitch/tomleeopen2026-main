@@ -1,16 +1,6 @@
 export const matchUi = {
   en: {
     matchUi: {
-      roundPreliminaries: "Preliminaries",
-      roundQuarterfinals: "Quarterfinals",
-      roundSemifinals: "Semifinals",
-      roundFinal: "Final",
-      roundBronze: "Bronze (3rd place)",
-      treeRoundOf16: "Round of 16",
-      treeQuarterfinals: "Quarterfinals",
-      treeSemifinals: "Semifinals",
-      treeFinal: "Final",
-      treeFinalBronze: "Final / Bronze",
       statusScheduled: "Scheduled",
       statusCompleted: "Completed",
       statusCancelled: "Cancelled",
@@ -22,16 +12,6 @@ export const matchUi = {
   },
   ko: {
     matchUi: {
-      roundPreliminaries: "예선",
-      roundQuarterfinals: "8강",
-      roundSemifinals: "준결승",
-      roundFinal: "결승",
-      roundBronze: "3·4위전",
-      treeRoundOf16: "16강",
-      treeQuarterfinals: "8강",
-      treeSemifinals: "준결승",
-      treeFinal: "결승",
-      treeFinalBronze: "결승·동메달",
       statusScheduled: "예정",
       statusCompleted: "종료",
       statusCancelled: "취소",

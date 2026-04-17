@@ -9,7 +9,7 @@ import { Label } from "@/app/components/ui/Label";
 import { clubChipClass } from "@/lib/clubColors";
 import { Modal } from "@/app/components/ui/Modal";
 import { useLocale } from "@/lib/locale-context";
-import type { PlayerTableRow } from "../tables/PlayersTable";
+import type { PlayerTableRow } from "../../tables/PlayersTable";
 
 const FORM_SURFACE_CLASS =
   "bg-[var(--form-surface-bg)] text-[var(--color-text-primary)] [--section-text:var(--color-text-primary)] [--input-text:var(--color-text-primary)] [--input-bg:var(--form-surface-bg)] [--input-focus-border:var(--outline-blue-focus)] [--input-focus-ring:var(--outline-blue-focus-ring)]";

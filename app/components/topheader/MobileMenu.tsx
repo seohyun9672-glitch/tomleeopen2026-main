@@ -24,7 +24,7 @@ type Props = {
   siteNavAriaLabel: string;
 };
 
-export const TopHeaderMobileMenu = memo(function TopHeaderMobileMenu({
+export const MobileMenu = memo(function TopHeaderMobileMenu({
   open,
   onClose,
   headerBarRef,

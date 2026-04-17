@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { matchRoundForPrisma } from "@/lib/matchRoundCode";
 import { prisma } from "@/lib/prisma";
 
 /** PATCH /api/matches/[id] — update match (admin). Updates schedule/results/draw on frontend. */
@@ -10,31 +9,43 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const match = await prisma.match.findUnique({ where: { id } });
     if (!match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
 
-    await prisma.match.update({
-      where: { id },
-      data: {
-        ...(body.round !== undefined && {
-          round: (() => {
-            const r = typeof body.round === "string" ? body.round.trim() : "";
-            return r ? matchRoundForPrisma(r) : null;
-          })(),
-        }),
-        ...(body.matchNumber !== undefined && { matchNumber: body.matchNumber != null ? Number(body.matchNumber) : null }),
-        ...(body.team1Id !== undefined && { team1Id: body.team1Id?.trim() || null }),
-        ...(body.team2Id !== undefined && { team2Id: body.team2Id?.trim() || null }),
-        ...(body.matchStatus !== undefined && { matchStatus: typeof body.matchStatus === "string" ? body.matchStatus.trim() : "Scheduled" }),
-        ...(body.date !== undefined && { date: body.date?.trim() || null }),
-        ...(body.time !== undefined && { time: body.time?.trim() || null }),
-        ...(body.location !== undefined && { location: body.location?.trim() || null }),
-        ...(body.set1ScoreTeam1 !== undefined && { set1ScoreTeam1: body.set1ScoreTeam1?.trim() || null }),
-        ...(body.set2ScoreTeam1 !== undefined && { set2ScoreTeam1: body.set2ScoreTeam1?.trim() || null }),
-        ...(body.set3ScoreTeam1 !== undefined && { set3ScoreTeam1: body.set3ScoreTeam1?.trim() || null }),
-        ...(body.set1ScoreTeam2 !== undefined && { set1ScoreTeam2: body.set1ScoreTeam2?.trim() || null }),
-        ...(body.set2ScoreTeam2 !== undefined && { set2ScoreTeam2: body.set2ScoreTeam2?.trim() || null }),
-        ...(body.set3ScoreTeam2 !== undefined && { set3ScoreTeam2: body.set3ScoreTeam2?.trim() || null }),
-        ...(body.comment !== undefined && { comment: body.comment?.trim() || null }),
-      },
-    });
+    const data: Record<string, unknown> = {};
+    const str = (v: unknown) => (v == null ? null : typeof v === "string" ? v.trim() || null : String(v));
+
+    if (body.roundCode !== undefined || body.round !== undefined) {
+      const rawCode = str(body.roundCode ?? body.round);
+      if (rawCode) {
+        const roundRecord = await prisma.round.findUnique({ where: { code: rawCode } });
+        if (!roundRecord) {
+          return NextResponse.json({ error: `Unknown round code: ${rawCode}` }, { status: 400 });
+        }
+        data.roundId = roundRecord.id;
+      } else {
+        data.roundId = null;
+      }
+    }
+
+    if (body.matchNumber !== undefined) data.matchNumber = body.matchNumber != null ? Number(body.matchNumber) : null;
+    if (body.team1Id !== undefined) data.team1Id = str(body.team1Id);
+    if (body.team2Id !== undefined) data.team2Id = str(body.team2Id);
+    if (body.matchStatus !== undefined) data.matchStatus = typeof body.matchStatus === "string" ? body.matchStatus.trim() : "Scheduled";
+    if (body.date !== undefined) data.date = str(body.date);
+    if (body.time !== undefined) data.time = str(body.time);
+    if (body.location !== undefined) data.location = str(body.location);
+    if (body.set1ScoreTeam1 !== undefined) data.set1ScoreTeam1 = str(body.set1ScoreTeam1);
+    if (body.set2ScoreTeam1 !== undefined) data.set2ScoreTeam1 = str(body.set2ScoreTeam1);
+    if (body.set3ScoreTeam1 !== undefined) data.set3ScoreTeam1 = str(body.set3ScoreTeam1);
+    if (body.set1ScoreTeam2 !== undefined) data.set1ScoreTeam2 = str(body.set1ScoreTeam2);
+    if (body.set2ScoreTeam2 !== undefined) data.set2ScoreTeam2 = str(body.set2ScoreTeam2);
+    if (body.set3ScoreTeam2 !== undefined) data.set3ScoreTeam2 = str(body.set3ScoreTeam2);
+    if (body.comment !== undefined) data.comment = str(body.comment);
+
+    if (Object.keys(data).length > 0) {
+      await prisma.match.update({
+        where: { id },
+        data: data as Parameters<typeof prisma.match.update>[0]["data"],
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("PATCH /api/matches/[id]", e);

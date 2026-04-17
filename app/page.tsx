@@ -4,12 +4,12 @@ import { getCoaches } from "@/lib/coaches";
 import { getPartnerClubs } from "@/lib/partnerClubsData";
 import { getSponsors } from "@/lib/sponsors";
 import { getCommunityPartners } from "@/lib/getCommunityPartners";
-import { Hero } from "./home/components/Hero";
-import { ScheduleSection } from "./home/components/ScheduleSection";
-import { SponsorsSection } from "./home/components/SponsorsSection";
-import { CommunityPartnersSection } from "./home/components/CommunityPartnersSection";
-import { ClubsSection } from "./home/components/ClubsSection";
-import { LessonsSection } from "./home/components/LessonsSection";
+import { Hero } from "./home/Hero";
+import { ScheduleSection } from "./home/ScheduleSection";
+import { SponsorsSection } from "./home/SponsorsSection";
+import { CommunityPartnersSection } from "./home/CommunityPartnersSection";
+import { ClubsSection } from "./home/ClubsSection";
+import { LessonsSection } from "./home/LessonsSection";
 import { getMenuData } from "@/lib/content/menu";
 
 

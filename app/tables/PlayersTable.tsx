@@ -13,8 +13,8 @@ import {
   TablePlayerDirectoryNameCell,
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
-import { DeletePlayerModal } from "../modals/DeletePlayerModal";
-import { EditPlayerModal } from "../modals/EditPlayerModal";
+import { DeletePlayerModal } from "../admin/modals/DeletePlayerModal";
+import { EditPlayerModal } from "../admin/modals/EditPlayerModal";
 
 export type PlayerTableRow = {
   id: number;

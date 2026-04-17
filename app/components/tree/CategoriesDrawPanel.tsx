@@ -75,28 +75,6 @@ function sortPrelimMatchesForCards(matches: MatchWithTeamNames[]): MatchWithTeam
   });
 }
 
-function drawStageOptionLabel(
-  stage: DrawStage,
-  hasBronze: boolean,
-  tree: {
-    treeFinalBronze: string;
-    treeFinal: string;
-    treeQuarterfinals: string;
-    treeSemifinals: string;
-  },
-  prelims: string
-): string {
-  switch (stage) {
-    case "prelims":
-      return prelims;
-    case "qf":
-      return tree.treeQuarterfinals;
-    case "sf":
-      return tree.treeSemifinals;
-    case "final":
-      return hasBronze ? tree.treeFinalBronze : tree.treeFinal;
-  }
-}
 
 export type CategoriesDrawPanelProps = {
   drawTeams: TeamRow[];
@@ -125,10 +103,10 @@ export function CategoriesDrawPanel({
     availableStages,
     knockoutSubStages,
     isUnifiedKnockout,
+    r16Matches,
     prelimMatches,
     qfMatches,
     sfMatches,
-    bronzeMatches,
     finalMatches,
     finalsMatches,
   } = drawData;
@@ -175,8 +153,6 @@ export function CategoriesDrawPanel({
     [prelimMatches, resolvedGroup]
   );
 
-  const hasBronze = bronzeMatches.length > 0;
-
   const activeKnockoutColumn = useMemo(() => {
     const sub = knockoutSubStageFromDrawStage(drawStage);
 
@@ -184,14 +160,13 @@ export function CategoriesDrawPanel({
       const hasData =
         (sub === "qf" && qfMatches.length > 0) ||
         (sub === "sf" && sfMatches.length > 0) ||
-        (sub === "final" && (finalMatches.length > 0 || bronzeMatches.length > 0));
+        (sub === "final" && finalMatches.length > 0);
 
       if (hasData) return sub;
     }
 
     return knockoutSubStages[0] ?? "qf";
   }, [
-    bronzeMatches.length,
     drawStage,
     finalMatches.length,
     knockoutSubStages,
@@ -223,7 +198,11 @@ export function CategoriesDrawPanel({
       {showDrawStageNav ? (
         <div className="md:hidden">
           <TournamentTreeStageHeader
-            title={drawStageOptionLabel(drawStage, hasBronze, t.matchUi, t.matchUi.roundPreliminaries)}
+            title={(() => {
+              const stageMatches = drawStage === "qf" ? qfMatches : drawStage === "sf" ? sfMatches : drawStage === "final" ? finalMatches : prelimMatches;
+              const r = stageMatches[0]?.round;
+              return r ? (locale === "ko" ? r.labelKo : r.labelEn) : "";
+            })()}
             navigation={{
               onPrev: () => { if (mobilePrevStage) setDrawStage(mobilePrevStage); },
               onNext: () => { if (mobileNextStage) setDrawStage(mobileNextStage); },
@@ -313,18 +292,15 @@ export function CategoriesDrawPanel({
         </div>
       ) : null}
 
-      {drawStage !== "prelims" ? (
+      {(drawStage !== "prelims" || isUnifiedKnockout) ? (
         <>
-          {finalsMatches.length === 0 ? (
-            <p className="text-[var(--color-text-tertiary)] text-sm">{t.drawsPage.drawNoMatches}</p>
-          ) : knockoutSubStages.length === 0 ? (
+          {knockoutSubStages.length === 0 ? (
             <p className="text-[var(--color-text-tertiary)] text-sm">{t.drawsPage.drawNoMatches}</p>
           ) : (
             <BracketView
-              r16Matches={isUnifiedKnockout ? prelimMatches : undefined}
+              r16Matches={isUnifiedKnockout ? (r16Matches.length > 0 ? r16Matches : prelimMatches) : undefined}
               qfMatches={qfMatches}
               sfMatches={sfMatches}
-              bronzeMatches={bronzeMatches}
               finalMatches={finalMatches}
               teamRankById={bracketTeamRankById}
               activeKnockoutColumn={activeKnockoutColumn}

@@ -1,13 +1,6 @@
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { isPreRoundKnockoutFirstRound } from "@/lib/drawStructure";
-import {
-  MATCH_ROUND_BR,
-  MATCH_ROUND_FINAL,
-  MATCH_ROUND_PRE,
-  MATCH_ROUND_QF,
-  MATCH_ROUND_SF,
-  normalizeMatchRoundCode,
-} from "@/lib/matchRoundCode";
+import { ROUND_PRE, ROUND_R16, ROUND_QF, ROUND_SF, ROUND_F } from "@/lib/round";
 
 export type DrawStage = "prelims" | "qf" | "sf" | "final";
 export type DrawKnockoutStage = Exclude<DrawStage, "prelims">;
@@ -26,21 +19,17 @@ export type DrawStageData = {
   hasPrelims: boolean;
   hasKnockout: boolean;
   knockoutSubStages: KnockoutSubStage[];
+  /** Only explicit R16-round matches (not Pre acting as R16). */
+  r16Matches: MatchWithTeamNames[];
   prelimMatches: MatchWithTeamNames[];
   qfMatches: MatchWithTeamNames[];
   sfMatches: MatchWithTeamNames[];
-  bronzeMatches: MatchWithTeamNames[];
   finalMatches: MatchWithTeamNames[];
   finalsMatches: MatchWithTeamNames[];
 };
 
 function createEmptyGroupedStages(): MatchesByDrawStage {
-  return {
-    prelims: [],
-    qf: [],
-    sf: [],
-    final: [],
-  };
+  return { prelims: [], qf: [], sf: [], final: [] };
 }
 
 function matchDateKey(dateStr: string | null | undefined): string {
@@ -64,25 +53,26 @@ function resolveDrawStageData(
 
 export function buildDrawStageData(matches: MatchWithTeamNames[]): DrawStageData {
   const grouped = createEmptyGroupedStages();
-  const bronzeMatches: MatchWithTeamNames[] = [];
+  const r16Matches: MatchWithTeamNames[] = [];
   const finalMatches: MatchWithTeamNames[] = [];
 
   for (const match of matches) {
-    switch (match.round) {
-      case MATCH_ROUND_PRE:
+    switch (match.round?.code) {
+      case ROUND_PRE:
         grouped.prelims.push(match);
         break;
-      case MATCH_ROUND_QF:
+      case ROUND_R16:
+        // R16 is the first knockout round; slot into prelims for draw-stage grouping.
+        grouped.prelims.push(match);
+        r16Matches.push(match);
+        break;
+      case ROUND_QF:
         grouped.qf.push(match);
         break;
-      case MATCH_ROUND_SF:
+      case ROUND_SF:
         grouped.sf.push(match);
         break;
-      case MATCH_ROUND_BR:
-        bronzeMatches.push(match);
-        grouped.final.push(match);
-        break;
-      case MATCH_ROUND_FINAL:
+      case ROUND_F:
         finalMatches.push(match);
         grouped.final.push(match);
         break;
@@ -99,15 +89,13 @@ export function buildDrawStageData(matches: MatchWithTeamNames[]): DrawStageData
   const isUnifiedKnockout = isPreRoundKnockoutFirstRound(matches);
 
   const availableStagesSource = isUnifiedKnockout ? DRAW_KNOCKOUT_STAGES : DRAW_STAGE_ORDER;
-  const availableStages = availableStagesSource.filter((stage) => grouped[stage].length > 0) as DrawStage[];
+  const availableStages = availableStagesSource.filter(
+    (stage) => grouped[stage].length > 0
+  ) as DrawStage[];
   const availableKnockoutStages = DRAW_KNOCKOUT_STAGES.filter((stage) => grouped[stage].length > 0);
 
   const knockoutSubStages: KnockoutSubStage[] = [];
-
-  if (
-    isUnifiedKnockout &&
-    prelimMatches.some((match) => normalizeMatchRoundCode(match.round) === MATCH_ROUND_PRE)
-  ) {
+  if (isUnifiedKnockout) {
     knockoutSubStages.push("r16");
   }
   if (qfMatches.length > 0) knockoutSubStages.push("qf");
@@ -122,61 +110,30 @@ export function buildDrawStageData(matches: MatchWithTeamNames[]): DrawStageData
     hasPrelims: prelimMatches.length > 0,
     hasKnockout: availableKnockoutStages.length > 0,
     knockoutSubStages,
+    r16Matches,
     prelimMatches,
     qfMatches,
     sfMatches,
-    bronzeMatches,
     finalMatches,
     finalsMatches: qfMatches.concat(sfMatches, finalStageMatches),
   };
 }
 
-export function getMatchesInDrawStage(
-  matchesOrData: MatchWithTeamNames[] | DrawStageData,
-  stage: DrawStage
-): MatchWithTeamNames[] {
-  return resolveDrawStageData(matchesOrData).grouped[stage];
-}
-
-/** Stages that have at least one match in this category. */
-export function listAvailableDrawStages(matches: MatchWithTeamNames[]): DrawStage[] {
-  return buildDrawStageData(matches).availableStages;
-}
-
-export function parseDrawStageParam(raw: string | null): DrawStage | null {
-  if (!raw) return null;
-
-  const value = raw.trim().toLowerCase();
-
-  switch (value) {
-    case "prelims":
-    case "preliminaries":
-      return "prelims";
-    case "qf":
-    case "quarterfinal":
-    case "quarterfinals":
-      return "qf";
-    case "sf":
-    case "semifinal":
-    case "semifinals":
-      return "sf";
-    case "final":
-    case "finals":
-      return "final";
-    default:
-      return null;
-  }
-}
-
 /**
- * Latest draw stage (prelims → final) that has at least one match with a scheduled date on or before `today`.
- * If no dated matches, returns the first available stage in order.
+ * Latest draw stage (prelims → final) that has at least one match with a scheduled date
+ * on or before `today`. If no dated matches, returns the first available stage.
  */
 export function computeDefaultDrawStage(
   matchesOrData: MatchWithTeamNames[] | DrawStageData,
   today: string
 ): DrawStage {
   const data = resolveDrawStageData(matchesOrData);
+
+  // Unified knockout never has a "prelims" stage view; derive from knockout stages.
+  if (data.isUnifiedKnockout) {
+    return computeDefaultKnockoutDrawStage(data, today) ?? "qf";
+  }
+
   if (data.availableStages.length === 0) return "prelims";
 
   const availableStageSet = new Set<DrawStage>(data.availableStages);
@@ -191,7 +148,7 @@ export function computeDefaultDrawStage(
 }
 
 /**
- * Latest knockout draw stage (QF → SF → Final) with a scheduled date on or before `today`, among stages that have data.
+ * Latest knockout draw stage (QF → SF → Final) with a scheduled date on or before `today`.
  */
 export function computeDefaultKnockoutDrawStage(
   matchesOrData: MatchWithTeamNames[] | DrawStageData,
@@ -218,26 +175,6 @@ export function isoDateLocal(d = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Knockout columns present in data, left to right. */
-export function listKnockoutSubStages(matches: MatchWithTeamNames[]): KnockoutSubStage[] {
-  return buildDrawStageData(matches).knockoutSubStages;
-}
-
 export function knockoutSubStageFromDrawStage(stage: DrawStage): KnockoutSubStage | null {
   return stage === "prelims" ? null : stage;
-}
-
-export function prevNextKnockoutSubStage(
-  current: KnockoutSubStage,
-  ordered: KnockoutSubStage[]
-): { prev: KnockoutSubStage | null; next: KnockoutSubStage | null } {
-  const index = ordered.indexOf(current);
-  if (index < 0) {
-    return { prev: null, next: null };
-  }
-
-  return {
-    prev: index > 0 ? ordered[index - 1]! : null,
-    next: index < ordered.length - 1 ? ordered[index + 1]! : null,
-  };
 }
