@@ -126,10 +126,7 @@ export function MatchesTable({
 
   useEffect(() => {
     setRows(matches);
-    setCategoryFilter("");
-    setRoundFilter("");
-    setSeedFilter("");
-  }, [matches, setCategoryFilter, setRoundFilter, setSeedFilter]);
+  }, [matches]);
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
@@ -377,7 +374,7 @@ export function MatchesTable({
               <Filter.Select
                 id="matches-category"
                 value={categoryFilter}
-                onChange={(e) => { setCategoryFilter(e.target.value); setRoundFilter(""); setSeedFilter(""); e.currentTarget.blur(); }}
+                onChange={(e) => { setCategoryFilter(e.target.value); e.currentTarget.blur(); }}
               >
                 <option value="">{t.shared.labels.allCategories}</option>
                 {categoryOptions.map((c) => (
@@ -391,7 +388,7 @@ export function MatchesTable({
               <Filter.Select
                 id="matches-round"
                 value={roundFilter}
-                onChange={(e) => { setRoundFilter(e.target.value); setSeedFilter(""); e.currentTarget.blur(); }}
+                onChange={(e) => { setRoundFilter(e.target.value); e.currentTarget.blur(); }}
               >
                 <option value="">{t.shared.labels.allRounds}</option>
                 {roundOptions.map((r) => (

@@ -70,7 +70,7 @@ export function AdminHub({
 
   const setYear = useCallback(
     (y: number) => {
-      const next = mergeFilterParams(window.location.search, { year: String(y) }, ["cat", "status", "round", "seed", "club", "group"]);
+      const next = mergeFilterParams(window.location.search, { year: String(y) }, ["cat", "round", "seed"]);
       router.push(`?${next.toString()}`);
     },
     [router]
@@ -224,7 +224,7 @@ export function AdminHub({
                     id="admin-matches-category"
                     value={matchesCategoryFilter}
                     onChange={(e) => {
-                      setCatFilter(e.target.value, { clear: ["round", "seed"] });
+                      setCatFilter(e.target.value);
                       e.currentTarget.blur();
                     }}
                   >

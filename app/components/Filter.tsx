@@ -13,7 +13,7 @@ import { Label } from "./ui/Label";
 
 const FilterHtmlForContext = createContext<string | undefined>(undefined);
 
-/** `htmlFor` from the nearest {@link Filter} root — for inputs that must share the label’s `for` (e.g. date). */
+/** `htmlFor` from the nearest Filter root, for controls that should inherit the same id. */
 export function useFilterFieldId(): string | undefined {
   return useContext(FilterHtmlForContext);
 }
@@ -36,8 +36,8 @@ export type FilterProps = {
   children: ReactNode;
 };
 
-/** Only direct form controls; avoid styling nested interactive shells (e.g. popover triggers). */
-const FILL_CHILD = " [&_select]:w-full [&_input]:w-full";
+/** Apply width fill only to descendant native form controls. */
+const FILL_CHILD = "[&_select]:w-full [&_input]:w-full";
 
 const SELECT_CHEVRON_STYLE: CSSProperties = {
   backgroundImage:
@@ -45,7 +45,7 @@ const SELECT_CHEVRON_STYLE: CSSProperties = {
 };
 
 const CONTROL_INNER: Record<FilterControlKind, string> = {
-  default: "w-fit min-w-0 max-w-full",
+  default: "w-full min-w-0 max-w-full",
   year: "w-fit min-w-0 max-w-full",
   status: "w-fit min-w-0 max-w-full",
   club: "w-fit min-w-0 max-w-full",
@@ -55,27 +55,47 @@ const CONTROL_INNER: Record<FilterControlKind, string> = {
   stretch: "w-full min-w-0 max-w-full",
 };
 
-function hugShellClassNames(className: string) {
-  return cn("flex flex-col gap-0 flex-none w-fit max-w-full min-w-0", className);
+function hugShellClassNames(className?: string) {
+  return cn("flex flex-none w-fit min-w-0 max-w-full flex-col gap-0", className);
 }
 
-function stretchShellClassNames(className: string) {
+function stretchShellClassNames(className?: string) {
   return cn("flex flex-1 min-w-0 max-w-full flex-col gap-0", className);
 }
 
-/** Date control: full width when stretching; hug on `md+` to match calendar trigger layout. */
-function dateShellClassNames(className: string) {
+/** Date control: full width on small screens, hug on md+ to match trigger layout. */
+function dateShellClassNames(className?: string) {
   return cn(
     "flex w-full min-w-0 max-w-full flex-1 flex-col gap-0 md:w-fit md:flex-none md:shrink-0",
     className
   );
 }
 
-function FilterSelect({ className, ...props }: ComponentProps<"select">) {
+function isHugControl(control: FilterControlKind) {
+  return (
+    control === "year" ||
+    control === "status" ||
+    control === "club" ||
+    control === "round" ||
+    control === "category"
+  );
+}
+
+function getOuterClassName(control: FilterControlKind, className?: string) {
+  if (isHugControl(control)) return hugShellClassNames(className);
+  if (control === "date") return dateShellClassNames(className);
+  if (control === "default") return cn(stretchShellClassNames(className), "h-full");
+  return stretchShellClassNames(className);
+}
+
+function FilterSelect({ className, id, style, ...props }: ComponentProps<"select">) {
+  const htmlFor = useFilterFieldId();
+
   return (
     <select
+      id={id ?? htmlFor}
       className={cn(formInputMatchClass, "form-control-select", className)}
-      style={SELECT_CHEVRON_STYLE}
+      style={{ ...SELECT_CHEVRON_STYLE, ...style }}
       {...props}
     />
   );
@@ -83,7 +103,8 @@ function FilterSelect({ className, ...props }: ComponentProps<"select">) {
 FilterSelect.displayName = "Filter.Select";
 
 function FilterDate({ className, id, ...props }: Omit<ComponentProps<"input">, "type">) {
-  const htmlFor = useContext(FilterHtmlForContext);
+  const htmlFor = useFilterFieldId();
+
   return (
     <input
       type="date"
@@ -95,28 +116,20 @@ function FilterDate({ className, id, ...props }: Omit<ComponentProps<"input">, "
 }
 FilterDate.displayName = "Filter.Date";
 
-function FilterRoot({ htmlFor, label, children, className = "", control = "default" }: FilterProps) {
-  const hug = control === "year" || control === "status" || control === "club" || control === "round";
-  const outer = hug
-    ? hugShellClassNames(className)
-    : control === "date"
-      ? dateShellClassNames(className)
-      : control === "default"
-        ? cn(stretchShellClassNames(className), "h-full")
-        : stretchShellClassNames(className);
-
-  const inner = CONTROL_INNER[control];
-  const innerClass = control === "default" ? inner : `${inner}${FILL_CHILD}`;
+function FilterRoot({ htmlFor, label, children, className, control = "default" }: FilterProps) {
+  const outerClass = getOuterClassName(control, className);
+  const innerClass = cn(CONTROL_INNER[control], control !== "default" && FILL_CHILD);
 
   return (
     <FilterHtmlForContext.Provider value={htmlFor}>
-      <div className={outer}>
+      <div className={outerClass}>
         <Label htmlFor={htmlFor}>{label}</Label>
         <div className={innerClass}>{children}</div>
       </div>
     </FilterHtmlForContext.Provider>
   );
 }
+FilterRoot.displayName = "Filter";
 
 export const Filter = Object.assign(FilterRoot, {
   Select: FilterSelect,
