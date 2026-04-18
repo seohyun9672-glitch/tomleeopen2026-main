@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { GridContainer } from "@/app/home/GridContainer";
-import { Section } from "@/app/components/Section";
 import { TournamentCalendar } from "@/app/components/TournamentCalendar";
 
 type TodayMatch = {
@@ -20,38 +18,32 @@ type ScheduleSectionProps = {
     matchListCourtPrefix: string;
   };
   todayMatches: TodayMatch[];
-  scheduleHref: string;
 };
 
 const INNER_CARD = "flex min-h-0 flex-1 flex-col rounded-xl bg-[var(--section-bg)] p-[var(--calendar-card-padding)] text-[var(--foreground-on-light)] shadow-sm";
 
-export function ScheduleSection({ hp, todayMatches, scheduleHref }: ScheduleSectionProps) {
+export function ScheduleSection({ hp, todayMatches }: ScheduleSectionProps) {
   return (
-    <div className="bg-page-with-grid w-full py-[var(--layout-gap)]">
-      <GridContainer className="!py-0">
-        <div className="flex min-h-0 flex-col gap-[var(--element-gap)] md:flex-row md:items-stretch md:gap-[var(--content-gap)]">
-          <Section
-            title={hp.sectionTitles.tournamentSchedules}
-            titleClassName="text-[var(--foreground)]"
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col"
-          >
+    <div className="py-[var(--layout-gap)]">
+      <div className="page-shell">
+        <div className="flex flex-col gap-[var(--section-gap)] md:flex-row md:items-stretch md:gap-[var(--content-gap)]">
+
+          <div className="flex min-w-0 flex-1 flex-col gap-[var(--content-gap)] md:gap-[var(--section-gap)]">
+            <h2>{hp.sectionTitles.tournamentSchedules}</h2>
             <div className={INNER_CARD}>
               <TournamentCalendar />
             </div>
-          </Section>
+          </div>
 
-          <Section
-            title={hp.sectionTitles.todaysMatches}
-            titleClassName="text-[var(--foreground)]"
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col"
-          >
+          <div className="flex min-w-0 flex-1 flex-col gap-[var(--content-gap)] md:gap-[var(--section-gap)]">
+            <h2>{hp.sectionTitles.todaysMatches}</h2>
             <div className={INNER_CARD}>
               {todayMatches.length === 0 ? (
                 <div className="flex min-h-0 flex-1 flex-col justify-center">
                   <p className="py-8 text-center text-[var(--color-text-secondary)]">
                     {hp.todayMatchesEmpty.beforeLink}{" "}
                     <Link
-                      href={scheduleHref}
+                      href={"/schedule"}
                       className="text-[var(--color-text-primary)] underline hover:no-underline"
                     >
                       {hp.todayMatchesEmpty.scheduleLink}
@@ -86,9 +78,10 @@ export function ScheduleSection({ hp, todayMatches, scheduleHref }: ScheduleSect
                 </div>
               )}
             </div>
-          </Section>
+          </div>
+
         </div>
-      </GridContainer>
+      </div>
     </div>
   );
 }

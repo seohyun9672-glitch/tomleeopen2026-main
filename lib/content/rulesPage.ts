@@ -1,3 +1,11 @@
+import { EXTERNAL_LINKS } from "@/lib/externalLinks";
+import { importantDates } from "@/lib/importantDatesData";
+
+const finalDateEn =
+  importantDates.find((e) => e.label === "Final")?.valueDisplay ?? "TBD";
+const finalDateKo =
+  importantDates.find((e) => e.label === "Final")?.valueDisplayKo ?? "추후 확정";
+
 /** Rules page content (EN + KO), modeled after other lib/content page modules. */
 export const rulesPage = {
   en: {
@@ -173,6 +181,43 @@ export const rulesPage = {
               "Super tiebreak difference (if there is no record of a super tiebreak, it is counted as 0)",
               "Drawing of lots (if still tied)",
             ],
+          },
+        ],
+      },
+      preliminariesCourt: {
+        title: "Venue",
+        preliminariesHeading: "Preliminaries courts",
+        finalHeading: "Final",
+        description:
+          "Preliminaries match location and time can be arranged by the teams. We offer courts for preliminary matches during the preliminaries period, subject to availability on a first come, first served basis. Players must notify the admin in advance to confirm the schedule.",
+        finals: {
+          location: "Gates Park Tennis Courts",
+          time: "TBD",
+          dateDisplay: finalDateEn,
+        },
+        prelimHeaders: ["Location", "Date", "Day", "Time"],
+        prelimRows: [
+          {
+            location: "Fraser Heights Court 1, 2",
+            href: EXTERNAL_LINKS.fraserHeightsCourt12,
+            date: "June 27 – Aug 18",
+            day: "Tuesday",
+            time: "7:00 PM – 9:00 PM",
+          },
+          {
+            location: "Fraser Heights Court North",
+            href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
+            date: "June 27 – Aug 16",
+            day: "Sunday",
+            time: "5:00 PM – 7:00 PM",
+          },
+          {
+            location: "Gates Park Tennis Courts",
+            href: EXTERNAL_LINKS.gatesParkTennisCourts,
+            locationNote: "(Court number TBD)",
+            date: "June 27 – Aug 16",
+            day: "Sunday",
+            time: "5:00 PM – 7:00 PM",
           },
         ],
       },
@@ -358,6 +403,43 @@ export const rulesPage = {
               "슈퍼 타이브레이크 득실차 (단, 슈퍼 타이브레이크 기록이 없는 경우 0으로 계산함)",
               "추첨",
             ],
+          },
+        ],
+      },
+      preliminariesCourt: {
+        title: "장소",
+        preliminariesHeading: "예선 코트",
+        finalHeading: "본선",
+        description:
+          "예선 기간 동안 예선 경기의 장소와 시간은 팀 간 협의로 조정할 수 있습니다. 예선 경기용 코트는 선착순으로 제공되며, 이용을 원하시면 사전에 운영진에게 연락해 일정을 확정해 주세요.",
+        finals: {
+          location: "게이츠 파크 테니스 코트",
+          time: "추후 확정",
+          dateDisplay: finalDateKo,
+        },
+        prelimHeaders: ["장소", "날짜", "요일", "시간"],
+        prelimRows: [
+          {
+            location: "Fraser Heights Court 1, 2",
+            href: EXTERNAL_LINKS.fraserHeightsCourt12,
+            date: "6월 27일 – 8월 18일",
+            day: "화요일",
+            time: "오후 7:00 – 9:00",
+          },
+          {
+            location: "Fraser Heights Court North",
+            href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
+            date: "6월 27일 – 8월 16일",
+            day: "일요일",
+            time: "오후 5:00 – 7:00",
+          },
+          {
+            location: "Gates Park Tennis Courts",
+            href: EXTERNAL_LINKS.gatesParkTennisCourts,
+            locationNote: "(코트 번호 추후 공지)",
+            date: "6월 27일 – 8월 16일",
+            day: "일요일",
+            time: "오후 5:00 – 7:00",
           },
         ],
       },

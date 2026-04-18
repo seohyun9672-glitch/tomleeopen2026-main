@@ -1,4 +1,3 @@
-import { GridContainer } from "@/app/home/GridContainer";
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
 import { coachDisplayName, normalizeImagePath } from "@/lib/coaches";
@@ -16,8 +15,6 @@ type LessonsSectionProps = {
     };
   };
 };
-
-const LESSON_COL_SPAN = "col-span-4 sm:col-span-2 md:col-span-2 lg:col-span-4";
 
 function titleCaseLatinLabel(value: string): string {
   const s = value.trim();
@@ -50,38 +47,30 @@ function formatCoachName(value: string): string {
 
 export function LessonsSection({ title, coachesItems, content }: LessonsSectionProps) {
   return (
-    <div className="bg-page-with-grid w-full py-[var(--layout-gap)]">
-      <GridContainer className="!py-0">
-        <Section
-          title={title}
-          useGrid
-          gridClassName="gap-[var(--element-gap)] md:gap-[var(--content-gap)] lg:gap-[var(--content-gap)]"
-          titleClassName="text-[var(--foreground)]"
-        >
-          {coachesItems.map((coach) => {
-            const displayName = coachDisplayName(coach);
-            const telDigits = (coach.phone ?? "").replace(/\D/g, "");
-            return (
-              <Card
-                key={coach.id}
-                className={LESSON_COL_SPAN}
-                titleTag="h3"
-                title={formatCoachName(displayName)}
-                image={normalizeImagePath(coach.image)}
-                imageAlt={displayName}
-                label={formatRoleLabel(content.shared.labels.coach)}
-                labelClassName="uppercase text-[var(--color-primary-blue)] font-[family-name:var(--font-heading)] text-[length:var(--text-h3-display-size)] leading-tight"
-                cta={
-                  telDigits
-                    ? { label: content.shared.buttons.contact, href: `tel:${telDigits}` }
-                    : undefined
-                }
-                ctaAriaLabel={telDigits ? content.shared.aria.contact(displayName) : undefined}
-              />
-            );
-          })}
-        </Section>
-      </GridContainer>
-    </div>
+    <Section title={title} zebra={false}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-[var(--content-gap)]">
+        {coachesItems.map((coach) => {
+          const displayName = coachDisplayName(coach);
+          const telDigits = (coach.phone ?? "").replace(/\D/g, "");
+          return (
+            <Card
+              key={coach.id}
+              titleTag="h3"
+              title={formatCoachName(displayName)}
+              image={normalizeImagePath(coach.image)}
+              imageAlt={displayName}
+              label={formatRoleLabel(content.shared.labels.coach)}
+              labelClassName="uppercase text-[var(--color-primary-blue)] font-[family-name:var(--font-heading)] text-[length:var(--text-h3-display-size)] leading-tight"
+              cta={
+                telDigits
+                  ? { label: content.shared.buttons.contact, href: `tel:${telDigits}` }
+                  : undefined
+              }
+              ctaAriaLabel={telDigits ? content.shared.aria.contact(displayName) : undefined}
+            />
+          );
+        })}
+      </div>
+    </Section>
   );
 }

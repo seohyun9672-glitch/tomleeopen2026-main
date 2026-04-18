@@ -9,13 +9,13 @@ export const metadata: Metadata = {
   title: "Tomlee Open — Tennis Tournament",
   description: "Tennis tournament for the Korean community",
   icons: { icon: "/favicon.svg" },
-  openGraph: { images: [{ url: "/og-image.svg" }] },
+  openGraph: { images: [{ url: "/og-image.png" }] },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html className={`h-full w-full max-w-[100%] overflow-hidden p-0 ${anton.variable}`}>
-      <body className="m-0 flex h-full min-h-0 w-full max-w-[100%] flex-col overflow-hidden bg-[var(--background)] p-0 font-sans text-[var(--foreground)] antialiased">
+    <html className={`max-w-[100%] overflow-hidden ${anton.variable}`}>
+      <body className="flex flex-col h-full w-full">
         {children}
       </body>
     </html>

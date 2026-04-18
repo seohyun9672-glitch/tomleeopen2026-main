@@ -34,7 +34,7 @@ export default async function OverviewPage({ params }: Props) {
   const { locale: localeParam } = await params;
   const locale: Locale = localeParam === "ko" ? "ko" : "en";
   const t = siteContent[locale];
-  const { overview, categories: categoriesSection, prizes, importantDatesTitle, preliminariesCourt, importantDatesRows } = t.overviewPage;
+  const { overview, categories: categoriesSection, prizes, importantDatesTitle, importantDatesRows } = t.overviewPage;
   const rd = t.registrationDetail;
   const [categoriesFromDb, sponsors] = await Promise.all([
     getCategories(),
@@ -105,20 +105,20 @@ export default async function OverviewPage({ params }: Props) {
 
   return (
     <PageContainer title={t.overviewPage.heroTitle}>
-      <div className="space-y-[var(--section-gap)] lg:space-y-[var(--layout-gap)]">
-        <Section title={overview.title} titleClassName="text-[color:var(--foreground)]" contentWhite>
+      <div className="flex flex-col gap-[var(--layout-gap)]">
+        <Section title={overview.title}>
           <Table variant="key-value" rows={overviewTableRows} />
         </Section>
 
-        <Section title={importantDatesTitle} titleClassName="text-[color:var(--foreground)]" contentWhite>
+        <Section title={importantDatesTitle}>
           <Table variant="key-value" rows={importantDateRows} />
         </Section>
 
-        <Section title={rd.title} titleClassName="text-[color:var(--foreground)]" contentWhite>
+        <Section title={rd.title}>
           <Table variant="key-value" rows={registrationTableRows} />
         </Section>
 
-        <Section title={categoriesSection.title} titleClassName="text-[color:var(--foreground)]" contentWhite>
+        <Section title={categoriesSection.title}>
           <Table
             variant="data"
             columnNoWrap={[false, true]}
@@ -144,7 +144,7 @@ export default async function OverviewPage({ params }: Props) {
           </ul>
         </Section>
 
-        <Section title={prizes.title} titleClassName="text-[color:var(--foreground)]" contentWhite>
+        <Section title={prizes.title}>
           <Table
             variant="data"
             headers={prizes.tableHeaders}
@@ -153,31 +153,6 @@ export default async function OverviewPage({ params }: Props) {
           />
         </Section>
 
-        <Section title={preliminariesCourt.title} titleClassName="text-[color:var(--foreground)]" contentWhite>
-          <div className="space-y-[var(--section-gap)] md:space-y-[var(--layout-gap)] text-[var(--section-text)]">
-            <p className="text-body text-[var(--color-text-secondary)]">{preliminariesCourt.description}</p>
-            <Table
-              variant="data"
-              headers={preliminariesCourt.prelimHeaders}
-              dataRows={preliminariesCourt.prelimRows.map((row) => [
-                (() => {
-                  const locationNote = "locationNote" in row ? row.locationNote : undefined;
-                  return (
-                    <span key={`${row.location}-cell`}>
-                      <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
-                        {row.location}
-                      </a>
-                      {locationNote ? <span className="table-inline-secondary-line">{locationNote}</span> : null}
-                    </span>
-                  );
-                })(),
-                row.date,
-                row.day,
-                row.time,
-              ])}
-            />
-          </div>
-        </Section>
       </div>
     </PageContainer>
   );

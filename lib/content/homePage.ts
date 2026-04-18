@@ -13,7 +13,7 @@ export const homePage = {
       hero: {
         title: "Tomlee Open",
         dateRange: heroDateRangeEn,
-        navLinks: getMenuData("en").homeHero,
+        navLinks: [getMenuData("en").overview, getMenuData("en").schedule, getMenuData("en").draws],
       },
       sectionTitles: {
         tournamentSchedules: "Tournament schedules",
@@ -52,7 +52,7 @@ export const homePage = {
       hero: {
         title: "탐리 오픈",
         dateRange: heroDateRangeKo,
-        navLinks: getMenuData("ko").homeHero,
+        navLinks: [getMenuData("ko").overview, getMenuData("ko").schedule, getMenuData("ko").draws],
       },
       sectionTitles: {
         tournamentSchedules: "대회 일정",

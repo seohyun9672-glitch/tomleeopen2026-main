@@ -1,4 +1,3 @@
-import { GridContainer } from "@/app/home/GridContainer";
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
 
@@ -11,7 +10,6 @@ type Sponsor = {
 
 type SponsorsSectionProps = {
   title: string;
-  note?: string;
   sponsors: Sponsor[];
   tierLabels: { gold: string; silver: string; bronze: string };
   content: { shared: { aria: { visit: (name: string) => string } } };
@@ -41,73 +39,69 @@ function bronzeColSpan(index: number): string {
   return index < 2 ? "col-span-1 sm:col-span-3 lg:col-span-1" : "col-span-1 sm:col-span-2 lg:col-span-1";
 }
 
-export function SponsorsSection({ title, note, sponsors, tierLabels, content }: SponsorsSectionProps) {
+export function SponsorsSection({ title, sponsors, tierLabels, content }: SponsorsSectionProps) {
   const gold = sponsors.filter((s) => sponsorTier(s.name) === "gold");
   const silver = sponsors.filter((s) => sponsorTier(s.name) === "silver");
   const bronze = sponsors.filter((s) => sponsorTier(s.name) === "bronze");
   const visit = content.shared.aria.visit;
 
   return (
-    <div className="bg-home-zebra-with-grid w-full py-[var(--layout-gap)]">
-      <GridContainer className="!py-0">
-        <Section title={title} note={note} titleClassName="text-[var(--foreground)]">
-          {gold.length > 0 && (
-            <div>
-              <TierHeading label={tierLabels.gold} />
-              <div>
-                {gold.map((item) => (
-                  <Card
-                    key={item.id}
-                    imageOnly
-                    image={item.image}
-                    imageAlt={item.name}
-                    href={item.website ?? "#"}
-                    hrefAriaLabel={visit(item.name)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+    <Section title={title} zebra>
+      {gold.length > 0 && (
+        <div>
+          <TierHeading label={tierLabels.gold} />
+          <div>
+            {gold.map((item) => (
+              <Card
+                key={item.id}
+                imageOnly
+                image={item.image}
+                imageAlt={item.name}
+                href={item.website ?? "#"}
+                hrefAriaLabel={visit(item.name)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-          {silver.length > 0 && (
-            <div>
-              <TierHeading label={tierLabels.silver} />
-              <div className="grid grid-cols-2 gap-0">
-                {silver.map((item) => (
-                  <Card
-                    key={item.id}
-                    imageOnly
-                    image={item.image}
-                    imageAlt={item.name}
-                    href={item.website ?? "#"}
-                    hrefAriaLabel={visit(item.name)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+      {silver.length > 0 && (
+        <div>
+          <TierHeading label={tierLabels.silver} />
+          <div className="grid grid-cols-2 gap-0">
+            {silver.map((item) => (
+              <Card
+                key={item.id}
+                imageOnly
+                image={item.image}
+                imageAlt={item.name}
+                href={item.website ?? "#"}
+                hrefAriaLabel={visit(item.name)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-          {bronze.length > 0 && (
-            <div>
-              <TierHeading label={tierLabels.bronze} />
-              <div className="grid grid-cols-2 gap-0 sm:grid-cols-6 lg:grid-cols-4">
-                {bronze.map((item, i) => (
-                  <div key={item.id} className={bronzeColSpan(i)}>
-                    <Card
-                      imageOnly
-                      image={item.image}
-                      imageAlt={item.name}
-                      href={item.website ?? "#"}
-                      hrefAriaLabel={visit(item.name)}
-                      className="h-full"
-                    />
-                  </div>
-                ))}
+      {bronze.length > 0 && (
+        <div>
+          <TierHeading label={tierLabels.bronze} />
+          <div className="grid grid-cols-2 gap-0 sm:grid-cols-6 lg:grid-cols-4">
+            {bronze.map((item, i) => (
+              <div key={item.id} className={bronzeColSpan(i)}>
+                <Card
+                  imageOnly
+                  image={item.image}
+                  imageAlt={item.name}
+                  href={item.website ?? "#"}
+                  hrefAriaLabel={visit(item.name)}
+                  className="h-full"
+                />
               </div>
-            </div>
-          )}
-        </Section>
-      </GridContainer>
-    </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }

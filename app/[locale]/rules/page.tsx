@@ -35,7 +35,6 @@ export default async function TournamentRulesPage({ params }: Props) {
   const { locale: localeParam } = await params;
   const locale: Locale = localeParam === "ko" ? "ko" : "en";
   const content = siteContent[locale];
-  const { preliminariesCourt } = content.overviewPage;
   const {
     sectionTitles,
     formatAndScoring,
@@ -44,6 +43,7 @@ export default async function TournamentRulesPage({ params }: Props) {
     preliminaryMatches,
     finalistsSelection,
     resultsSection,
+    preliminariesCourt,
   } = content.rulesPage;
 
   const scoringRows = [formatAndScoring.table[0], formatAndScoring.table[1], formatAndScoring.table[2]].filter(Boolean);
@@ -80,62 +80,48 @@ export default async function TournamentRulesPage({ params }: Props) {
     },
   ];
 
-  const tableWrap = "overflow-hidden rounded-2xl text-[var(--section-text)]";
-
   return (
     <PageContainer title={content.rulesPage.heroTitle}>
-      <div className="space-y-[var(--layout-gap)] md:space-y-[var(--space-16)]">
-        <Section title={sectionTitles.matchGuidelines} titleClassName="text-[color:var(--foreground)]" contentWhite>
-          <div className={tableWrap}>
-            <Table variant="key-value" rows={matchGuidelinesRows} alignTop />
-          </div>
+      <div className="flex flex-col gap-[var(--layout-gap)]">
+        <Section title={sectionTitles.matchGuidelines}>
+          <Table variant="key-value" rows={matchGuidelinesRows} alignTop />
         </Section>
 
-        <Section title={sectionTitles.scoringFormat} titleClassName="text-[color:var(--foreground)]" contentWhite>
-          <div className={tableWrap}>
-            <Table variant="key-value" rows={scoringRows} alignTop />
-          </div>
+        <Section title={sectionTitles.scoringFormat}>
+          <Table variant="key-value" rows={scoringRows} alignTop />
         </Section>
 
-        <Section title={sectionTitles.matchSchedulingCourtAvailability} titleClassName="text-[color:var(--foreground)]" contentWhite>
-          <div className="space-y-[var(--section-gap)] md:space-y-[var(--layout-gap)] text-[var(--section-text)]">
-            <p className="text-body text-[var(--color-text-secondary)]">{preliminariesCourt.description}</p>
-            <Table
-              variant="data"
-              headers={preliminariesCourt.prelimHeaders}
-              dataRows={preliminariesCourt.prelimRows.map((row) => [
-                (() => {
-                  const locationNote = "locationNote" in row ? row.locationNote : undefined;
-                  return (
-                    <span key={`${row.location}-cell`}>
-                      <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
-                        {row.location}
-                      </a>
-                      {locationNote ? <span className="table-inline-secondary-line">{locationNote}</span> : null}
-                    </span>
-                  );
-                })(),
-                row.date,
-                row.day,
-                row.time,
-              ])}
-            />
-          </div>
+        <Section title={sectionTitles.matchSchedulingCourtAvailability}>
+          <p className="text-body text-[var(--color-text-secondary)]">{preliminariesCourt.description}</p>
+          <Table
+            variant="data"
+            headers={preliminariesCourt.prelimHeaders}
+            dataRows={preliminariesCourt.prelimRows.map((row) => [
+              (() => {
+                const locationNote = "locationNote" in row ? row.locationNote : undefined;
+                return (
+                  <span key={`${row.location}-cell`}>
+                    <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
+                      {row.location}
+                    </a>
+                    {locationNote ? <span className="table-inline-secondary-line">{locationNote}</span> : null}
+                  </span>
+                );
+              })(),
+              row.date,
+              row.day,
+              row.time,
+            ])}
+          />
         </Section>
 
-        <Section title={resultsSection.title} titleClassName="text-[color:var(--foreground)]" contentWhite>
-          <div className={tableWrap}>
-            <Table variant="key-value" rows={resultsRows} alignTop />
-          </div>
+        <Section title={resultsSection.title}>
+          <Table variant="key-value" rows={resultsRows} alignTop />
         </Section>
 
-        <Section title={sectionTitles.localRules} titleClassName="text-[color:var(--foreground)]" contentWhite>
-          <div className="space-y-[var(--section-gap)] md:space-y-[var(--layout-gap)] text-[var(--section-text)]">
-            <p className="leading-relaxed text-[var(--color-text-secondary)]">{rules.intro}</p>
-            <div className={tableWrap}>
-              <Table variant="key-value" rows={rules.table} alignTop />
-            </div>
-          </div>
+        <Section title={sectionTitles.localRules}>
+          <p className="leading-relaxed text-[var(--color-text-secondary)]">{rules.intro}</p>
+          <Table variant="key-value" rows={rules.table} alignTop />
         </Section>
       </div>
     </PageContainer>

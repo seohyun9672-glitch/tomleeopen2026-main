@@ -673,7 +673,7 @@ html[lang="ko"] {
     --text-title-size: clamp(4rem, 12vw, 7.5rem);
     --table-cell-py: var(--content-gap);
     --table-cell-px: var(--content-gap);
-    --table-radius: 0.875rem;
+    --table-radius: 0.5rem;
     --calendar-card-padding: var(--content-gap);
     --button-font-size: 0.9375rem;
     --button-inline-safe-pad: 24px;
@@ -858,6 +858,19 @@ body {
   font-size: var(--text-body-size);
   letter-spacing: var(--text-body-letter-spacing);
   line-height: var(--text-body-line-height);
+}
+
+/* ============================================================
+   LAYOUT UTILITIES
+   ============================================================ */
+
+.page-shell {
+  margin-inline: auto;
+  flex: flex;
+  width: 100%;
+  max-width: var(--container-max-w);
+  padding-inline: var(--page-inline-padding);
+  gap: var(--layout-gap);
 }
 
 /* ============================================================

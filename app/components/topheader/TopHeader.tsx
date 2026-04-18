@@ -89,13 +89,7 @@ export function TopHeader() {
 
   const navItems = useMemo<HeaderNavItem[]>(() => {
     const menu = getMenuData(locale);
-    return [
-      {
-        label: menu.tournament.label,
-        children: menu.tournament.children,
-      },
-      ...menu.primary,
-    ];
+    return menu.nav as HeaderNavItem[];
   }, [locale]);
 
   const { tournamentGroup, leafItems } = useMemo(() => {

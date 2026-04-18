@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { PageHero } from "./layout/PageHero";
 
 const shellClassName =
-  "mx-auto w-full min-h-[50vh] px-[var(--page-inline-padding)] py-[var(--content-gap)] md:py-[var(--section-gap)] lg:max-w-[var(--container-max-w)] lg:py-[var(--section-gap)]";
+  "page-shell min-h-[50vh] py-[var(--content-gap)] md:py-[var(--section-gap)] lg:py-[var(--section-gap)]";
 
 export type PageContainerProps = {
   children: ReactNode;
@@ -15,7 +15,7 @@ export type PageContainerProps = {
   beforeTitle?: ReactNode;
 };
 
-/** Max-width container; same padding as `GridContainer` at every breakpoint. Optional page title row via `title` / `actions`. */
+/** Max-width container with page padding. Optional page title row via `title` / `actions`. */
 export function PageContainer({ children, title, actions, beforeTitle }: PageContainerProps) {
   return (
     <div className={shellClassName}>
