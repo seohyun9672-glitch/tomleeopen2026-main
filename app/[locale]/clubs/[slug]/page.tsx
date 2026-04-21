@@ -47,8 +47,6 @@ export default async function ClubDetailPage({ params }: Props) {
       <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
         <Section
           title={content.clubPage.about}
-          titleClassName="text-[color:var(--foreground)]"
-         
         >
           <div className="overflow-hidden rounded-2xl border border-[color:var(--color-border-card)] bg-[var(--color-surface-card)] text-[var(--section-text)] card-elev">
             {club.logo ? (
@@ -80,8 +78,6 @@ export default async function ClubDetailPage({ params }: Props) {
 
         <Section
           title={content.shared.sectionTitles.otherClubs}
-          titleClassName="text-[color:var(--foreground)]"
-         
         >
           <div className="rounded-2xl border border-[color:var(--color-border-card)] bg-[var(--color-surface-card)] p-4 text-[var(--section-text)] md:p-5 card-elev">
             <nav aria-label={content.shared.sectionTitles.otherClubs}>
