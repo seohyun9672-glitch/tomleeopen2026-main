@@ -8,8 +8,8 @@ import { useTabParam } from "@/lib/hooks/useTabParam";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";
 import { deriveYearOptions } from "@/lib/filterUtils";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
-import { isCategoryConfirmedInYearMap } from "@/lib/categories/yearStatus";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
+import { isCategoryConfirmedInYearMap } from "@/lib/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { Table } from "@/app/components/ui/table/Table";
 import { RegistrationsTable } from "../tables/RegistrationsTable";
@@ -18,7 +18,7 @@ import { MatchesTable } from "../tables/MatchesTable";
 import { PlayersTable } from "../tables/PlayersTable";
 import { useLocale } from "@/lib/locale-context";
 import type { RoundInfo } from "@/lib/matches";
-import type { CategoryRecord } from "@/lib/categories/types";
+import type { CategoryRecord } from "@/lib/categories";
 import type { RegistrationRow } from "../tables/RegistrationsTable";
 import type { PlayerTableRow } from "../tables/PlayersTable";
 import type { MatchWithTeamNames } from "@/lib/matches";
@@ -26,7 +26,7 @@ import type {
   CategoryYearListItem,
   CategoryYearStatus,
   CategoryParticipation,
-} from "@/lib/categories/yearStatus";
+} from "@/lib/categories";
 
 export type YearData = {
   registrations: RegistrationRow[];

@@ -4,6 +4,20 @@
  * DrawsHub, ScheduleHub, CategoryStatusTable, etc.
  */
 
+import { categoriesConfirmedForYear, type CategoryYearListItem } from "@/lib/categories";
+
+/**
+ * Returns categories that are Active for the given year.
+ * Use this wherever a category filter should reflect a year selection.
+ */
+export function deriveCategoriesForYear<T extends { id: string }>(
+  categories: readonly T[],
+  statusesByYear: Record<number, CategoryYearListItem[]>,
+  year: number
+): T[] {
+  return categoriesConfirmedForYear(categories, statusesByYear[year] ?? []);
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Sorted descending, deduplicated year list. */

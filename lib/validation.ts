@@ -1,4 +1,4 @@
-import { NTRP_LEVELS } from "@/lib/categories/labels";
+import { NTRP_LEVELS } from "@/lib/categories";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/;

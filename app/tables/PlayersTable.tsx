@@ -9,10 +9,12 @@ import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import {
-  TableClubsChipsCell,
+  TableDataChip,
+  TableDataChipGroup,
   TablePlayerDirectoryNameCell,
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
+import { clubChipClass } from "@/lib/clubs";
 import { DeletePlayerModal } from "../admin/modals/DeletePlayerModal";
 import { EditPlayerModal } from "../admin/modals/EditPlayerModal";
 
@@ -133,7 +135,9 @@ function PlayersDataTable({
           const primary = locale === "ko" ? ko || en : en;
           return [
             <TablePlayerDirectoryNameCell key={p.id} primary={primary} />,
-            <TableClubsChipsCell key={`${p.id}-c`} clubs={p.clubs} rowKey={String(p.id)} />,
+            <TableDataChipGroup key={`${p.id}-c`}>
+              {p.clubs.map((c) => <TableDataChip key={c} className={clubChipClass(c)} label={c} />)}
+            </TableDataChipGroup>,
           ];
         })}
       />
@@ -167,7 +171,9 @@ function PlayersDataTable({
           p.email ?? "—",
           p.phone ?? "—",
           p.ntrp ?? "—",
-          <TableClubsChipsCell key={`${p.id}-clubs`} clubs={p.clubs} rowKey={String(p.id)} />,
+          <TableDataChipGroup key={`${p.id}-clubs`}>
+            {p.clubs.map((c) => <TableDataChip key={c} className={clubChipClass(c)} label={c} />)}
+          </TableDataChipGroup>,
         ];
       })}
       onRowClick={

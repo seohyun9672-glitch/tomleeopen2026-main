@@ -159,3 +159,35 @@ export function buildPrelimsLeaderboard(categoryMatches: MatchWithTeamNames[]): 
   }
   return { groups, rowsByGroup };
 }
+
+/** Derives a teamId → rank map from an existing leaderboard result. Within-group ranks are used. */
+export function buildTeamRankMap(
+  leaderboard: ReturnType<typeof buildPrelimsLeaderboard>
+): Map<string, number> {
+  const map = new Map<string, number>();
+  if (!leaderboard) return map;
+  for (const rows of Object.values(leaderboard.rowsByGroup)) {
+    for (const row of rows) {
+      if (!map.has(row.teamId)) map.set(row.teamId, row.rank);
+    }
+  }
+  return map;
+}
+
+function teamSlotNumberFromId(teamId: string | null | undefined): number | null {
+  if (!teamId) return null;
+  const m = teamId.match(/(\d+)$/);
+  if (!m) return null;
+  const n = parseInt(m[1]!, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+export function resolveBracketTeamDisplayRank(
+  teamId: string | null | undefined,
+  rankMap: Map<string, number>
+): number | null {
+  if (!teamId) return null;
+  const fromStandings = rankMap.get(teamId);
+  if (fromStandings != null) return fromStandings;
+  return teamSlotNumberFromId(teamId);
+}

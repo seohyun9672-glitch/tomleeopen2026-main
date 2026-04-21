@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { parseClubCodesFromBody } from "@/lib/clubCodeCanonical";
+import { parseClubCodesFromBody } from "@/lib/clubs";
 import { prisma } from "@/lib/prisma";
-import { notesImplyRefund } from "@/lib/registrationStatus";
 import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
 import {
   buildPlayerIdByPartnerNameMap,
@@ -105,8 +104,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     let statusToSet: string | undefined;
     if (typeof body.status === "string" && VALID_STATUSES.includes(body.status as typeof VALID_STATUSES[number])) {
       statusToSet = body.status;
-    } else if (nextNotes !== undefined && notesImplyRefund(nextNotes)) {
-      statusToSet = "Cancelled";
     }
 
     const partnerIdByName =

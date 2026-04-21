@@ -2,9 +2,9 @@
 
 import { useLayoutEffect, useMemo } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
-import { isCategoryConfirmedForYear, type CategoryYearListItem } from "@/lib/categories/yearStatus";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
+import { isCategoryConfirmedForYear, type CategoryYearListItem } from "@/lib/categories";
 import type { HonourRollEntry } from "@/lib/matches";
 import { deriveYearOptions, filterByValue } from "@/lib/filterUtils";
 import { useLocale } from "@/lib/locale-context";

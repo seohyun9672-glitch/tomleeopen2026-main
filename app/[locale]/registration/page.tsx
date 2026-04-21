@@ -1,7 +1,7 @@
 import type { Locale } from "@/lib/content";
 import { siteContent } from "@/lib/content";
-import { getCategories } from "@/lib/categories/db";
-import { getClubCodes } from "@/lib/clubs";
+import { getCategories } from "@/lib/categories";
+import { prisma } from "@/lib/prisma";
 import { PageContainer } from "@/app/components/PageContainer";
 import { RegistrationPageClient } from "@/app/registration/RegisterModal";
 
@@ -14,7 +14,7 @@ export default async function RegistrationPage({ params }: Props) {
 
   const [categories, clubCodes] = await Promise.all([
     getCategories().catch(() => []),
-    getClubCodes().catch(() => []),
+    prisma.club.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }], select: { code: true } }).then((rows) => rows.map((r) => r.code)).catch(() => []),
   ]);
 
   return (

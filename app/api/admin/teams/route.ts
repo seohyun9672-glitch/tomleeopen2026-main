@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCategories, isDoublesCategory } from "@/lib/categories";
-import { isEffectivelyCancelled } from "@/lib/registrationStatus";
+import { registrationStatusKey } from "@/lib/registration";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +58,8 @@ export async function POST(request: Request) {
       >();
 
       for (const reg of regs) {
-        if (isEffectivelyCancelled(reg.status, reg.notes)) continue;
+        const sk = registrationStatusKey(reg.status);
+        if (sk === "cancelled" || sk === "refunded") continue;
         if (used.has(reg.id)) continue;
         const label = idToLabel.get(reg.categoryId) ?? "";
 

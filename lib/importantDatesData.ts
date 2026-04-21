@@ -1,6 +1,6 @@
 
 export type ImportantDateEntry =
-  | { type: "date"; label: string; date: string; valueDisplay: string; labelKo?: string; valueDisplayKo?: string }
+  | { type: "date"; label: string; date: string; valueDisplay: string; labelKo?: string; valueDisplayKo?: string; locationEn?: string; locationKo?: string }
   | {
       type: "range";
       label: string;
@@ -19,7 +19,7 @@ export const importantDates: ImportantDateEntry[] = [
     startDate: "2026-06-01",
     endDate: "2026-08-22",
     valueDisplay: "June 1 – August 22, 2026",
-    labelKo: "대회",
+    labelKo: "대회 기간",
     valueDisplayKo: "2026년 6월 1일 – 8월 22일",
   },
   {
@@ -72,31 +72,26 @@ export const importantDates: ImportantDateEntry[] = [
     valueDisplay: "Aug 22 (Rain date: Aug 29)",
     labelKo: "결승",
     valueDisplayKo: "8월 22일 (우천 시: 8월 29일)",
+    locationEn: "Gates Park Tennis Courts",
+    locationKo: "게이츠 파크 테니스 코트",
   },
 ];
 
-export const tournamentFinalVenueDetails = {
-  locationEn: "Gates Park Tennis Courts",
-  locationKo: "게이츠 파크 테니스 코트",
-  timeEn: "TBD",
-  timeKo: "추후 확정",
-} as const;
-
-export type YearCategoryFormatRow = {
-  categoryId: string;
-  groupFormat: string;
-  teamsToFinals: string;
-  groupFormatKo: string;
-  teamsToFinalsKo: string;
-  prelimsDates: string;
-  quarterFinalsDate: string;
-  semiFinalsDate: string;
-  finalsDate: string;
-  prelimsDatesKo: string;
-  quarterFinalsDateKo: string;
-  semiFinalsDateKo: string;
-  finalsDateKo: string;
-};
+// export type YearCategoryFormatRow = {
+//   categoryId: string;
+//   groupFormat: string;
+//   teamsToFinals: string;
+//   groupFormatKo: string;
+//   teamsToFinalsKo: string;
+//   prelimsDates: string;
+//   quarterFinalsDate: string;
+//   semiFinalsDate: string;
+//   finalsDate: string;
+//   prelimsDatesKo: string;
+//   quarterFinalsDateKo: string;
+//   semiFinalsDateKo: string;
+//   finalsDateKo: string;
+// };
 
 // /** Year/category specific format timeline rows. Extend for additional seasons. */
 // export const categoryFormatTimelineByYear: Record<number, YearCategoryFormatRow[]> = {

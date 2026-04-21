@@ -4,16 +4,17 @@ import { useMemo, useState, useCallback, useEffect, type ChangeEvent } from "rea
 import { useRouter } from "next/navigation";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";
-import { buildCategoryByIdMap, categoryLabelForId, getCategoryId } from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
+import { buildCategoryByIdMap, categoryLabelForId, getCategoryId } from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 import {
   type CategoryParticipation,
   type CategoryYearListItem,
   type CategoryYearStatus,
-} from "@/lib/categories/yearStatus";
+} from "@/lib/categories";
+import { matchStatusChipClass } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
-import { TableDataChip } from "@/app/components/ui/Chip";
+import { TableDataChip, TableDataChipGroup } from "@/app/components/ui/table/tableCells";
 import {
   parseRegistrationCategories,
   type RegistrationRow,
@@ -36,14 +37,14 @@ type CategorySortKey = "category" | "players" | "status";
 function statusMeta(
   status: CategoryYearStatus,
   t: ReturnType<typeof useLocale>["t"]
-): { label: string; tone: "completed" | "cancelled" | "neutral" } {
+): { label: string; chipClass: string } {
   if (status === "Active") {
-    return { label: t.adminCategoryYears.statusActive, tone: "completed" };
+    return { label: t.adminCategoryYears.statusActive, chipClass: matchStatusChipClass("Completed") };
   }
   if (status === "Inactive") {
-    return { label: t.adminCategoryYears.statusInactive, tone: "cancelled" };
+    return { label: t.adminCategoryYears.statusInactive, chipClass: matchStatusChipClass("Cancelled") };
   }
-  return { label: t.adminCategoryYears.statusPending, tone: "neutral" };
+  return { label: t.adminCategoryYears.statusPending, chipClass: matchStatusChipClass("Pending") };
 }
 
 export function CategoryStatusTable({
@@ -268,14 +269,14 @@ export function CategoryStatusTable({
           dataRows={sorted.map((row) => {
             const label = categoryLabelForId(categoriesById, row.categoryId, locale);
             const p = participationByCategory[row.categoryId] ?? { teams: 0, players: 0 };
-            const { label: statusLabel, tone: statusTone } = statusMeta(row.status, t);
+            const { label: statusLabel, chipClass: statusChipClass } = statusMeta(row.status, t);
 
             return [
               label,
               String(p.players),
-              <TableDataChip key={`${row.categoryId}-status-chip`} variant="status" tone={statusTone}>
-                {statusLabel}
-              </TableDataChip>,
+              <TableDataChipGroup key={`${row.categoryId}-status-chip`}>
+                <TableDataChip className={statusChipClass} label={statusLabel} />
+              </TableDataChipGroup>,
             ];
           })}
           onRowClick={(_, rowIndex) => {

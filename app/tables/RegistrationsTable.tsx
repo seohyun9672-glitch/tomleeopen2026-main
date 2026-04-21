@@ -7,24 +7,26 @@ import { Filter } from "@/app/components/Filter";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
+  categoryChipClass,
   getCategoryLabel,
   getCategoryId,
-} from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
+} from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 import { type Locale } from "@/lib/content";
 import { RegistrationForm, type RegistrationFormHandle } from "@/app/registration/RegistrationForm";
-import { prefetchRegistrationFormData } from "@/lib/registrationFormCache";
+import { prefetchRegistrationFormData } from "@/lib/registration";
+import { matchStatusChipClass } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
-import { TableDataChip, TableDataChipGroup } from "@/app/components/ui/Chip";
 import {
-  TableCategoryChipsCell,
+  TableDataChip,
+  TableDataChipGroup,
   TableCellIconCenter,
   TableStackedPlayersCell,
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories/yearStatus";
+import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories";
 
 export type RegistrationRow = {
   id: string;
@@ -366,12 +368,12 @@ export function RegistrationsTable({
   const handleCancelDelete = useCallback(() => setDeletingId(null), []);
 
   const statusMeta = useCallback(
-    (status: string): { label: string; tone: "completed" | "cancelled" | "neutral" } => {
-      if (status === "Confirmed") return { label: t.adminRegistrationStatus.confirmed, tone: "completed" };
-      if (status === "Cancelled") return { label: t.adminRegistrationStatus.cancelled, tone: "cancelled" };
-      if (status === "Refund Requested") return { label: t.adminRegistrationStatus.refundRequested, tone: "cancelled" };
-      if (status === "Refunded") return { label: t.adminRegistrationStatus.refunded, tone: "neutral" };
-      return { label: t.adminCategoryYears.statusPending, tone: "neutral" };
+    (status: string): { label: string; chipClass: string } => {
+      if (status === "Confirmed") return { label: t.adminRegistrationStatus.confirmed, chipClass: matchStatusChipClass("Completed") };
+      if (status === "Cancelled") return { label: t.adminRegistrationStatus.cancelled, chipClass: matchStatusChipClass("Cancelled") };
+      if (status === "Refund Requested") return { label: t.adminRegistrationStatus.refundRequested, chipClass: matchStatusChipClass("Cancelled") };
+      if (status === "Refunded") return { label: t.adminRegistrationStatus.refunded, chipClass: matchStatusChipClass("Pending") };
+      return { label: t.adminCategoryYears.statusPending, chipClass: matchStatusChipClass("Pending") };
     },
     [t.adminCategoryYears, t.adminRegistrationStatus]
   );
@@ -431,7 +433,7 @@ export function RegistrationsTable({
             onSort: handleRegSort,
           }}
           dataRows={filteredSortedRows.map(({ raw: r, displayName, partnerDisplay, status, cats }) => {
-            const { label: statusLabel, tone: statusTone } = statusMeta(status);
+            const { label: statusLabel, chipClass: statusChipClass } = statusMeta(status);
 
             const baseCells: (string | ReactNode)[] = [
               <TableTechnicalIdCell key={`${r.id}-regnum`}>
@@ -446,17 +448,13 @@ export function RegistrationsTable({
               >
                 <TableStackedPlayersCell text={partnerDisplay.text || undefined} splitSemicolons />
               </span>,
-              <TableCategoryChipsCell
-                key={`${r.id}-cats`}
-                items={cats.map((c) => ({
-                  id: c,
-                  label: categoryLabelForId(categoriesById, c, locale),
-                }))}
-              />,
+              <TableDataChipGroup key={`${r.id}-cats`}>
+                {cats.map((c) => (
+                  <TableDataChip key={c} className={categoryChipClass(c)} label={categoryLabelForId(categoriesById, c, locale)} title={c} />
+                ))}
+              </TableDataChipGroup>,
               <TableDataChipGroup key={`${r.id}-status-group`}>
-                <TableDataChip key={`${r.id}-${cats[0]}-status`} variant="status" tone={statusTone}>
-                  {statusLabel}
-                </TableDataChip>
+                <TableDataChip key={`${r.id}-${cats[0]}-status`} className={statusChipClass} label={statusLabel} />
               </TableDataChipGroup>,
             ];
 

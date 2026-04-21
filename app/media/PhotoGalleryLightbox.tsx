@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { getAppScrollRootEl } from "@/lib/appScrollRoot";
 
 type Props = {
   urls: string[];
@@ -44,7 +43,7 @@ export function PhotoGalleryLightbox({
       if (e.key === "ArrowRight") goNext();
     };
     window.addEventListener("keydown", onKey);
-    const root = getAppScrollRootEl();
+    const root = typeof document !== "undefined" ? document.querySelector<HTMLElement>("[data-app-scroll-root]") : null;
     if (root) {
       const prevOverflow = root.style.overflow;
       const prevPad = root.style.paddingRight;

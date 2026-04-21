@@ -1,4 +1,4 @@
-import { OVERVIEW_PRIZE_TABLE_ROWS, OVERVIEW_PRIZE_TABLE_ROWS_KO } from "@/lib/prizes";
+import { OVERVIEW_PRIZE_TABLE_ROWS } from "@/lib/prizes";
 import { importantDates } from "@/lib/importantDatesData";
 
 const importantDatesRowsEn = importantDates
@@ -51,7 +51,7 @@ export const overviewPage = {
       prizes: {
         title: "Prizes",
         tableHeaders: ["Match type", "Bracket", "1st", "2nd", "3rd", "4th"],
-        tableRows: OVERVIEW_PRIZE_TABLE_ROWS,
+        tableRows: OVERVIEW_PRIZE_TABLE_ROWS.en,
       },
     },
   },
@@ -87,7 +87,7 @@ export const overviewPage = {
       prizes: {
         title: "상금",
         tableHeaders: ["경기 부문", "참가 규모", "1위", "2위", "3위", "4위"],
-        tableRows: OVERVIEW_PRIZE_TABLE_ROWS_KO,
+        tableRows: OVERVIEW_PRIZE_TABLE_ROWS.ko,
       },
     },
   },

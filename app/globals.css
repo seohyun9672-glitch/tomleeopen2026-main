@@ -447,11 +447,10 @@
   --match-stage-header-bg: color-mix(in srgb, var(--color-secondary-blue-500) 18%, var(--color-surface-card));
   --match-stage-header-text: var(--color-primary-blue-900);
   --match-stage-header-text-muted: var(--color-text-secondary);
-  --match-stage-header-font-weight: 600;
+  --match-stage-header-font-weight: 500;
   --tournament-tree-stage-header-bg-solid: var(--color-background);
   --tournament-tree-stage-header-border-bottom-width: 2px;
   --tournament-tree-stage-header-border-bottom-color: var(--color-primary-blue-500);
-  --tournament-tree-stage-header-text: var(--color-text-primary);
   --tournament-tree-stage-header-radius: 0;
   --bracket-connector-color: var(--color-secondary-blue-200);
   --table-border-row: var(--outline-blue-subtle);

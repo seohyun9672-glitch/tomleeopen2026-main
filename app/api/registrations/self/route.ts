@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { parseClubCodesFromBody } from "@/lib/clubCodeCanonical";
+import { parseClubCodesFromBody } from "@/lib/clubs";
 import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
 import {
   buildPlayerIdByPartnerNameMap,

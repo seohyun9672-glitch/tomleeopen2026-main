@@ -11,7 +11,7 @@ import {
   type PlayerNameRow,
 } from "@/lib/partnerLinking";
 
-const PLACEHOLDER_DOMAIN = "placeholder.local";
+const PLACEHOLDER_DOMAIN = "";
 
 /** ASCII slug for placeholder emails: "Justin Song" → "justin.song" */
 export function emailSlugFromDisplayName(name: string): string {

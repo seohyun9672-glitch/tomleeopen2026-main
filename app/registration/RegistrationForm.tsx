@@ -1,17 +1,17 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { categoryChipClass } from "@/lib/ui/dataChipPresets";
-import { clubChipClass } from "@/lib/clubColors";
+import { categoryChipClass } from "@/lib/categories";
+import { clubChipClass } from "@/lib/clubs";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
   NTRP_LEVELS,
-} from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
+} from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 import { formatPhoneInput, isValidEmail, isValidNanpPhone, normalizePhone } from "@/lib/validation";
-import { loadRegistrationFormData } from "@/lib/registrationFormCache";
-import { registrationConfig, formatPrice, totalFromCategories } from "@/lib/registrationConfig";
+import { loadRegistrationFormData, formatPrice, totalFromCategories } from "@/lib/registration";
+import { contactData } from "@/lib/contactData";
 import { Field } from "@/app/components/ui/Field";
 import { Label } from "@/app/components/ui/Label";
 import { CheckboxField } from "@/app/components/ui/Checkbox";
@@ -155,7 +155,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
   );
 
   const copyPaymentEmail = useCallback(() => {
-    const email = registrationConfig.paymentEmail;
+    const email = contactData.email;
     void navigator.clipboard.writeText(email).then(() => {
       setPaymentEmailCopied(true);
       if (paymentCopyTimeoutRef.current) clearTimeout(paymentCopyTimeoutRef.current);
@@ -928,9 +928,9 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
               </span>
               <code
                 className="shrink-0 w-fit select-all rounded bg-[var(--color-surface-strong)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--color-text-primary)] sm:px-2 sm:py-1 sm:text-sm"
-                title={registrationConfig.paymentEmail}
+                title={contactData.email}
               >
-                {registrationConfig.paymentEmail}
+                {contactData.email}
               </code>
               <button
                 type="button"

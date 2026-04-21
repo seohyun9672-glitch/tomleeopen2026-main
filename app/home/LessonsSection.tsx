@@ -1,6 +1,6 @@
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
-import { coachDisplayName, normalizeImagePath } from "@/lib/coaches";
+import { coachDisplayName } from "@/lib/coaches";
 
 type Coach = Awaited<ReturnType<typeof import("@/lib/coaches").getCoaches>>[number];
 
@@ -57,7 +57,7 @@ export function LessonsSection({ title, coachesItems, content }: LessonsSectionP
               key={coach.id}
               titleTag="h3"
               title={formatCoachName(displayName)}
-              image={normalizeImagePath(coach.image)}
+              image={coach.image ? (coach.image.startsWith("http") || coach.image.startsWith("/") ? coach.image : `/${coach.image}`) : null}
               imageAlt={displayName}
               label={formatRoleLabel(content.shared.labels.coach)}
               labelClassName="uppercase text-[var(--color-primary-blue)] font-[family-name:var(--font-heading)] text-[length:var(--text-h3-display-size)] leading-tight"

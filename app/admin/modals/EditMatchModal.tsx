@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
+import { matchStatusLabel } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Modal } from "@/app/components/ui/Modal";
 import { Field } from "@/app/components/ui/Field";
@@ -73,7 +74,7 @@ export function EditMatchModal({
   onSave,
   saving,
 }: EditMatchModalProps) {
-  const { t, matchStatusLabel: matchStatusLabelForLocale } = useLocale();
+  const { t, locale } = useLocale();
   const am = t.adminMatches;
 
   const [date, setDate] = useState(() => {
@@ -249,10 +250,10 @@ export function EditMatchModal({
               value={status}
               onChange={(e) => setStatus(e.target.value as MatchStatusOption)}
             >
-              <option value="Pending">{matchStatusLabelForLocale("Pending")}</option>
-              <option value="Scheduled">{matchStatusLabelForLocale("Scheduled")}</option>
-              <option value="Completed">{matchStatusLabelForLocale("Completed")}</option>
-              <option value="Cancelled">{matchStatusLabelForLocale("Cancelled")}</option>
+              <option value="Pending">{matchStatusLabel("Pending", locale)}</option>
+              <option value="Scheduled">{matchStatusLabel("Scheduled", locale)}</option>
+              <option value="Completed">{matchStatusLabel("Completed", locale)}</option>
+              <option value="Cancelled">{matchStatusLabel("Cancelled", locale)}</option>
             </Field>
           </div>
 

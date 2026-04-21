@@ -1,7 +1,6 @@
 import type { Locale } from "@/lib/content";
 import { getCategories } from "@/lib/categories";
-import { getMedia, getPhotoGalleriesByYear } from "@/lib/mediaDb";
-import { readPhotoGalleriesByYearManifest } from "@/lib/photoGalleryManifest";
+import { getMedia, getPhotoGalleriesByYear } from "@/lib/media";
 import { siteContent } from "@/lib/content";
 import { PageContainer } from "@/app/components/PageContainer";
 import { MediaHub } from "@/app/media/MediaHub";
@@ -20,7 +19,6 @@ export default async function MediaPage({ params }: Props) {
     getPhotoGalleriesByYear(2024, categories),
   ]);
   const photoGalleries = [...photoGalleries2025, ...photoGalleries2024];
-  const galleriesByYear = readPhotoGalleriesByYearManifest();
 
   return (
     <PageContainer title={content.mediaPage.heroTitle}>
@@ -28,7 +26,6 @@ export default async function MediaPage({ params }: Props) {
         items={items}
         categories={categories}
         photoGalleries={photoGalleries}
-        galleriesByYear={galleriesByYear}
       />
     </PageContainer>
   );

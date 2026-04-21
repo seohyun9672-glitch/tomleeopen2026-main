@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { RegistrationStatus } from "@/lib/registrationStatus";
-import { parseClubCodesFromBody } from "@/lib/clubCodeCanonical";
+import type { RegistrationStatus } from "@/lib/registration";
+import { parseClubCodesFromBody } from "@/lib/clubs";
 import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
 import { getCategoryYearStatusDelegate } from "@/lib/categories";
 import {

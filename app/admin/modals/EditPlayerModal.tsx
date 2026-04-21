@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { NTRP_LEVELS } from "@/lib/categories/labels";
+import { NTRP_LEVELS } from "@/lib/categories";
 import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
 import { Field } from "@/app/components/ui/Field";
 import { Chip } from "@/app/components/ui/Chip";
 import { Label } from "@/app/components/ui/Label";
-import { clubChipClass } from "@/lib/clubColors";
+import { clubChipClass } from "@/lib/clubs";
 import { Modal } from "@/app/components/ui/Modal";
 import { useLocale } from "@/lib/locale-context";
 import type { PlayerTableRow } from "../../tables/PlayersTable";

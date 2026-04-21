@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useLocale } from "@/lib/locale-context";
-import { getAppScrollRootEl } from "@/lib/appScrollRoot";
 import { Button } from "@/app/components/ui/Button";
 import {
   type HeaderNavItem,
@@ -47,7 +46,7 @@ export function TopHeader() {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const root = getAppScrollRootEl();
+    const root = typeof document !== "undefined" ? document.querySelector<HTMLElement>("[data-app-scroll-root]") : null;
     if (root) {
       const prevOverflow = root.style.overflow;
       const prevPad = root.style.paddingRight;

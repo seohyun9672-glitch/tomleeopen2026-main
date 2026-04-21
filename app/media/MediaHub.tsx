@@ -2,16 +2,15 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useTabParam } from "@/lib/hooks/useTabParam";
-import type { MediaRecord, PhotoGalleryGroup } from "@/lib/mediaDb";
-import type { CategoryRecord } from "@/lib/categories/types";
-import type { PhotoGalleriesByYear } from "@/lib/photoGalleryManifest";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
+import type { MediaRecord, PhotoGalleryGroup } from "@/lib/media";
+import type { CategoryRecord } from "@/lib/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { MediaContentCard } from "@/app/components/ui/MediaContentCard";
 import { useLocale } from "@/lib/locale-context";
 import { MEDIA_KO_COPY_BY_ID, MEDIA_OUTLET_LABELS } from "./mediaData";
 import { PhotoGalleryLightbox } from "./PhotoGalleryLightbox";
-import { extractYouTubeVideoId, youtubeThumbnailHqUrl } from "@/lib/getYouTubeThumbnail";
+import { extractYouTubeVideoId, youtubeThumbnailHqUrl } from "@/lib/media";
 
 /** Featured block at top of Videos tab (must match `Media.id` in seed). */
 const MEDIA_VIDEO_HIGHLIGHT_ID = "media-video-2025-recap";
@@ -86,8 +85,6 @@ type Props = {
   items: MediaRecord[];
   categories: CategoryRecord[];
   photoGalleries?: PhotoGalleryGroup[];
-  /** Tournament year (string key) → category id → gallery URLs for lightbox */
-  galleriesByYear?: PhotoGalleriesByYear;
 };
 
 function isLocalAssetUrl(url: string): boolean {
@@ -191,7 +188,6 @@ export function MediaHub({
   items,
   categories,
   photoGalleries = [],
-  galleriesByYear = {},
 }: Props) {
   const { t, locale } = useLocale();
   const tabDefs = TABS.map((tab) => ({ value: tab, label: t.mediaPage.tabs[tab] }));
@@ -211,14 +207,8 @@ export function MediaHub({
   const useGalleryByCategory = currentTab === "photos" && photoGalleries.length > 0;
 
   const galleryUrlsForItem = useCallback(
-    (item: MediaRecord) => {
-      if (item.type !== "photos" || item.categoryId == null || item.tournamentYear == null) {
-        return undefined;
-      }
-      const yearKey = String(item.tournamentYear);
-      return galleriesByYear[yearKey]?.[item.categoryId];
-    },
-    [galleriesByYear]
+    (_item: MediaRecord) => undefined,
+    []
   );
 
   const displayItems: MediaRecord[] = (() => {

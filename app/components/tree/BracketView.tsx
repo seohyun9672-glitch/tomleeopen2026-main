@@ -4,12 +4,12 @@ import type { ReactNode } from "react";
 import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { MatchWithTeamNames } from "@/lib/matches";
-import type { KnockoutSubStage } from "@/lib/drawStage";
+import type { KnockoutSubStage } from "@/lib/draws";
 
 import { MatchCard } from "@/app/components/MatchCard";
-import { TournamentTreeStageHeader } from "./StageHeader";
+import { StageHeader } from "./StageHeader";
 import { useLocale } from "@/lib/locale-context";
-import { resolveBracketTeamDisplayRank } from "@/lib/standings";
+import { resolveBracketTeamDisplayRank } from "@/lib/matches";
 
 type BracketViewProps = {
   /** First knockout column when `PRE` is structurally Round of 16 (pooled or single bracket). */
@@ -118,7 +118,10 @@ function computeRoundGeometries(
   return { geoms, bracketHeight: H };
 }
 
-function BracketConnectorQFToSF({
+const STROKE = 1.5;
+
+/** General bracket connector: pairs each consecutive two left matches to one right match. */
+function BracketConnector({
   leftCenters,
   height,
   rightCenters,
@@ -130,127 +133,33 @@ function BracketConnectorQFToSF({
   const w = CONNECTOR_WIDTH;
   const h = Math.max(1, height);
   const midX = w / 2;
-  const qfCount = leftCenters.length;
-
-  if (qfCount < 2) {
-    return (
-      <svg
-        width="100%"
-        height="100%"
-        className="block text-[color:var(--bracket-connector-color)]"
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-      >
-        <line x1={0} y1={h / 2} x2={w} y2={h / 2} stroke="currentColor" strokeWidth={STROKE} />
-      </svg>
-    );
-  }
-
-  const half = Math.floor(qfCount / 2);
-  const topStart = leftCenters[0]!;
-  const topEnd = leftCenters[half - 1]!;
-  const botStart = leftCenters[half]!;
-  const botEnd = leftCenters[qfCount - 1]!;
-  const topCenter = half > 0 ? (topStart + topEnd) / 2 : topStart;
-  const botCenter = half < qfCount ? (botStart + botEnd) / 2 : topEnd;
-
-  const useRight = rightCenters.length >= 2;
-  const rightY1 = useRight ? rightCenters[0]! : topCenter;
-  const rightY2 = useRight ? rightCenters[1]! : botCenter;
-
-  return (
-    <svg
-      width="100%"
-      height="100%"
-      className="block text-[color:var(--bracket-connector-color)]"
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-    >
-      {Array.from({ length: half }, (_, i) => (
-        <line
-          key={`t-${i}`}
-          x1={0}
-          y1={leftCenters[i]!}
-          x2={midX}
-          y2={leftCenters[i]!}
-          stroke="currentColor"
-          strokeWidth={STROKE}
-        />
-      ))}
-      <line x1={midX} y1={topStart} x2={midX} y2={topEnd} stroke="currentColor" strokeWidth={STROKE} />
-      <line x1={midX} y1={rightY1} x2={w} y2={rightY1} stroke="currentColor" strokeWidth={STROKE} />
-      {Array.from({ length: qfCount - half }, (_, i) => (
-        <line
-          key={`b-${i}`}
-          x1={0}
-          y1={leftCenters[half + i]!}
-          x2={midX}
-          y2={leftCenters[half + i]!}
-          stroke="currentColor"
-          strokeWidth={STROKE}
-        />
-      ))}
-      <line x1={midX} y1={botStart} x2={midX} y2={botEnd} stroke="currentColor" strokeWidth={STROKE} />
-      <line x1={midX} y1={rightY2} x2={w} y2={rightY2} stroke="currentColor" strokeWidth={STROKE} />
-    </svg>
-  );
-}
-
-const STROKE = 1.5;
-
-function BracketConnectorSFToFinal({
-  leftCenters,
-  height,
-}: {
-  leftCenters: number[];
-  height: number;
-}) {
-  const w = CONNECTOR_WIDTH;
-  const h = Math.max(1, height);
-  const midX = w / 2;
-
-  if (leftCenters.length < 1) {
-    return (
-      <svg
-        width="100%"
-        height="100%"
-        className="block text-[color:var(--bracket-connector-color)]"
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-      />
-    );
-  }
 
   if (leftCenters.length < 2) {
+    const y = leftCenters[0] ?? h / 2;
     return (
-      <svg
-        width="100%"
-        height="100%"
-        className="block text-[color:var(--bracket-connector-color)]"
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-      >
-        <line x1={0} y1={h / 2} x2={w} y2={h / 2} stroke="currentColor" strokeWidth={STROKE} />
+      <svg width="100%" height="100%" className="block text-[color:var(--bracket-connector-color)]" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        <line x1={0} y1={y} x2={w} y2={y} stroke="currentColor" strokeWidth={STROKE} />
       </svg>
     );
   }
 
-  const topY = leftCenters[0]!;
-  const botY = leftCenters[1]!;
-  const midY = (topY + botY) / 2;
-
+  const pairCount = Math.floor(leftCenters.length / 2);
   return (
-    <svg
-      width="100%"
-      height="100%"
-      className="block text-[color:var(--bracket-connector-color)]"
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-    >
-      <line x1={0} y1={topY} x2={midX} y2={topY} stroke="currentColor" strokeWidth={STROKE} />
-      <line x1={0} y1={botY} x2={midX} y2={botY} stroke="currentColor" strokeWidth={STROKE} />
-      <line x1={midX} y1={topY} x2={midX} y2={botY} stroke="currentColor" strokeWidth={STROKE} />
-      <line x1={midX} y1={midY} x2={w} y2={midY} stroke="currentColor" strokeWidth={STROKE} />
+    <svg width="100%" height="100%" className="block text-[color:var(--bracket-connector-color)]" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+      {leftCenters.map((y, i) => (
+        <line key={`lh-${i}`} x1={0} y1={y} x2={midX} y2={y} stroke="currentColor" strokeWidth={STROKE} />
+      ))}
+      {Array.from({ length: pairCount }, (_, i) => {
+        const topY = leftCenters[i * 2]!;
+        const botY = leftCenters[i * 2 + 1]!;
+        const rightY = rightCenters[i] ?? (topY + botY) / 2;
+        return (
+          <g key={`p-${i}`}>
+            <line x1={midX} y1={topY} x2={midX} y2={botY} stroke="currentColor" strokeWidth={STROKE} />
+            <line x1={midX} y1={rightY} x2={w} y2={rightY} stroke="currentColor" strokeWidth={STROKE} />
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -430,7 +339,7 @@ export function BracketView({
 
   const renderRoundColumn = (title: string, matches: MatchWithTeamNames[], geom: RoundGeom | undefined) => (
     <div className={`flex flex-col self-start ${colClass}`}>
-      <TournamentTreeStageHeader title={title} />
+      <StageHeader title={title} />
       <div className="pt-4 md:pt-5">
         <BracketAlignedColumn matches={matches} geom={geom} teamRankById={teamRankById} />
       </div>
@@ -441,7 +350,7 @@ export function BracketView({
   const mobileColumn = (() => {
     const wrap = (title: string, matches: MatchWithTeamNames[]) => (
       <div className="flex w-full min-w-0 flex-col">
-        {suppressMobileRoundTitle ? null : <TournamentTreeStageHeader title={title} />}
+        {suppressMobileRoundTitle ? null : <StageHeader title={title} />}
         <div className={suppressMobileRoundTitle ? "pt-0" : "pt-2 md:pt-5"}>
           <BracketMobileStack matches={matches} teamRankById={teamRankById} />
         </div>
@@ -474,7 +383,7 @@ export function BracketView({
           {renderRoundColumn(rl(r16), r16, r16Geom)}
           {qf.length > 0 && r16Geom && qfGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
-              <BracketConnectorQFToSF
+              <BracketConnector
                 leftCenters={r16Geom.centers}
                 height={H}
                 rightCenters={qfGeom.centers}
@@ -482,7 +391,7 @@ export function BracketView({
             </ConnectorColumn>
           ) : qf.length === 0 && sf.length > 0 && r16Geom && sfGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
-              <BracketConnectorQFToSF
+              <BracketConnector
                 leftCenters={r16Geom.centers}
                 height={H}
                 rightCenters={sfGeom.centers}
@@ -494,7 +403,7 @@ export function BracketView({
             r16Geom &&
             finalGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
-              <BracketConnectorQFToSF
+              <BracketConnector
                 leftCenters={r16Geom.centers}
                 height={H}
                 rightCenters={finalGeom.centers}
@@ -509,7 +418,7 @@ export function BracketView({
           {renderRoundColumn(rl(qf), qf, qfGeom)}
           {sf.length > 0 && qfGeom && sfGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
-              <BracketConnectorQFToSF
+              <BracketConnector
                 leftCenters={qfGeom.centers}
                 height={H}
                 rightCenters={sfGeom.centers}
@@ -517,7 +426,7 @@ export function BracketView({
             </ConnectorColumn>
           ) : sf.length === 0 && finalCol.length > 0 && qfGeom && finalGeom ? (
             <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
-              <BracketConnectorQFToSF
+              <BracketConnector
                 leftCenters={qfGeom.centers}
                 height={H}
                 rightCenters={finalGeom.centers}
@@ -535,7 +444,7 @@ export function BracketView({
               {fin.length > 0 && sfGeom && finalGeom && (
                 <>
                   <ConnectorColumn headerSpacer={headerBand} bodyHeight={H}>
-                    <BracketConnectorSFToFinal leftCenters={sfGeom.centers} height={H} />
+                    <BracketConnector leftCenters={sfGeom.centers} height={H} rightCenters={finalGeom.centers} />
                   </ConnectorColumn>
                   {renderRoundColumn(finalHeaderTitle, finalCol, finalGeom)}
                 </>

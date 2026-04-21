@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/content";
-import { getAvailableYears } from "@/lib/availableYears";
+import { getAvailableYears } from "@/lib/matches";
 import { siteContent } from "@/lib/content";
 import { getCategories, getCategoryYearStatusList } from "@/lib/categories";
 import { getMatchesByYearBatch } from "@/lib/matches";

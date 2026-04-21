@@ -21,10 +21,3 @@ export function coachDisplayName(coach: { name: string; fullNameKo: string | nul
   return coach.name.trim();
 }
 
-/** Normalize image path for Next.js Image: public paths must start with /. */
-export function normalizeImagePath(path: string | null): string | null {
-  if (!path || typeof path !== "string" || !path.trim()) return null;
-  const p = path.trim();
-  if (p.startsWith("http://") || p.startsWith("https://") || p.startsWith("/")) return p;
-  return `/${p}`;
-}

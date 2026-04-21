@@ -2,23 +2,25 @@
 
 import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
+import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 import type { RoundInfo } from "@/lib/round";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";
 import { useLocale } from "@/lib/locale-context";
-import { ROUND_PRE, sortMatchesAdminDefault } from "@/lib/round";
+import { ROUND_PRE } from "@/lib/round";
 import { Table } from "@/app/components/ui/table/Table";
 import {
+  TableDataChip,
+  TableDataChipGroup,
   TableMatchScoresStacked,
-  TableMatchStatusPill,
   TableStackedPlayersCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
 import { EditMatchModal } from "../admin/modals/EditMatchModal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories/yearStatus";
+import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories";
 
 function formatMatchDateShort(isoDate: string | null | undefined, locale: "en" | "ko" = "en"): string {
   const d = isoDate?.trim();
@@ -98,7 +100,7 @@ export function MatchesTable({
   seedFilter: seedFilterProp,
   onSeedFilterChange,
 }: Props) {
-  const { t, matchStatusLabel, locale } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const am = t.adminMatches;
 
@@ -197,7 +199,7 @@ export function MatchesTable({
   );
 
   const sortedMatches = useMemo(() => {
-    if (!sortKey) return sortMatchesAdminDefault(filteredRows);
+    if (!sortKey) return filteredRows;
     const dir = sortDir === "asc" ? 1 : -1;
     const cmpStr = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" }) * dir;
     const cmpNum = (a: number, b: number) => (a - b) * dir;
@@ -270,11 +272,9 @@ export function MatchesTable({
         m.time ?? "—",
         m.location ?? "—",
         <TableMatchScoresStacked key={`${m.id}-score`} lines={matchScoreLines(m)} />,
-        <TableMatchStatusPill
-          key={`${m.id}-status`}
-          status={m.matchStatus}
-          label={matchStatusLabel(m.matchStatus)}
-        />,
+        <TableDataChipGroup key={`${m.id}-status`}>
+          <TableDataChip className={matchStatusChipClass(m.matchStatus)} label={matchStatusLabel(m.matchStatus, locale)} />
+        </TableDataChipGroup>,
       ];
 
       return showCategoryColumn
@@ -290,7 +290,7 @@ export function MatchesTable({
       columnNoWrap: columnNoWrapResolved,
       dataRows: rowsResolved,
     };
-  }, [sortedMatches, showCategoryColumn, categoriesById, am, matchStatusLabel, locale]);
+  }, [sortedMatches, showCategoryColumn, categoriesById, am, locale]);
 
   async function handleSaveMatch(formData: Partial<MatchWithTeamNames>) {
     if (!editing) return;

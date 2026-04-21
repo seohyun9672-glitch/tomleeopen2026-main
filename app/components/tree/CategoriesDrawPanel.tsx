@@ -1,43 +1,47 @@
 "use client";
 
 import { useMemo } from "react";
-import { useLocale } from "@/lib/locale-context";
+
+import { MatchCard } from "@/app/components/MatchCard";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
-import type { MatchWithTeamNames } from "@/lib/matches";
+import { useLocale } from "@/lib/locale-context";
+import { buildPrelimsLeaderboard, groupKeyFromSeed } from "@/lib/prelimsLeaderboard";
 import {
-  buildDrawStageData,
   DRAW_STAGE_ORDER,
   knockoutSubStageFromDrawStage,
   type DrawStage,
   type DrawStageData,
-} from "@/lib/drawStage";
+} from "@/lib/draws";
+import type { MatchWithTeamNames } from "@/lib/matches";
 import {
   buildTeamRankMapFromPrelims,
   teamRowsFromCategoryMatches,
-  type TeamRow,
-} from "@/lib/standings";
-import { MatchCard } from "@/app/components/MatchCard";
-import { PrelimsLeaderboardTable } from "./PrelimsLeaderboardTable";
-import { TournamentTreeStageHeader } from "./StageHeader";
+} from "@/lib/matches";
+
 import { BracketView } from "./BracketView";
-import { buildPrelimsLeaderboard, groupKeyFromSeed } from "@/lib/prelimsLeaderboard";
+import { PrelimsLeaderboardTable } from "./PrelimsLeaderboardTable";
+import { StageHeader } from "./StageHeader";
 
 function matchSortDateKey(dateStr: string | null | undefined): string {
-  const s = (dateStr ?? "").trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "0000-00-00";
+  const value = (dateStr ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "0000-00-00";
 }
 
-/** Letter + numeric part of seeds like "A1", "B12" for ordering prelim match cards. */
 function seedTuple(seed: string | null | undefined): [string, number] {
-  const s = (seed ?? "").trim();
-  const m = /^([A-Za-z])(\d+)$/.exec(s);
-  if (m) return [m[1]!.toUpperCase(), parseInt(m[2]!, 10)];
+  const value = (seed ?? "").trim();
 
-  const digits = /^(\d+)$/.exec(s);
-  if (digits) return ["\uFFFF", parseInt(digits[1]!, 10)];
+  const alphaNumeric = /^([A-Za-z])(\d+)$/.exec(value);
+  if (alphaNumeric) {
+    return [alphaNumeric[1]!.toUpperCase(), parseInt(alphaNumeric[2]!, 10)];
+  }
 
-  const g = /^([A-Za-z])/.exec(s);
-  return [g ? g[1]!.toUpperCase() : "\uFFFF", 9999];
+  const numeric = /^(\d+)$/.exec(value);
+  if (numeric) {
+    return ["\uFFFF", parseInt(numeric[1]!, 10)];
+  }
+
+  const alpha = /^([A-Za-z])/.exec(value);
+  return [alpha ? alpha[1]!.toUpperCase() : "\uFFFF", 9999];
 }
 
 function compareSeedTuples(a: [string, number], b: [string, number]): number {
@@ -46,9 +50,9 @@ function compareSeedTuples(a: [string, number], b: [string, number]): number {
 }
 
 function orderedSeedPair(match: MatchWithTeamNames): [[string, number], [string, number]] {
-  const t1 = seedTuple(match.team1Seed);
-  const t2 = seedTuple(match.team2Seed);
-  return compareSeedTuples(t1, t2) <= 0 ? [t1, t2] : [t2, t1];
+  const team1 = seedTuple(match.team1Seed);
+  const team2 = seedTuple(match.team2Seed);
+  return compareSeedTuples(team1, team2) <= 0 ? [team1, team2] : [team2, team1];
 }
 
 function sortPrelimMatchesForCards(matches: MatchWithTeamNames[]): MatchWithTeamNames[] {
@@ -56,48 +60,72 @@ function sortPrelimMatchesForCards(matches: MatchWithTeamNames[]): MatchWithTeam
     const [aLow, aHigh] = orderedSeedPair(a);
     const [bLow, bHigh] = orderedSeedPair(b);
 
-    let c = compareSeedTuples(aLow, bLow);
-    if (c !== 0) return c;
+    let comparison = compareSeedTuples(aLow, bLow);
+    if (comparison !== 0) return comparison;
 
-    c = compareSeedTuples(aHigh, bHigh);
-    if (c !== 0) return c;
+    comparison = compareSeedTuples(aHigh, bHigh);
+    if (comparison !== 0) return comparison;
 
-    c = (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
-    if (c !== 0) return c;
+    comparison = (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
+    if (comparison !== 0) return comparison;
 
-    c = matchSortDateKey(a.date).localeCompare(matchSortDateKey(b.date));
-    if (c !== 0) return c;
+    comparison = matchSortDateKey(a.date).localeCompare(matchSortDateKey(b.date));
+    if (comparison !== 0) return comparison;
 
-    c = (a.time ?? "").trim().localeCompare((b.time ?? "").trim());
-    if (c !== 0) return c;
+    comparison = (a.time ?? "").trim().localeCompare((b.time ?? "").trim());
+    if (comparison !== 0) return comparison;
 
     return a.id.localeCompare(b.id);
   });
 }
 
+function getStageMatches(
+  stage: DrawStage,
+  matchesByStage: Record<"prelims" | "qf" | "sf" | "final", MatchWithTeamNames[]>,
+): MatchWithTeamNames[] {
+  return matchesByStage[stage] ?? [];
+}
+
+function getStageTitle(
+  stage: DrawStage,
+  locale: "en" | "ko",
+  matchesByStage: Record<"prelims" | "qf" | "sf" | "final", MatchWithTeamNames[]>,
+): string {
+  const round = getStageMatches(stage, matchesByStage)[0]?.round;
+  if (!round) return "";
+  return locale === "ko" ? round.labelKo : round.labelEn;
+}
+
+function getResolvedGroup(boardGroups: string[], selectedGroup: string): string {
+  if (boardGroups.length <= 1) return boardGroups[0] ?? "";
+  if (boardGroups.includes(selectedGroup)) return selectedGroup;
+  return boardGroups[0] ?? "";
+}
+
+function getPrelimLegendItems(t: ReturnType<typeof useLocale>["t"]): string[] {
+  return [
+    `${t.drawsPage.prelims.tableW} - Wins`,
+    `${t.drawsPage.prelims.tableL} - Losses`,
+    `${t.drawsPage.prelims.tableSD} - Set difference`,
+    `${t.drawsPage.prelims.tableGD} - Game difference`,
+  ];
+}
 
 export type CategoriesDrawPanelProps = {
-  drawTeams: TeamRow[];
   categoryMatches: MatchWithTeamNames[];
-  drawData?: DrawStageData;
+  drawData: DrawStageData;
   drawStage: DrawStage;
   setDrawStage: (stage: DrawStage) => void;
 };
 
-/** Draw tab: stage selector, then prelims or knockout bracket. */
 export function CategoriesDrawPanel({
-  drawTeams,
   categoryMatches,
-  drawData: drawDataProp,
+  drawData,
   drawStage,
   setDrawStage,
 }: CategoriesDrawPanelProps) {
   const { t, locale } = useLocale();
-
-  const drawData = useMemo(
-    () => drawDataProp ?? buildDrawStageData(categoryMatches),
-    [drawDataProp, categoryMatches]
-  );
+  const [selectedGroup, setSelectedGroup] = useUrlParam("group");
 
   const {
     availableStages,
@@ -111,68 +139,67 @@ export function CategoriesDrawPanel({
     finalsMatches,
   } = drawData;
 
-  const [selectedGroup, setSelectedGroup] = useUrlParam("group");
-
-  const teamRowsForRank = useMemo(
-    () => (drawTeams.length > 0 ? drawTeams : teamRowsFromCategoryMatches(categoryMatches)),
-    [drawTeams, categoryMatches]
+  const matchesByStage = useMemo(
+    () => ({
+      prelims: prelimMatches,
+      qf: qfMatches,
+      sf: sfMatches,
+      final: finalMatches,
+    }),
+    [prelimMatches, qfMatches, sfMatches, finalMatches],
   );
 
   const teamRankById = useMemo(
-    () => buildTeamRankMapFromPrelims(teamRowsForRank, prelimMatches),
-    [teamRowsForRank, prelimMatches]
+    () => buildTeamRankMapFromPrelims(teamRowsFromCategoryMatches(categoryMatches), prelimMatches),
+    [categoryMatches, prelimMatches],
   );
 
   const bracketTeamRankById = useMemo(
     () => (isUnifiedKnockout ? new Map<string, number>() : teamRankById),
-    [isUnifiedKnockout, teamRankById]
+    [isUnifiedKnockout, teamRankById],
   );
 
-  const prelimsBoard = useMemo(() => buildPrelimsLeaderboard(categoryMatches), [categoryMatches]);
+  const prelimsBoard = useMemo(
+    () => buildPrelimsLeaderboard(categoryMatches),
+    [categoryMatches],
+  );
+
   const boardGroups = prelimsBoard?.groups ?? [];
 
-  const resolvedGroup =
-    boardGroups.length <= 1
-      ? (boardGroups[0] ?? "")
-      : boardGroups.includes(selectedGroup)
-        ? selectedGroup
-        : (boardGroups[0] ?? "");
-
-  const boardRows = resolvedGroup ? prelimsBoard?.rowsByGroup[resolvedGroup] ?? [] : [];
-
-  const prelimMatchesForSeed = useMemo(
-    () =>
-      sortPrelimMatchesForCards(
-        prelimMatches.filter((match) => {
-          if (!resolvedGroup || resolvedGroup === "All") return true;
-          const g1 = groupKeyFromSeed(match.team1Seed);
-          const g2 = groupKeyFromSeed(match.team2Seed);
-          return g1 === resolvedGroup || g2 === resolvedGroup;
-        })
-      ),
-    [prelimMatches, resolvedGroup]
+  const resolvedGroup = useMemo(
+    () => getResolvedGroup(boardGroups, selectedGroup),
+    [boardGroups, selectedGroup],
   );
 
+  const boardRows = resolvedGroup
+    ? prelimsBoard?.rowsByGroup[resolvedGroup] ?? []
+    : [];
+
+  const prelimMatchesForSeed = useMemo(() => {
+    const filtered = prelimMatches.filter((match) => {
+      if (!resolvedGroup || resolvedGroup === "All") return true;
+      const group1 = groupKeyFromSeed(match.team1Seed);
+      const group2 = groupKeyFromSeed(match.team2Seed);
+      return group1 === resolvedGroup || group2 === resolvedGroup;
+    });
+
+    return sortPrelimMatchesForCards(filtered);
+  }, [prelimMatches, resolvedGroup]);
+
   const activeKnockoutColumn = useMemo(() => {
-    const sub = knockoutSubStageFromDrawStage(drawStage);
+    const subStage = knockoutSubStageFromDrawStage(drawStage);
 
-    if (sub && knockoutSubStages.includes(sub)) {
-      const hasData =
-        (sub === "qf" && qfMatches.length > 0) ||
-        (sub === "sf" && sfMatches.length > 0) ||
-        (sub === "final" && finalMatches.length > 0);
+    if (subStage && knockoutSubStages.includes(subStage)) {
+      const hasMatches =
+        (subStage === "qf" && qfMatches.length > 0) ||
+        (subStage === "sf" && sfMatches.length > 0) ||
+        (subStage === "final" && finalMatches.length > 0);
 
-      if (hasData) return sub;
+      if (hasMatches) return subStage;
     }
 
     return knockoutSubStages[0] ?? "qf";
-  }, [
-    drawStage,
-    finalMatches.length,
-    knockoutSubStages,
-    qfMatches.length,
-    sfMatches.length,
-  ]);
+  }, [drawStage, knockoutSubStages, qfMatches.length, sfMatches.length, finalMatches.length]);
 
   const drawHasAnyData =
     availableStages.length > 0 ||
@@ -182,30 +209,37 @@ export function CategoriesDrawPanel({
 
   const orderedDrawStages = useMemo(
     () => DRAW_STAGE_ORDER.filter((stage) => availableStages.includes(stage)),
-    [availableStages]
+    [availableStages],
   );
 
   const showDrawStageNav = drawHasAnyData && orderedDrawStages.length > 1;
   const stageNavIndex = orderedDrawStages.indexOf(drawStage);
-  const mobilePrevStage = stageNavIndex > 0 ? orderedDrawStages[stageNavIndex - 1]! : null;
+
+  const mobilePrevStage = stageNavIndex > 0 ? orderedDrawStages[stageNavIndex - 1] : null;
   const mobileNextStage =
     stageNavIndex >= 0 && stageNavIndex < orderedDrawStages.length - 1
-      ? orderedDrawStages[stageNavIndex + 1]!
+      ? orderedDrawStages[stageNavIndex + 1]
       : null;
 
+  const showPrelimsSection = drawStage === "prelims" && !isUnifiedKnockout;
+  const showKnockoutSection = drawStage !== "prelims" || isUnifiedKnockout;
+
+  const stageTitle = getStageTitle(drawStage, locale, matchesByStage);
+  const prelimLegendItems = getPrelimLegendItems(t);
+
   return (
-    <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)] text-[var(--section-text)]">
-      {showDrawStageNav ? (
+    <div className="space-y-[var(--content-gap)] text-[var(--section-text)] md:space-y-[var(--section-gap)]">
+      {showDrawStageNav && (
         <div className="md:hidden">
-          <TournamentTreeStageHeader
-            title={(() => {
-              const stageMatches = drawStage === "qf" ? qfMatches : drawStage === "sf" ? sfMatches : drawStage === "final" ? finalMatches : prelimMatches;
-              const r = stageMatches[0]?.round;
-              return r ? (locale === "ko" ? r.labelKo : r.labelEn) : "";
-            })()}
+          <StageHeader
+            title={stageTitle}
             navigation={{
-              onPrev: () => { if (mobilePrevStage) setDrawStage(mobilePrevStage); },
-              onNext: () => { if (mobileNextStage) setDrawStage(mobileNextStage); },
+              onPrev: () => {
+                if (mobilePrevStage) setDrawStage(mobilePrevStage);
+              },
+              onNext: () => {
+                if (mobileNextStage) setDrawStage(mobileNextStage);
+              },
               prevDisabled: mobilePrevStage == null,
               nextDisabled: mobileNextStage == null,
               prevLabel: t.drawsPage.bracketPrevRound,
@@ -213,15 +247,16 @@ export function CategoriesDrawPanel({
             }}
           />
         </div>
-      ) : null}
+      )}
 
-      {drawStage === "prelims" && !isUnifiedKnockout ? (
+      {showPrelimsSection && (
         <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
-          {boardGroups.length > 1 ? (
+          {boardGroups.length > 1 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-[color:var(--foreground)]">
                 {locale === "ko" ? "조" : "Group"}
               </span>
+
               <div className="inline-flex flex-wrap gap-1 rounded-lg border border-[color:var(--outline-blue-subtle)] bg-[var(--color-surface-muted)] p-1">
                 {boardGroups.map((group) => {
                   const active = resolvedGroup === group;
@@ -245,9 +280,9 @@ export function CategoriesDrawPanel({
                 })}
               </div>
             </div>
-          ) : null}
+          )}
 
-          {prelimsBoard && boardRows.length > 0 ? (
+          {prelimsBoard && boardRows.length > 0 && (
             <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
               <PrelimsLeaderboardTable
                 rankHeader={t.drawsPage.prelims.tableRank}
@@ -259,43 +294,47 @@ export function CategoriesDrawPanel({
                 rows={boardRows}
               />
 
-              {locale !== "ko" ? (
+              {locale !== "ko" && (
                 <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--foreground)]">
-                  {[
-                    `${t.drawsPage.prelims.tableW} - Wins`,
-                    `${t.drawsPage.prelims.tableL} - Losses`,
-                    `${t.drawsPage.prelims.tableSD} - Set difference`,
-                    `${t.drawsPage.prelims.tableGD} - Game difference`,
-                  ].map((item) => (
+                  {prelimLegendItems.map((item) => (
                     <li key={item} className="flex items-center before:mr-2 before:content-['•']">
                       {item}
                     </li>
                   ))}
                 </ul>
-              ) : null}
+              )}
             </div>
-          ) : null}
+          )}
 
           <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
             {prelimMatchesForSeed.length === 0 ? (
-              <p className="text-[var(--color-text-tertiary)] text-sm">{t.drawsPage.prelims.noPrelimsMatches}</p>
+              <p className="text-sm text-[var(--color-text-tertiary)]">
+                {t.drawsPage.prelims.noPrelimsMatches}
+              </p>
             ) : (
               <ul className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
                 {prelimMatchesForSeed.map((match) => (
                   <li key={match.id}>
-                    <MatchCard match={match} omitCategoryInHeader />
+                    <MatchCard
+                      match={match}
+                      omitCategoryInHeader
+                      team1Rank={match.team1Id ? (teamRankById.get(match.team1Id) ?? null) : null}
+                      team2Rank={match.team2Id ? (teamRankById.get(match.team2Id) ?? null) : null}
+                    />
                   </li>
                 ))}
               </ul>
             )}
           </div>
         </div>
-      ) : null}
+      )}
 
-      {(drawStage !== "prelims" || isUnifiedKnockout) ? (
+      {showKnockoutSection && (
         <>
           {knockoutSubStages.length === 0 ? (
-            <p className="text-[var(--color-text-tertiary)] text-sm">{t.drawsPage.drawNoMatches}</p>
+            <p className="text-sm text-[var(--color-text-tertiary)]">
+              {t.drawsPage.drawNoMatches}
+            </p>
           ) : (
             <BracketView
               r16Matches={isUnifiedKnockout ? (r16Matches.length > 0 ? r16Matches : prelimMatches) : undefined}
@@ -308,11 +347,7 @@ export function CategoriesDrawPanel({
             />
           )}
         </>
-      ) : null}
-
-      {!drawHasAnyData ? (
-        <p className="text-[var(--color-text-tertiary)] text-sm">{t.drawsPage.drawNoMatches}</p>
-      ) : null}
+      )}
     </div>
   );
 }

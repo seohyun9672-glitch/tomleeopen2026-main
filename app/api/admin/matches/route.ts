@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildMatchId, matchIdUsesPrelimsSeedLetter, matchIdYearSuffix } from "@/lib/matchId";
+import { buildMatchId, matchIdUsesPrelimsSeedLetter, matchIdYearSuffix } from "@/lib/matches";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";

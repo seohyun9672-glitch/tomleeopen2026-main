@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { matchStatusToChipTone, TableDataChip, TableDataChipGroup } from "../Chip";
+export { TableDataChip, TableDataChipGroup } from "../Chip";
 
 // -- Layout primitives ---------------------------------------------------------
 
@@ -20,7 +20,7 @@ export function TableTechnicalIdCell({ children }: { children: ReactNode }) {
   return <span className="table-cell-technical-id">{children}</span>;
 }
 
-// -- Match / status ------------------------------------------------------------
+// -- Match / score layout -----------------------------------------------------
 
 export function TableScoreSummaryCell({ children }: { children: ReactNode }) {
   return <span className="table-cell-score-line">{children}</span>;
@@ -36,41 +36,6 @@ export function TableMatchScoresStacked({ lines }: { lines: string[] }) {
         </span>
       ))}
     </span>
-  );
-}
-
-export function TableMatchStatusPill({ status, label }: { status: string; label?: string }) {
-  const tone = matchStatusToChipTone(status);
-  return (
-    <TableDataChipGroup>
-      <TableDataChip variant="status" tone={tone}>
-        {label ?? status}
-      </TableDataChip>
-    </TableDataChipGroup>
-  );
-}
-
-export function TableRegistrationStatusCell({
-  statusLine,
-  variant,
-  showRefundNote,
-  refundNoteText,
-}: {
-  statusLine: string;
-  variant: "cancelled" | "active";
-  showRefundNote?: boolean;
-  refundNoteText?: string;
-}) {
-  const refundLine = refundNoteText ?? "Refund in notes — shown as cancelled.";
-  return (
-    <TableCellStack>
-      <TableDataChipGroup>
-        <TableDataChip variant="status" tone={variant === "cancelled" ? "reg-cancelled" : "reg-active"}>
-          {statusLine}
-        </TableDataChip>
-      </TableDataChipGroup>
-      {showRefundNote ? <span className="table-data-pill-note">{refundLine}</span> : null}
-    </TableCellStack>
   );
 }
 
@@ -130,51 +95,6 @@ export function TableStackedPlayersCell({
   );
 }
 
-// -- Chips --------------------------------------------------------------------
-
-export function TableCategoryChipsCell({ items }: { items: { id: string; label: string }[] }) {
-  if (items.length === 0) return "—";
-  return (
-    <TableDataChipGroup>
-      {items.map((item) => (
-        <TableDataChip key={item.id} variant="category" categoryId={item.id} title={item.id}>
-          {item.label}
-        </TableDataChip>
-      ))}
-    </TableDataChipGroup>
-  );
-}
-
-export function TableClubsChipsCell({ clubs, rowKey }: { clubs: string[]; rowKey: string }) {
-  if (clubs.length === 0) return "—";
-  return (
-    <TableDataChipGroup>
-      {clubs.map((clubCode) => (
-        <TableDataChip key={`${rowKey}-${clubCode}`} variant="club" clubCode={clubCode} />
-      ))}
-    </TableDataChipGroup>
-  );
-}
-
-export function TablePlayerClubsCell({ clubs, playerId }: { clubs: string[]; playerId: number }) {
-  if (clubs.length === 0) return "—";
-  return (
-    <TableDataChipGroup>
-      {clubs.map((clubCode) => (
-        <TableDataChip key={`${playerId}-${clubCode}`} variant="club" clubCode={clubCode} />
-      ))}
-    </TableDataChipGroup>
-  );
-}
-
 export function TablePlayerDirectoryNameCell({ primary }: { primary: string }) {
   return <span className="table-player-name-primary">{primary}</span>;
 }
-
-export {
-  TableDataChip,
-  TableDataChipGroup,
-  matchStatusToChipTone,
-  type TableDataChipTone,
-  type TableDataChipProps,
-} from "../Chip";

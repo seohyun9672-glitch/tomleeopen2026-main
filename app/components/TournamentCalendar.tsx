@@ -1,16 +1,13 @@
 "use client";
 
-import { Divider } from "@/app/components/ui/Divider";
-import { useLocale } from "@/lib/locale-context";
-import type { ImportantDateEntry } from "@/lib/importantDatesData";
 import { useMemo, useState } from "react";
-import { importantDates } from "@/lib/importantDatesData";
-import type { Locale } from "@/lib/content";
 
-/**
- * Same accent for calendar date cells and list dots; values match --calendar-accent-* in globals.css.
- * Indices are tied to each row’s canonical English `label` in importantDatesData.
- */
+import { Divider } from "@/app/components/ui/Divider";
+import type { Locale } from "@/lib/content";
+import type { ImportantDateEntry } from "@/lib/importantDatesData";
+import { importantDates } from "@/lib/importantDatesData";
+import { useLocale } from "@/lib/locale-context";
+
 const CALENDAR_ACCENT_BG = [
   "bg-[var(--calendar-accent-0)]",
   "bg-[var(--calendar-accent-1)]",
@@ -19,14 +16,11 @@ const CALENDAR_ACCENT_BG = [
   "bg-[var(--calendar-accent-4)]",
   "bg-[var(--calendar-accent-5)]",
   "bg-[var(--calendar-accent-6)]",
-];
+] as const;
 
 const CALENDAR_CELL_TEXT = "text-[var(--color-text-primary)]";
-
-/** English `label` keys omitted from the home calendar grid + legend (data may still exist for other pages). */
 const CALENDAR_EXCLUDED_LABELS = new Set(["Tournament"]);
 
-/** Stable accent per important-dates row (English label key from importantDatesData). */
 const CALENDAR_ACCENT_BY_LABEL: Record<string, number> = {
   Tournament: 0,
   Registration: 1,
@@ -36,51 +30,43 @@ const CALENDAR_ACCENT_BY_LABEL: Record<string, number> = {
   Final: 5,
 };
 
-const CALENDAR_ACCENT_FALLBACK_MOD = CALENDAR_ACCENT_BG.length;
+type CalendarSourceEntry = Extract<ImportantDateEntry, { type: "date" } | { type: "range" }>;
 
-function accentIndexForEntry(
-  e: Extract<ImportantDateEntry, { type: "date" } | { type: "range" }>,
-  orderIndex: number
-): number {
-  const mapped = CALENDAR_ACCENT_BY_LABEL[e.label];
-  if (mapped !== undefined) return mapped;
-  return orderIndex % CALENDAR_ACCENT_FALLBACK_MOD;
-}
+type CalendarEntryResolved = {
+  accentIndex: number;
+  sourceOrder: number;
+  label: string;
+  valueDisplay: string;
+  type: "date" | "range";
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+};
 
-function getAccentBgClass(accentIndex: number): string {
-  return CALENDAR_ACCENT_BG[accentIndex % CALENDAR_ACCENT_BG.length] ?? CALENDAR_ACCENT_BG[0];
-}
+type MonthListEntry = Pick<
+  CalendarEntryResolved,
+  "label" | "valueDisplay" | "accentIndex" | "sourceOrder"
+>;
 
-function getDotColorClass(accentIndex: number): string {
-  return getAccentBgClass(accentIndex);
-}
-
-function getHighlightedCellClass(accentIndex: number): string {
-  return `${getAccentBgClass(accentIndex)} ${CALENDAR_CELL_TEXT}`;
-}
-
-function resolvedCalendarLabel(
-  e: Extract<ImportantDateEntry, { type: "date" } | { type: "range" }>,
-  locale: Locale
+function resolveLocalizedText(
+  locale: Locale,
+  primary: string,
+  localized?: string | null
 ): string {
-  if (locale === "ko" && e.labelKo?.trim()) return e.labelKo.trim();
-  return e.label;
+  if (locale === "ko" && localized?.trim()) return localized.trim();
+  return primary;
 }
 
-function resolvedCalendarValueDisplay(
-  e: Extract<ImportantDateEntry, { type: "date" } | { type: "range" }>,
-  locale: Locale
-): string {
-  if (locale === "ko" && e.valueDisplayKo?.trim()) return e.valueDisplayKo.trim();
-  return e.valueDisplay;
+function getAccentClass(index: number): string {
+  return CALENDAR_ACCENT_BG[index % CALENDAR_ACCENT_BG.length] ?? CALENDAR_ACCENT_BG[0];
 }
 
-function getMonthLabel(year: number, month: number, locale: Locale): string {
-  const tag = locale === "ko" ? "ko-KR" : "en-US";
-  return new Date(year, month, 1).toLocaleDateString(tag, {
-    month: "long",
-    year: "numeric",
-  });
+function getHighlightedCellClass(index: number): string {
+  return `${getAccentClass(index)} ${CALENDAR_CELL_TEXT}`;
+}
+
+function getAccentIndex(entry: CalendarSourceEntry, orderIndex: number): number {
+  return CALENDAR_ACCENT_BY_LABEL[entry.label] ?? orderIndex % CALENDAR_ACCENT_BG.length;
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -91,158 +77,131 @@ function getFirstDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 1).getDay();
 }
 
-type CalendarEntryResolved = {
-  accentIndex: number;
-  /** Index among calendar rows in `importantDates` (for tie-breaks). */
-  sourceOrder: number;
-  label: string;
-  valueDisplay: string;
-  type: "date" | "range";
-  date?: string;
-  startDate?: string;
-  endDate?: string;
-};
+function getMonthLabel(year: number, month: number, locale: Locale): string {
+  return new Date(year, month, 1).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
 
-function getCalendarEntriesResolved(locale: Locale): CalendarEntryResolved[] {
+function getCalendarEntries(locale: Locale): CalendarEntryResolved[] {
   const result: CalendarEntryResolved[] = [];
-  let orderIndex = 0;
-  for (const e of importantDates) {
-    if (e.type === "text") continue;
-    if (CALENDAR_EXCLUDED_LABELS.has(e.label)) continue;
-    const label = resolvedCalendarLabel(e, locale);
-    const valueDisplay = resolvedCalendarValueDisplay(e, locale);
-    const accentIndex = accentIndexForEntry(e, orderIndex);
-    const sourceOrder = orderIndex;
-    if (e.type === "date") {
-      result.push({
-        accentIndex,
-        sourceOrder,
-        label,
-        valueDisplay,
-        type: "date",
-        date: e.date,
-      });
-    } else {
-      result.push({
-        accentIndex,
-        sourceOrder,
-        label,
-        valueDisplay,
-        type: "range",
-        startDate: e.startDate,
-        endDate: e.endDate,
-      });
-    }
-    orderIndex++;
+  let sourceOrder = 0;
+
+  for (const entry of importantDates) {
+    if (entry.type === "text") continue;
+    if (CALENDAR_EXCLUDED_LABELS.has(entry.label)) continue;
+
+    const accentIndex = getAccentIndex(entry, sourceOrder);
+
+    result.push({
+      accentIndex,
+      sourceOrder,
+      label: resolveLocalizedText(locale, entry.label, entry.labelKo),
+      valueDisplay: resolveLocalizedText(locale, entry.valueDisplay, entry.valueDisplayKo),
+      type: entry.type,
+      ...(entry.type === "date"
+        ? { date: entry.date }
+        : { startDate: entry.startDate, endDate: entry.endDate }),
+    });
+
+    sourceOrder++;
   }
+
   return result;
 }
 
-/** Length of range in days (0 for a single `date` row) — smaller = more specific when ranges overlap. */
-function entrySpanDays(e: CalendarEntryResolved): number {
-  if (e.type === "date") return 0;
-  if (!e.startDate || !e.endDate) return Number.POSITIVE_INFINITY;
-  const t0 = Date.parse(`${e.startDate}T12:00:00`);
-  const t1 = Date.parse(`${e.endDate}T12:00:00`);
-  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return Number.POSITIVE_INFINITY;
-  return Math.max(0, (t1 - t0) / 86400000);
+function getEntrySpanDays(entry: CalendarEntryResolved): number {
+  if (entry.type === "date") return 0;
+  if (!entry.startDate || !entry.endDate) return Number.POSITIVE_INFINITY;
+
+  const start = Date.parse(`${entry.startDate}T12:00:00`);
+  const end = Date.parse(`${entry.endDate}T12:00:00`);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.max(0, (end - start) / 86400000);
 }
 
-/**
- * When a day falls in several calendar rows (e.g. long Tournament window + shorter Registration),
- * pick the most specific row so the cell colour matches the matching list line users read.
- */
-function getEntryForCalendarDate(
+function getEntryForDate(
   dateStr: string,
   entries: CalendarEntryResolved[]
 ): CalendarEntryResolved | null {
-  const matches: CalendarEntryResolved[] = [];
-  for (const e of entries) {
-    if (e.type === "date" && e.date === dateStr) matches.push(e);
-    else if (
-      e.type === "range" &&
-      e.startDate &&
-      e.endDate &&
-      dateStr >= e.startDate &&
-      dateStr <= e.endDate
-    ) {
-      matches.push(e);
-    }
-  }
-  if (matches.length === 0) return null;
-  if (matches.length === 1) return matches[0]!;
-  matches.sort((a, b) => {
-    const sd = entrySpanDays(a) - entrySpanDays(b);
-    if (sd !== 0) return sd;
-    return b.sourceOrder - a.sourceOrder;
+  const matches = entries.filter((entry) => {
+    if (entry.type === "date") return entry.date === dateStr;
+    return !!entry.startDate && !!entry.endDate && dateStr >= entry.startDate && dateStr <= entry.endDate;
   });
-  return matches[0]!;
+
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0] ?? null;
+
+  return [...matches].sort((a, b) => {
+    const spanDiff = getEntrySpanDays(a) - getEntrySpanDays(b);
+    if (spanDiff !== 0) return spanDiff;
+    return b.sourceOrder - a.sourceOrder;
+  })[0] ?? null;
 }
 
-/** Initial calendar view (year, month) from first calendar entry */
-function getInitialCalendarView(entries: CalendarEntryResolved[]): { year: number; month: number } {
-  const now = new Date();
-  if (entries.length === 0) {
-    return { year: now.getFullYear(), month: now.getMonth() };
-  }
-  const first = entries[0];
-  const dateStr = first.type === "date" ? first.date! : first.startDate!;
-  const [y, m] = dateStr.split("-").map(Number);
-  return { year: y, month: m - 1 };
-}
-
-/** Entries that fall in the given month (for list under calendar). */
 function getEntriesForMonth(
   year: number,
   month: number,
   entries: CalendarEntryResolved[]
-): { label: string; valueDisplay: string; accentIndex: number; sourceOrder: number }[] {
+): MonthListEntry[] {
   const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const result: { label: string; valueDisplay: string; accentIndex: number; sourceOrder: number }[] = [];
 
-  for (const e of entries) {
-    if (e.type === "date" && e.date?.startsWith(monthKey)) {
-      result.push({
-        label: e.label,
-        valueDisplay: e.valueDisplay,
-        accentIndex: e.accentIndex,
-        sourceOrder: e.sourceOrder,
-      });
-    }
-    if (e.type === "range" && e.startDate && e.endDate) {
-      const startMonth = e.startDate.slice(0, 7);
-      const endMonth = e.endDate.slice(0, 7);
-      if (monthKey >= startMonth && monthKey <= endMonth) {
-        result.push({
-          label: e.label,
-          valueDisplay: e.valueDisplay,
-          accentIndex: e.accentIndex,
-          sourceOrder: e.sourceOrder,
-        });
+  return entries
+    .filter((entry) => {
+      if (entry.type === "date") {
+        return entry.date?.startsWith(monthKey);
       }
-    }
-  }
 
-  result.sort((a, b) =>
-    a.sourceOrder !== b.sourceOrder ? a.sourceOrder - b.sourceOrder : a.label.localeCompare(b.label)
-  );
-  return result;
+      if (!entry.startDate || !entry.endDate) return false;
+
+      const startMonth = entry.startDate.slice(0, 7);
+      const endMonth = entry.endDate.slice(0, 7);
+
+      return monthKey >= startMonth && monthKey <= endMonth;
+    })
+    .map(({ label, valueDisplay, accentIndex, sourceOrder }) => ({
+      label,
+      valueDisplay,
+      accentIndex,
+      sourceOrder,
+    }))
+    .sort((a, b) => {
+      if (a.sourceOrder !== b.sourceOrder) return a.sourceOrder - b.sourceOrder;
+      return a.label.localeCompare(b.label);
+    });
 }
 
-function monthHasImportantDates(
-  year: number,
-  month: number,
-  entries: CalendarEntryResolved[]
-): boolean {
+function hasEntriesInMonth(year: number, month: number, entries: CalendarEntryResolved[]): boolean {
   return getEntriesForMonth(year, month, entries).length > 0;
 }
 
-interface MonthCalendarProps {
+function getInitialCalendarView(entries: CalendarEntryResolved[]): { year: number; month: number } {
+  const now = new Date();
+
+  if (entries.length === 0) {
+    return { year: now.getFullYear(), month: now.getMonth() };
+  }
+
+  const firstDate = entries[0]?.type === "date" ? entries[0].date : entries[0]?.startDate;
+  if (!firstDate) {
+    return { year: now.getFullYear(), month: now.getMonth() };
+  }
+
+  const [year, month] = firstDate.split("-").map(Number);
+  return { year, month: month - 1 };
+}
+
+type MonthCalendarProps = {
   year: number;
   month: number;
   weekdayLabels: readonly string[];
   entries: CalendarEntryResolved[];
-}
+};
 
 function MonthCalendar({ year, month, weekdayLabels, entries }: MonthCalendarProps) {
   const daysInMonth = getDaysInMonth(year, month);
@@ -250,25 +209,26 @@ function MonthCalendar({ year, month, weekdayLabels, entries }: MonthCalendarPro
 
   return (
     <div className="grid grid-cols-7 gap-px text-center text-xs">
-      {weekdayLabels.map((d) => (
-        <div key={d} className="py-1.5 text-inherit opacity-70 font-medium">
-          {d}
+      {weekdayLabels.map((label) => (
+        <div key={label} className="py-1.5 font-medium text-inherit opacity-70">
+          {label}
         </div>
       ))}
-      {Array.from({ length: firstDay }, (_, i) => (
-        <div key={`pad-${i}`} className="py-1.5" />
+
+      {Array.from({ length: firstDay }, (_, index) => (
+        <div key={`pad-${index}`} className="py-1.5" />
       ))}
-      {Array.from({ length: daysInMonth }, (_, i) => {
-        const day = i + 1;
+
+      {Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        const entry = getEntryForCalendarDate(dateStr, entries);
-        const isHighlighted = entry !== null;
-        const colorClass = isHighlighted ? getHighlightedCellClass(entry!.accentIndex) : "";
+        const entry = getEntryForDate(dateStr, entries);
+
         return (
           <div
             key={day}
-            className={`py-1.5 rounded-md font-medium ${
-              isHighlighted ? colorClass : "text-inherit"
+            className={`rounded-md py-1.5 font-medium ${
+              entry ? getHighlightedCellClass(entry.accentIndex) : "text-inherit"
             }`}
             title={entry ? `${entry.label}: ${entry.valueDisplay}` : undefined}
           >
@@ -283,55 +243,51 @@ function MonthCalendar({ year, month, weekdayLabels, entries }: MonthCalendarPro
 export function TournamentCalendar() {
   const { t, locale } = useLocale();
 
-  const calendarEntries = useMemo(() => getCalendarEntriesResolved(locale), [locale]);
+  const calendarEntries = useMemo(() => getCalendarEntries(locale), [locale]);
 
-  const initialView = useMemo(() => getInitialCalendarView(getCalendarEntriesResolved("en")), []);
-  const [year, setYear] = useState(initialView.year);
-  const [month, setMonth] = useState(initialView.month);
-
-  const entriesThisMonth = useMemo(
-    () => getEntriesForMonth(year, month, calendarEntries),
-    [year, month, calendarEntries]
+  const initialView = useMemo(
+    () => getInitialCalendarView(getCalendarEntries("en")),
+    []
   );
 
-  const prevYear = month === 0 ? year - 1 : year;
-  const prevMonth = month === 0 ? 11 : month - 1;
-  const nextYear = month === 11 ? year + 1 : year;
-  const nextMonth = month === 11 ? 0 : month + 1;
-  const hasPrev = monthHasImportantDates(prevYear, prevMonth, calendarEntries);
-  const hasNext = monthHasImportantDates(nextYear, nextMonth, calendarEntries);
+  const [view, setView] = useState(initialView);
 
-  const goPrev = () => {
-    if (!hasPrev) return;
-    setYear(prevYear);
-    setMonth(prevMonth);
-  };
+  const entriesThisMonth = useMemo(
+    () => getEntriesForMonth(view.year, view.month, calendarEntries),
+    [view, calendarEntries]
+  );
 
-  const goNext = () => {
-    if (!hasNext) return;
-    setYear(nextYear);
-    setMonth(nextMonth);
-  };
+  const prevView = view.month === 0
+    ? { year: view.year - 1, month: 11 }
+    : { year: view.year, month: view.month - 1 };
+
+  const nextView = view.month === 11
+    ? { year: view.year + 1, month: 0 }
+    : { year: view.year, month: view.month + 1 };
+
+  const hasPrev = hasEntriesInMonth(prevView.year, prevView.month, calendarEntries);
+  const hasNext = hasEntriesInMonth(nextView.year, nextView.month, calendarEntries);
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
-      {/* Month navigation */}
       <div className="flex w-full shrink-0 items-center justify-between gap-2">
         <button
           type="button"
-          onClick={goPrev}
+          onClick={() => hasPrev && setView(prevView)}
           disabled={!hasPrev}
           className="flex h-10 max-h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-border-ui-strong)] text-inherit hover:bg-[var(--color-surface-hover)] disabled:pointer-events-none disabled:opacity-40"
           aria-label={t.schedulePage.previousMonth}
         >
           <span aria-hidden>←</span>
         </button>
-        <p className="text-base font-semibold text-inherit min-w-[10rem] text-center">
-          {getMonthLabel(year, month, locale)}
+
+        <p className="min-w-[10rem] text-center text-base font-semibold text-inherit">
+          {getMonthLabel(view.year, view.month, locale)}
         </p>
+
         <button
           type="button"
-          onClick={goNext}
+          onClick={() => hasNext && setView(nextView)}
           disabled={!hasNext}
           className="flex h-10 max-h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-border-ui-strong)] text-inherit hover:bg-[var(--color-surface-hover)] disabled:pointer-events-none disabled:opacity-40"
           aria-label={t.schedulePage.nextMonth}
@@ -342,8 +298,8 @@ export function TournamentCalendar() {
 
       <div className="shrink-0">
         <MonthCalendar
-          year={year}
-          month={month}
+          year={view.year}
+          month={view.month}
           weekdayLabels={t.homePage.calendar.weekdayShort}
           entries={calendarEntries}
         />
@@ -351,7 +307,6 @@ export function TournamentCalendar() {
 
       <div className="min-h-0 flex-1" aria-hidden />
 
-      {/* List only dates that fall in the currently selected month */}
       {entriesThisMonth.length > 0 && (
         <div className="shrink-0">
           <Divider />
@@ -359,7 +314,7 @@ export function TournamentCalendar() {
             {entriesThisMonth.map((entry) => (
               <li key={`${entry.sourceOrder}-${entry.label}`} className="flex flex-wrap items-center gap-x-2">
                 <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${getDotColorClass(entry.accentIndex)}`}
+                  className={`h-2 w-2 shrink-0 rounded-full ${getAccentClass(entry.accentIndex)}`}
                   aria-hidden
                 />
                 <span className="font-medium text-inherit">{entry.label}:</span>

@@ -5,13 +5,13 @@ import {
   buildCategoryByIdMap,
   categoryLabelForId,
   getCategoryLabel,
-} from "@/lib/categories/labels";
-import type { CategoryRecord } from "@/lib/categories/types";
+} from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 import {
   CATEGORY_YEAR_STATUSES,
   type CategoryYearListItem,
   type CategoryYearStatus,
-} from "@/lib/categories/yearStatus";
+} from "@/lib/categories";
 import { useLocale } from "@/lib/locale-context";
 import { Modal } from "@/app/components/ui/Modal";
 import { Field } from "@/app/components/ui/Field";
