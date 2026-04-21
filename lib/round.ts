@@ -24,14 +24,3 @@ export function roundLabel(code: string | null | undefined, locale: "en" | "ko")
     default: return "";
   }
 }
-
-/**
- * Whether a number should be shown for a given round context.
- * - No `isLoser`: header match number — show for all rounds except Final.
- * - With `isLoser`: rank badge — all players in knockout rounds get the number.
- */
-export function showNumber(round: RoundInfo | null, isLoser?: boolean): boolean {
-  const code = round?.code;
-  if (isLoser === undefined) return code !== ROUND_F;
-  return code === ROUND_R16 || code === ROUND_QF || code === ROUND_SF || code === ROUND_F;
-}

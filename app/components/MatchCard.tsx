@@ -4,8 +4,15 @@ import { Badge } from "@/app/components/ui/Badge";
 import { useLocale } from "@/lib/locale-context";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
-import { showNumber } from "@/lib/round";
 import { cn } from "@/lib/utils";
+import { ROUND_F, ROUND_QF, ROUND_R16, ROUND_SF } from "@/lib/round";
+import { RoundInfo } from "@/lib/matches";
+
+function showNumber(round: RoundInfo | null, isLoser?: boolean): boolean {
+  const code = round?.code;
+  if (isLoser === undefined) return code !== ROUND_F;
+  return code === ROUND_R16 || code === ROUND_QF || code === ROUND_SF || code === ROUND_F;
+}
 
 function formatDateDisplay(dateStr: string | null, locale: "en" | "ko" = "en"): string {
   if (!dateStr?.trim()) return "—";
