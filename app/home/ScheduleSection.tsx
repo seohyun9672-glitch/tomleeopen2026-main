@@ -18,11 +18,12 @@ type ScheduleSectionProps = {
     matchListCourtPrefix: string;
   };
   todayMatches: TodayMatch[];
+  scheduleHref: string;
 };
 
 const INNER_CARD = "flex min-h-0 flex-1 flex-col rounded-xl bg-[var(--section-bg)] p-[var(--calendar-card-padding)] text-[var(--foreground-on-light)] shadow-sm";
 
-export function ScheduleSection({ hp, todayMatches }: ScheduleSectionProps) {
+export function ScheduleSection({ hp, todayMatches, scheduleHref }: ScheduleSectionProps) {
   return (
     <div className="py-[var(--layout-gap)]">
       <div className="page-shell">
@@ -43,7 +44,7 @@ export function ScheduleSection({ hp, todayMatches }: ScheduleSectionProps) {
                   <p className="py-8 text-center text-[var(--color-text-secondary)]">
                     {hp.todayMatchesEmpty.beforeLink}{" "}
                     <Link
-                      href={"/schedule"}
+                      href={scheduleHref}
                       className="text-[var(--color-text-primary)] underline hover:no-underline"
                     >
                       {hp.todayMatchesEmpty.scheduleLink}

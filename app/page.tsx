@@ -36,7 +36,7 @@ export default async function Home() {
   return (
     <>
       <Hero hero={hp.hero} />
-      <ScheduleSection hp={hp} todayMatches={todayMatches}  />
+      <ScheduleSection hp={hp} todayMatches={todayMatches} scheduleHref={hp.hero.navLinks.find((l) => /\/schedule$/.test(l.href))?.href ?? "/schedule"} />
       <SponsorsSection
         title={hp.sectionTitles.sponsors}
         sponsors={sponsorsItems}

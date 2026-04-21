@@ -9,6 +9,7 @@ type CommunityPartner = {
 
 type CommunityPartnersSectionProps = {
   title: string;
+  note?: string;
   communityPartners: CommunityPartner[];
   content: { shared: { aria: { visit: (name: string) => string } } };
 };

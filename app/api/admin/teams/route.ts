@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         if (used.has(reg.id)) continue;
         const label = idToLabel.get(reg.categoryId) ?? "";
 
-        if (isDoublesCategory(label)) {
+        if (isDoublesCategory(categories, label)) {
           const other =
             reg.partnerId != null &&
             reg.partner &&

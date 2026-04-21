@@ -1,10 +1,11 @@
 import { EXTERNAL_LINKS } from "@/lib/externalLinks";
 import { importantDates } from "@/lib/importantDatesData";
 
+const _finalEntry = importantDates.find((e) => e.label === "Final");
 const finalDateEn =
-  importantDates.find((e) => e.label === "Final")?.valueDisplay ?? "TBD";
+  (_finalEntry && _finalEntry.type !== "text" ? _finalEntry.valueDisplay : null) ?? "TBD";
 const finalDateKo =
-  importantDates.find((e) => e.label === "Final")?.valueDisplayKo ?? "추후 확정";
+  (_finalEntry && _finalEntry.type !== "text" ? _finalEntry.valueDisplayKo : null) ?? "추후 확정";
 
 /** Rules page content (EN + KO), modeled after other lib/content page modules. */
 export const rulesPage = {

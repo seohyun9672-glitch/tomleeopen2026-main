@@ -5,6 +5,7 @@ import type { PartnerClub } from "@/lib/partnerClubsData";
 
 type ClubsSectionProps = {
   title: string;
+  note?: string;
   partnerClubs: PartnerClub[];
   locale: Locale;
   content: { shared: { aria: { viewDetail: (name: string) => string } } };

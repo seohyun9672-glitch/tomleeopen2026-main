@@ -10,6 +10,7 @@ type Sponsor = {
 
 type SponsorsSectionProps = {
   title: string;
+  note?: string;
   sponsors: Sponsor[];
   tierLabels: { gold: string; silver: string; bronze: string };
   content: { shared: { aria: { visit: (name: string) => string } } };
