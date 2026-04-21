@@ -8,7 +8,7 @@ import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 import type { RoundInfo } from "@/lib/round";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
+import { CategoryFilter, RoundFilter, SeedFilter } from "@/app/components/FilterControls";
 import { useLocale } from "@/lib/locale-context";
 import { ROUND_PRE } from "@/lib/round";
 import { Table } from "@/app/components/ui/table/Table";
@@ -370,46 +370,32 @@ export function MatchesTable({
       {(!categoryFilterControlled && categoryOptions.length > 1) || (!roundFilterControlled && roundOptions.length > 1) || (!seedFilterControlled && seedOptions.length > 1) ? (
         <FilterGroup>
           {!categoryFilterControlled && categoryOptions.length > 1 ? (
-            <Filter control="stretch" htmlFor="matches-category" label={t.shared.labels.category}>
-              <Filter.Select
-                id="matches-category"
-                value={categoryFilter}
-                onChange={(e) => { setCategoryFilter(e.target.value); e.currentTarget.blur(); }}
-              >
-                <option value="">{t.shared.labels.allCategories}</option>
-                {categoryOptions.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
-                ))}
-              </Filter.Select>
-            </Filter>
+            <CategoryFilter
+              id="matches-category"
+              value={categoryFilter}
+              options={categoryOptions}
+              onChange={setCategoryFilter}
+              control="stretch"
+              allLabel={t.shared.labels.allCategories}
+            />
           ) : null}
           {!roundFilterControlled && roundOptions.length > 1 ? (
-            <Filter control="stretch" htmlFor="matches-round" label={t.shared.labels.round}>
-              <Filter.Select
-                id="matches-round"
-                value={roundFilter}
-                onChange={(e) => { setRoundFilter(e.target.value); e.currentTarget.blur(); }}
-              >
-                <option value="">{t.shared.labels.allRounds}</option>
-                {roundOptions.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </Filter.Select>
-            </Filter>
+            <RoundFilter
+              id="matches-round"
+              value={roundFilter}
+              options={roundOptions}
+              onChange={setRoundFilter}
+              allLabel={t.shared.labels.allRounds}
+            />
           ) : null}
           {!seedFilterControlled && seedOptions.length > 1 ? (
-            <Filter control="stretch" htmlFor="matches-seed" label={t.shared.labels.seed}>
-              <Filter.Select
-                id="matches-seed"
-                value={seedFilter}
-                onChange={(e) => { setSeedFilter(e.target.value); e.currentTarget.blur(); }}
-              >
-                <option value="">{t.shared.labels.allSeeds}</option>
-                {seedOptions.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </Filter.Select>
-            </Filter>
+            <SeedFilter
+              id="matches-seed"
+              value={seedFilter}
+              options={seedOptions.map((s) => s.value)}
+              onChange={setSeedFilter}
+              allLabel={t.shared.labels.allSeeds}
+            />
           ) : null}
         </FilterGroup>
       ) : null}

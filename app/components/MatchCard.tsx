@@ -3,9 +3,8 @@
 import { Badge } from "@/app/components/ui/Badge";
 import { useLocale } from "@/lib/locale-context";
 import type { MatchWithTeamNames } from "@/lib/matches";
-import { matchStatusLabel } from "@/lib/matches";
+import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 import { showNumber } from "@/lib/round";
-import { matchStatusChipClass } from "@/lib/matches";
 import { cn } from "@/lib/utils";
 
 function formatDateDisplay(dateStr: string | null, locale: "en" | "ko" = "en"): string {
@@ -24,10 +23,6 @@ function formatDateDisplay(dateStr: string | null, locale: "en" | "ko" = "en"): 
   }
 
   return value;
-}
-
-function scoreOrDash(score: string | null): string {
-  return score != null && score !== "" ? score : "—";
 }
 
 function hasSet3(match: MatchWithTeamNames): boolean {
@@ -201,10 +196,10 @@ function ScoreRowGrid({
       <div className="flex items-center justify-center">
         <ResultIndicator won={won} />
       </div>
-      <div className="flex min-w-[1.25rem] items-center justify-center">{scoreOrDash(set1)}</div>
-      <div className="flex min-w-[1.25rem] items-center justify-center">{scoreOrDash(set2)}</div>
+      <div className="flex min-w-[1.25rem] items-center justify-center">{(set1)}</div>
+      <div className="flex min-w-[1.25rem] items-center justify-center">{(set2)}</div>
       {showSet3 ? (
-        <div className="flex min-w-[1.25rem] items-center justify-center">{scoreOrDash(set3)}</div>
+        <div className="flex min-w-[1.25rem] items-center justify-center">{(set3)}</div>
       ) : null}
     </div>
   );

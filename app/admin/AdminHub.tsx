@@ -6,8 +6,7 @@ import { mergeFilterParams } from "@/lib/filterState";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
-import { deriveYearOptions } from "@/lib/filterUtils";
+import { YearFilter, CategoryFilter, RoundFilter, SeedFilter, StatusFilter } from "@/app/components/FilterControls";
 import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
 import { isCategoryConfirmedInYearMap } from "@/lib/categories";
 import { TabList } from "@/app/components/ui/TabList";
@@ -89,8 +88,6 @@ export function AdminHub({
     [setStatusParam]
   );
 
-  const yearOptions = useMemo(() => deriveYearOptions(allYears), [allYears]);
-
   const showYearFilter = view !== "players" && view !== "users";
 
   const hasCategoryParticipation = Object.values(yearData.categoryParticipation).some(
@@ -124,7 +121,7 @@ export function AdminHub({
         { value: "Pending" as const, label: t.adminCategoryYears.statusPending },
         { value: "Active" as const, label: t.adminCategoryYears.statusActive },
         { value: "Inactive" as const, label: t.adminCategoryYears.statusInactive },
-      ] as const,
+      ],
     [t]
   );
 
@@ -189,98 +186,58 @@ export function AdminHub({
           <div className="w-full min-w-0">
             <FilterGroup>
               {showYearFilter ? (
-                <Filter control="year" htmlFor="admin-year" label={t.shared.labels.year}>
-                  <Filter.Select
-                    id="admin-year"
-                    value={String(year)}
-                    onChange={(e) => {
-                      setYear(Number(e.currentTarget.value));
-                      e.currentTarget.blur();
-                    }}
-                  >
-                    {yearOptions.map((y) => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </Filter.Select>
-                </Filter>
+                <YearFilter
+                  id="admin-year"
+                  value={String(year)}
+                  years={allYears}
+                  onChange={(v) => setYear(Number(v))}
+                />
               ) : null}
               {showRegCategoryFilter ? (
-                <Filter control="category" htmlFor="admin-registrations-category" label={t.shared.labels.category}>
-                  <Filter.Select
-                    id="admin-registrations-category"
-                    value={regCategoryFilter}
-                    onChange={(e) => { setCatFilter(e.target.value); e.currentTarget.blur(); }}
-                  >
-                    <option value="">{t.shared.labels.allCategories}</option>
-                    {registrationCategoryOptions.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </Filter.Select>
-                </Filter>
+                <CategoryFilter
+                  id="admin-registrations-category"
+                  value={regCategoryFilter}
+                  options={registrationCategoryOptions}
+                  onChange={setCatFilter}
+                  allLabel={t.shared.labels.allCategories}
+                />
               ) : null}
               {showMatchesCategoryFilter ? (
-                <Filter control="stretch" htmlFor="admin-matches-category" label={t.shared.labels.category}>
-                  <Filter.Select
-                    id="admin-matches-category"
-                    value={matchesCategoryFilter}
-                    onChange={(e) => {
-                      setCatFilter(e.target.value);
-                      e.currentTarget.blur();
-                    }}
-                  >
-                    <option value="">{t.shared.labels.allCategories}</option>
-                    {matchesCategoryOptions.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </Filter.Select>
-                </Filter>
+                <CategoryFilter
+                  id="admin-matches-category"
+                  value={matchesCategoryFilter}
+                  options={matchesCategoryOptions}
+                  onChange={setCatFilter}
+                  control="stretch"
+                  allLabel={t.shared.labels.allCategories}
+                />
               ) : null}
               {showMatchesRoundFilter ? (
-                <Filter control="stretch" htmlFor="admin-matches-round" label={t.shared.labels.round}>
-                  <Filter.Select
-                    id="admin-matches-round"
-                    value={matchesRoundFilter}
-                    onChange={(e) => {
-                      setRoundFilter(e.target.value, { clear: ["seed"] });
-                      e.currentTarget.blur();
-                    }}
-                  >
-                    <option value="">{t.shared.labels.allRounds}</option>
-                    {matchesRoundOptions.map((r) => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                    ))}
-                  </Filter.Select>
-                </Filter>
+                <RoundFilter
+                  id="admin-matches-round"
+                  value={matchesRoundFilter}
+                  options={matchesRoundOptions}
+                  onChange={(v) => setRoundFilter(v, { clear: ["seed"] })}
+                  allLabel={t.shared.labels.allRounds}
+                />
               ) : null}
               {showMatchesSeedFilter ? (
-                <Filter control="stretch" htmlFor="admin-matches-seed" label={t.shared.labels.seed}>
-                  <Filter.Select
-                    id="admin-matches-seed"
-                    value={matchesSeedFilter}
-                    onChange={(e) => { setSeedFilter(e.target.value); e.currentTarget.blur(); }}
-                  >
-                    <option value="">{t.shared.labels.allSeeds}</option>
-                    {matchesSeedOptions.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </Filter.Select>
-                </Filter>
+                <SeedFilter
+                  id="admin-matches-seed"
+                  value={matchesSeedFilter}
+                  options={matchesSeedOptions.map((s) => s.value)}
+                  onChange={setSeedFilter}
+                  allLabel={t.shared.labels.allSeeds}
+                />
               ) : null}
               {showCategoryStatusFilter ? (
-                <Filter control="status" htmlFor="admin-category-status-filter" label={t.adminCategoryYears.tableStatus}>
-                  <Filter.Select
-                    id="admin-category-status-filter"
-                    value={categoryStatusFilter}
-                    onChange={(e) => {
-                      setCategoryStatusFilter(e.target.value as CategoryYearStatus | "all");
-                      e.currentTarget.blur();
-                    }}
-                  >
-                    {categoryStatusFilterOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Filter.Select>
-                </Filter>
+                <StatusFilter
+                  id="admin-category-status-filter"
+                  label={t.adminCategoryYears.tableStatus}
+                  value={categoryStatusFilter}
+                  options={categoryStatusFilterOptions}
+                  onChange={(v) => setCategoryStatusFilter(v as CategoryYearStatus | "all")}
+                />
               ) : null}
             </FilterGroup>
           </div>

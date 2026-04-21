@@ -2,8 +2,6 @@ import { unstable_noStore as noStore } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type CategoryRecord = {
   id: string;
   label: string;
@@ -19,8 +17,6 @@ type Locale = "en" | "ko";
 
 export const NTRP_LEVELS = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0+"] as const;
 export type NTRPLevel = (typeof NTRP_LEVELS)[number];
-
-// ─── Category display helpers ─────────────────────────────────────────────────
 
 export function categoryDisplayLabelFromDbRow(
   row: { label: string; labelKo: string | null } | null | undefined,
@@ -47,29 +43,47 @@ export function categoryLabelForId(
   return categoryDisplayLabelFromDbRow(row, locale) ?? row.label;
 }
 
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeLookupKey(value: string | null | undefined): string {
+  return normalizeText(value).toLowerCase();
+}
+
+function normalizeCategoryId(value: string | null | undefined): string {
+  return normalizeText(value).toUpperCase();
+}
+
 function getDisplayLabel(c: CategoryRecord): string {
-  return c.displayLabel.trim();
+  return normalizeText(c.displayLabel);
 }
 
 function getDisplayLabelKo(c: CategoryRecord): string {
-  return c.displayLabelKo?.trim() || c.labelKo?.trim() || c.label;
+  return normalizeText(c.displayLabelKo || c.labelKo || c.label);
+}
+
+function buildCategoryLookupKeys(c: CategoryRecord): string[] {
+  return [
+    normalizeCategoryId(c.id),
+    normalizeLookupKey(c.label),
+    normalizeLookupKey(c.displayLabel),
+    normalizeLookupKey(c.labelKo),
+    normalizeLookupKey(c.displayLabelKo),
+  ].filter(Boolean);
 }
 
 function findCategory(categories: CategoryRecord[], value: string): CategoryRecord | undefined {
-  if (!value) return undefined;
-  for (const c of categories) {
-    if (c.id === value) return c;
-  }
-  return categories.find((c) => matchesCategoryExceptId(c, value));
-}
+  const raw = normalizeText(value);
+  if (!raw) return undefined;
 
-function matchesCategoryExceptId(c: CategoryRecord, value: string): boolean {
-  return (
-    c.label === value ||
-    getDisplayLabel(c) === value ||
-    (c.labelKo?.trim() ?? "") === value ||
-    getDisplayLabelKo(c) === value
-  );
+  const normalizedId = normalizeCategoryId(raw);
+  for (const c of categories) {
+    if (normalizeCategoryId(c.id) === normalizedId) return c;
+  }
+
+  const normalizedValue = normalizeLookupKey(raw);
+  return categories.find((c) => buildCategoryLookupKeys(c).includes(normalizedValue));
 }
 
 export function getCategoryLabel(categories: CategoryRecord[], idOrLabel: string): string {
@@ -92,33 +106,70 @@ export function getCategoryId(categories: CategoryRecord[], idOrLabel: string): 
   return category ? category.id : idOrLabel;
 }
 
-export function isDoublesCategory(label: string): boolean {
-  return /doubles/i.test(label);
+export function isDoublesCategory(categories: CategoryRecord[], idOrLabel: string): boolean {
+  return findCategory(categories, idOrLabel)?.isDoubles ?? false;
 }
-
-// ─── Category chip styles ─────────────────────────────────────────────────────
 
 const DEFAULT_CATEGORY_CHIP_SURFACE =
   "border-0 bg-[var(--category-chip-default-bg)] text-[var(--category-chip-default-text)]";
 
 export const CATEGORY_CHIP_PRESETS: Record<string, { chipSurfaceClass: string }> = {
-  "MD-B": { chipSurfaceClass: "border-0 bg-[var(--category-chip-md-b-bg)] text-[var(--category-chip-md-b-text)]" },
-  "MD-S": { chipSurfaceClass: "border-0 bg-[var(--category-chip-md-s-bg)] text-[var(--category-chip-md-s-text)]" },
-  "MD-G": { chipSurfaceClass: "border-0 bg-[var(--category-chip-md-g-bg)] text-[var(--category-chip-md-g-text)]" },
-  "MS-B": { chipSurfaceClass: "border-0 bg-[var(--category-chip-ms-b-bg)] text-[var(--category-chip-ms-b-text)]" },
-  "MS-S": { chipSurfaceClass: "border-0 bg-[var(--category-chip-ms-s-bg)] text-[var(--category-chip-ms-s-text)]" },
-  "MS-G": { chipSurfaceClass: "border-0 bg-[var(--category-chip-ms-g-bg)] text-[var(--category-chip-ms-g-text)]" },
-  "XD-B": { chipSurfaceClass: "border-0 bg-[var(--category-chip-xd-b-bg)] text-[var(--category-chip-xd-b-text)]" },
-  "XD-S": { chipSurfaceClass: "border-0 bg-[var(--category-chip-xd-s-bg)] text-[var(--category-chip-xd-s-text)]" },
-  "XD-G": { chipSurfaceClass: "border-0 bg-[var(--category-chip-xd-g-bg)] text-[var(--category-chip-xd-g-text)]" },
-  "WD-B": { chipSurfaceClass: "border-0 bg-[var(--category-chip-wd-b-bg)] text-[var(--category-chip-wd-b-text)]" },
-  "WD-S": { chipSurfaceClass: "border-0 bg-[var(--category-chip-wd-s-bg)] text-[var(--category-chip-wd-s-text)]" },
-  "WS-B": { chipSurfaceClass: "border-0 bg-[var(--category-chip-ws-b-bg)] text-[var(--category-chip-ws-b-text)]" },
-  "WS-S": { chipSurfaceClass: "border-0 bg-[var(--category-chip-ws-s-bg)] text-[var(--category-chip-ws-s-text)]" },
+  "MD-B": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-md-b-bg)] text-[var(--category-chip-md-b-text)]",
+  },
+  "MD-S": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-md-s-bg)] text-[var(--category-chip-md-s-text)]",
+  },
+  "MD-G": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-md-g-bg)] text-[var(--category-chip-md-g-text)]",
+  },
+  "MS-B": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-ms-b-bg)] text-[var(--category-chip-ms-b-text)]",
+  },
+  "MS-S": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-ms-s-bg)] text-[var(--category-chip-ms-s-text)]",
+  },
+  "MS-G": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-ms-g-bg)] text-[var(--category-chip-ms-g-text)]",
+  },
+  "XD-B": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-xd-b-bg)] text-[var(--category-chip-xd-b-text)]",
+  },
+  "XD-S": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-xd-s-bg)] text-[var(--category-chip-xd-s-text)]",
+  },
+  "XD-G": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-xd-g-bg)] text-[var(--category-chip-xd-g-text)]",
+  },
+  "WD-B": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-wd-b-bg)] text-[var(--category-chip-wd-b-text)]",
+  },
+  "WD-S": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-wd-s-bg)] text-[var(--category-chip-wd-s-text)]",
+  },
+  "WS-B": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-ws-b-bg)] text-[var(--category-chip-ws-b-text)]",
+  },
+  "WS-S": {
+    chipSurfaceClass:
+      "border-0 bg-[var(--category-chip-ws-s-bg)] text-[var(--category-chip-ws-s-text)]",
+  },
 };
 
 export function categoryChipClass(categoryId: string): string {
-  const id = categoryId.trim().toUpperCase();
+  const id = normalizeCategoryId(categoryId);
   return CATEGORY_CHIP_PRESETS[id]?.chipSurfaceClass ?? DEFAULT_CATEGORY_CHIP_SURFACE;
 }
 
@@ -131,8 +182,6 @@ export function getCategoryTagClasses(categoryId: string): string {
 export function getCategoryTagFullClasses(categoryId: string): string {
   return `${CATEGORY_TAG_BASE_CLASS} ${categoryChipClass(categoryId)}`.trim();
 }
-
-// ─── Category-year status ─────────────────────────────────────────────────────
 
 export const CATEGORY_YEAR_STATUSES = ["Pending", "Active", "Inactive"] as const;
 export type CategoryYearStatus = (typeof CATEGORY_YEAR_STATUSES)[number];
@@ -153,14 +202,16 @@ export function defaultCategoryYearStatus(tournamentYear: number): CategoryYearS
 
 export function parseCategoryYearStatus(v: unknown): CategoryYearStatus | null {
   if (typeof v !== "string") return null;
-  const t = v.trim();
-  if (!t) return null;
-  const lower = t.toLowerCase();
-  if (lower === "confirmed") return "Active";
-  if (lower === "cancelled") return "Inactive";
+
+  const normalized = normalizeLookupKey(v);
+  if (!normalized) return null;
+  if (normalized === "confirmed") return "Active";
+  if (normalized === "cancelled") return "Inactive";
+
   for (const s of CATEGORY_YEAR_STATUSES) {
-    if (s.toLowerCase() === lower) return s;
+    if (s.toLowerCase() === normalized) return s;
   }
+
   return null;
 }
 
@@ -173,6 +224,7 @@ export function excludeCancelledCategoriesForYear<T extends { id: string }>(
       .filter((r) => parseCategoryYearStatus(r.status) === "Inactive")
       .map((r) => r.categoryId)
   );
+
   if (inactive.size === 0) return [...categories];
   return categories.filter((c) => !inactive.has(c.id));
 }
@@ -199,79 +251,124 @@ export function isCategoryConfirmedInYearMap(
   return parseCategoryYearStatus(categoryStatusById[categoryId]) === "Active";
 }
 
-// ─── DB queries ───────────────────────────────────────────────────────────────
-
 const FAMILY_PREFIXES = ["MD", "WD", "XD", "MS", "WS"];
 const TIER_CODES = ["B", "S", "G"];
 
 function categoryPrefixRank(id: string): number {
-  const prefix = (id.split("-")[0] ?? "").toUpperCase();
+  const prefix = (normalizeCategoryId(id).split("-")[0] ?? "").toUpperCase();
   const idx = FAMILY_PREFIXES.indexOf(prefix);
   return idx >= 0 ? idx : FAMILY_PREFIXES.length;
 }
 
 function tierLetterRank(id: string): number {
-  const last = id.slice(-1).toUpperCase();
+  const normalized = normalizeCategoryId(id);
+  const last = normalized.slice(-1);
   const idx = TIER_CODES.indexOf(last);
   return idx >= 0 ? idx : 9;
 }
 
+function normalizeNtrp(value: string | null | undefined): string | null {
+  const trimmed = normalizeText(value);
+  if (!trimmed) return null;
+  return trimmed.replace(/\s*[–-]\s*/g, " – ");
+}
+
 export async function getCategories(): Promise<CategoryRecord[]> {
   noStore();
+
   const rows = await prisma.category.findMany({
-    orderBy: [{ id: "asc" }],
-    select: { id: true, label: true, labelKo: true, isDoubles: true, ntrp: true, sortOrder: true },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      label: true,
+      labelKo: true,
+      isDoubles: true,
+      ntrp: true,
+      sortOrder: true,
+    },
   });
+
   return rows
     .map((c) => {
-      const labelKo = c.labelKo?.trim() || null;
-      const displayLabel = c.label.trim();
-      const displayLabelKo = (labelKo ?? c.label).trim();
-      const ntrp = c.ntrp?.trim() ? c.ntrp.replace(/\s*[–-]\s*/g, " – ") : null;
-      return { ...c, labelKo, isDoubles: c.isDoubles, displayLabel, displayLabelKo, ntrp };
+      const label = normalizeText(c.label);
+      const labelKo = normalizeText(c.labelKo) || null;
+      const displayLabel = label;
+      const displayLabelKo = labelKo || label;
+      const ntrp = normalizeNtrp(c.ntrp);
+
+      return {
+        ...c,
+        id: normalizeCategoryId(c.id),
+        label,
+        labelKo,
+        isDoubles: c.isDoubles,
+        displayLabel,
+        displayLabelKo,
+        ntrp,
+      };
     })
-    .filter((c) => c.label !== "Women's Singles")
     .sort((a, b) => {
       const byPrefix = categoryPrefixRank(a.id) - categoryPrefixRank(b.id);
       if (byPrefix !== 0) return byPrefix;
+
       const byTierLetter = tierLetterRank(a.id) - tierLetterRank(b.id);
       if (byTierLetter !== 0) return byTierLetter;
+
       const byDbOrder = a.sortOrder - b.sortOrder;
       if (byDbOrder !== 0) return byDbOrder;
+
       return a.id.localeCompare(b.id);
     });
 }
 
-export function getCategoryYearStatusDelegate(): {
-  findMany: (args: object) => Promise<unknown>;
+type CategoryYearStatusDelegate = {
+  findMany: (args: {
+    distinct?: string[];
+    select?: Record<string, boolean>;
+    orderBy?: Record<string, "asc" | "desc">;
+    where?: Record<string, unknown>;
+  }) => Promise<unknown[]>;
   upsert: (args: object) => Promise<unknown>;
-} {
-  const p = prisma as unknown as Record<string, { findMany: (args: object) => Promise<unknown>; upsert: (args: object) => Promise<unknown> }>;
-  const d = p.categoryYearStatus ?? p.tournamentCategoryYear;
-  if (!d?.findMany) {
+};
+
+export function getCategoryYearStatusDelegate(): CategoryYearStatusDelegate {
+  const maybePrisma = prisma as unknown as {
+    categoryYearStatus?: CategoryYearStatusDelegate;
+    tournamentCategoryYear?: CategoryYearStatusDelegate;
+  };
+
+  const delegate = maybePrisma.categoryYearStatus ?? maybePrisma.tournamentCategoryYear;
+
+  if (!delegate?.findMany || !delegate?.upsert) {
     throw new Error(
       "Prisma client is missing the category year-status model. Run `npx prisma generate` and restart the dev server."
     );
   }
-  return d;
+
+  return delegate;
 }
 
 function normalizedCategoryYearStatus(stored: string | undefined, tournamentYear: number) {
-  return parseCategoryYearStatus(stored?.trim() ?? "") ?? defaultCategoryYearStatus(tournamentYear);
+  return parseCategoryYearStatus(stored) ?? defaultCategoryYearStatus(tournamentYear);
 }
 
 export async function getDistinctTournamentCategoryYearsForFilter(): Promise<number[]> {
   const cy = getCategoryYearStatusDelegate();
+
   const rows = (await cy.findMany({
     distinct: ["tournamentYear"],
     select: { tournamentYear: true },
     orderBy: { tournamentYear: "desc" },
   })) as { tournamentYear: number }[];
+
   return rows.map((r) => r.tournamentYear);
 }
 
-export async function getCategoryYearStatusList(tournamentYear: number): Promise<CategoryYearListItem[]> {
+export async function getCategoryYearStatusList(
+  tournamentYear: number
+): Promise<CategoryYearListItem[]> {
   const cy = getCategoryYearStatusDelegate();
+
   const [cats, rows] = await Promise.all([
     getCategories(),
     cy.findMany({
@@ -279,7 +376,9 @@ export async function getCategoryYearStatusList(tournamentYear: number): Promise
       select: { categoryId: true, status: true },
     }) as Promise<{ categoryId: string; status: string }[]>,
   ]);
-  const byId = new Map(rows.map((r) => [r.categoryId, r.status]));
+
+  const byId = new Map(rows.map((r) => [normalizeCategoryId(r.categoryId), r.status]));
+
   return cats.map((c) => ({
     categoryId: c.id,
     status: normalizedCategoryYearStatus(byId.get(c.id), tournamentYear),
@@ -301,26 +400,34 @@ export async function getCategoryParticipationForYear(
       select: { categoryId: true, playerId: true, partnerId: true },
     }),
   ]);
+
   const teamCount = new Map<string, number>();
   for (const g of teamGroups) {
-    teamCount.set(g.categoryId, g._count._all);
+    teamCount.set(normalizeCategoryId(g.categoryId), g._count._all);
   }
+
   const playerSets = new Map<string, Set<number>>();
   for (const r of regs) {
-    let s = playerSets.get(r.categoryId);
-    if (!s) {
-      s = new Set();
-      playerSets.set(r.categoryId, s);
+    const categoryId = normalizeCategoryId(r.categoryId);
+    let set = playerSets.get(categoryId);
+
+    if (!set) {
+      set = new Set<number>();
+      playerSets.set(categoryId, set);
     }
-    s.add(r.playerId);
-    if (r.partnerId != null) s.add(r.partnerId);
+
+    set.add(r.playerId);
+    if (r.partnerId != null) set.add(r.partnerId);
   }
+
   const out: Record<string, CategoryParticipation> = {};
-  for (const id of categoryIds) {
+  for (const rawId of categoryIds) {
+    const id = normalizeCategoryId(rawId);
     out[id] = {
       teams: teamCount.get(id) ?? 0,
       players: playerSets.get(id)?.size ?? 0,
     };
   }
+
   return out;
 }

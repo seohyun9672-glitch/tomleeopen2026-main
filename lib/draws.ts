@@ -1,59 +1,9 @@
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { ROUND_PRE, ROUND_R16, ROUND_QF, ROUND_SF, ROUND_F } from "@/lib/round";
 
-// ─── Draw structure classification ───────────────────────────────────────────
-
-export type DrawStructureMatch = {
-  round: { code: string } | null;
-  team1Id: string | null;
-  team2Id: string | null;
-  matchStatus: string;
-};
-
-function excludedFromKnockoutStructureMatch(matchStatus: string): boolean {
-  return matchStatus.trim().toLowerCase() === "cancelled";
-}
-
-export function isPreRoundKnockoutFirstRound(matches: readonly DrawStructureMatch[]): boolean {
-  const hasExplicitR16 = matches.some(
-    (m) => !excludedFromKnockoutStructureMatch(m.matchStatus ?? "") && m.round?.code === ROUND_R16
-  );
-  if (hasExplicitR16) return true;
-
-  const preMatches: DrawStructureMatch[] = [];
-  let hasLaterKnockout = false;
-
-  for (const m of matches) {
-    if (excludedFromKnockoutStructureMatch(m.matchStatus ?? "")) continue;
-    const code = m.round?.code;
-    if (code === ROUND_PRE) {
-      preMatches.push(m);
-    } else if (code === ROUND_QF || code === ROUND_SF || code === ROUND_F) {
-      hasLaterKnockout = true;
-    }
-  }
-
-  if (preMatches.length === 0 || !hasLaterKnockout) return false;
-
-  const seen = new Set<string>();
-  for (const m of preMatches) {
-    const t1 = m.team1Id?.trim();
-    const t2 = m.team2Id?.trim();
-    if (!t1 || !t2) return false;
-    if (seen.has(t1) || seen.has(t2)) return false;
-    seen.add(t1);
-    seen.add(t2);
-  }
-
-  return preMatches.length * 2 === seen.size;
-}
-
-// ─── Draw stage types ─────────────────────────────────────────────────────────
-
-export type DrawKnockoutStage = Exclude<DrawStage, "prelims">;
+export type DrawStage = "pre" | "r16" | "qf" | "sf" | "final";
+export type DrawKnockoutStage = Exclude<DrawStage, "pre">;
 export type KnockoutSubStage = "r16" | "qf" | "sf" | "final";
-export type DrawStage = "prelims" | "qf" | "sf" | "final";
-export type RoundCode = typeof ROUND_PRE | typeof ROUND_R16 | typeof ROUND_QF | typeof ROUND_SF | typeof ROUND_F;
 
 type MatchesByDrawStage = Record<DrawStage, MatchWithTeamNames[]>;
 
@@ -61,31 +11,45 @@ export type DrawStageData = {
   grouped: MatchesByDrawStage;
   availableStages: DrawStage[];
   availableKnockoutStages: DrawKnockoutStage[];
-  isUnifiedKnockout: boolean;
-  hasPrelims: boolean;
+  hasPre: boolean;
   hasKnockout: boolean;
   knockoutSubStages: KnockoutSubStage[];
-  r16Matches: MatchWithTeamNames[];
   prelimMatches: MatchWithTeamNames[];
+  r16Matches: MatchWithTeamNames[];
   qfMatches: MatchWithTeamNames[];
   sfMatches: MatchWithTeamNames[];
   finalMatches: MatchWithTeamNames[];
   finalsMatches: MatchWithTeamNames[];
 };
 
-export const DRAW_STAGE_ORDER: readonly DrawStage[] = ["prelims", "qf", "sf", "final"];
-export const DRAW_KNOCKOUT_STAGES: readonly DrawKnockoutStage[] = ["qf", "sf", "final"];
+export const DRAW_STAGE_ORDER: readonly DrawStage[] = ["pre", "r16", "qf", "sf", "final"];
+export const DRAW_KNOCKOUT_STAGES: readonly DrawKnockoutStage[] = ["r16", "qf", "sf", "final"];
+
+export const DRAW_STAGE_ROUND_CODE: Record<DrawStage, string> = {
+  pre: ROUND_PRE,
+  r16: ROUND_R16,
+  qf: ROUND_QF,
+  sf: ROUND_SF,
+  final: ROUND_F,
+};
 
 const ROUND_CODE_TO_STAGE: Partial<Record<string, DrawStage>> = {
-  [ROUND_PRE]: "prelims",
-  [ROUND_R16]: "prelims",
+  [ROUND_PRE]: "pre",
+  [ROUND_R16]: "r16",
   [ROUND_QF]: "qf",
   [ROUND_SF]: "sf",
   [ROUND_F]: "final",
 };
 
+
 function createEmptyGroupedStages(): MatchesByDrawStage {
-  return { prelims: [], qf: [], sf: [], final: [] };
+  return {
+    pre: [],
+    r16: [],
+    qf: [],
+    sf: [],
+    final: [],
+  };
 }
 
 function matchDateKey(dateStr: string | null | undefined): string {
@@ -104,9 +68,8 @@ function resolveDrawStageData(matchesOrData: MatchWithTeamNames[] | DrawStageDat
   return Array.isArray(matchesOrData) ? buildDrawStageData(matchesOrData) : matchesOrData;
 }
 
-function getAvailableStages(grouped: MatchesByDrawStage, isUnifiedKnockout: boolean): DrawStage[] {
-  const source = isUnifiedKnockout ? DRAW_KNOCKOUT_STAGES : DRAW_STAGE_ORDER;
-  return source.filter((stage) => grouped[stage].length > 0) as DrawStage[];
+function getAvailableStages(grouped: MatchesByDrawStage): DrawStage[] {
+  return DRAW_STAGE_ORDER.filter((stage) => grouped[stage].length > 0);
 }
 
 function getAvailableKnockoutStages(grouped: MatchesByDrawStage): DrawKnockoutStage[] {
@@ -114,13 +77,13 @@ function getAvailableKnockoutStages(grouped: MatchesByDrawStage): DrawKnockoutSt
 }
 
 function getKnockoutSubStages(
-  isUnifiedKnockout: boolean,
+  r16Matches: MatchWithTeamNames[],
   qfMatches: MatchWithTeamNames[],
   sfMatches: MatchWithTeamNames[],
   finalMatches: MatchWithTeamNames[],
 ): KnockoutSubStage[] {
   const stages: KnockoutSubStage[] = [];
-  if (isUnifiedKnockout) stages.push("r16");
+  if (r16Matches.length > 0) stages.push("r16");
   if (qfMatches.length > 0) stages.push("qf");
   if (sfMatches.length > 0) stages.push("sf");
   if (finalMatches.length > 0) stages.push("final");
@@ -135,55 +98,51 @@ function computeLatestStartedStage<TStage extends DrawStage>(
 ): TStage | null {
   if (availableStages.length === 0) return null;
 
-  const availableStageSet = new Set<TStage>(availableStages);
-  let best = availableStages[0]!;
+  let latestStarted: TStage | null = null;
 
   for (const stage of orderedStages) {
-    if (!availableStageSet.has(stage)) continue;
+    if (!availableStages.includes(stage)) continue;
     if (stageHasStarted(grouped[stage], today)) {
-      best = stage;
+      latestStarted = stage;
     }
   }
 
-  return best;
+  return latestStarted ?? availableStages[0] ?? null;
 }
 
 export function buildDrawStageData(matches: MatchWithTeamNames[]): DrawStageData {
   const grouped = createEmptyGroupedStages();
-  const r16Matches: MatchWithTeamNames[] = [];
 
   for (const match of matches) {
     const roundCode = match.round?.code;
     const stage = roundCode ? ROUND_CODE_TO_STAGE[roundCode] : undefined;
     if (!stage) continue;
     grouped[stage].push(match);
-    if (roundCode === ROUND_R16) r16Matches.push(match);
   }
 
-  const prelimMatches = grouped.prelims;
+  const prelimMatches = grouped.pre;
+  const r16Matches = grouped.r16;
   const qfMatches = grouped.qf;
   const sfMatches = grouped.sf;
   const finalMatches = grouped.final;
 
-  const isUnifiedKnockout = isPreRoundKnockoutFirstRound(matches);
-  const availableStages = getAvailableStages(grouped, isUnifiedKnockout);
+  const availableStages = getAvailableStages(grouped);
   const availableKnockoutStages = getAvailableKnockoutStages(grouped);
-  const knockoutSubStages = getKnockoutSubStages(isUnifiedKnockout, qfMatches, sfMatches, finalMatches);
+  const knockoutSubStages = getKnockoutSubStages(r16Matches, qfMatches, sfMatches, finalMatches);
 
   return {
     grouped,
     availableStages,
     availableKnockoutStages,
-    isUnifiedKnockout,
-    hasPrelims: prelimMatches.length > 0,
+    hasPre: prelimMatches.length > 0,
     hasKnockout: availableKnockoutStages.length > 0,
     knockoutSubStages,
-    r16Matches,
     prelimMatches,
+    r16Matches,
     qfMatches,
     sfMatches,
     finalMatches,
-    finalsMatches: [...qfMatches, ...sfMatches, ...finalMatches],
+    finalsMatches: [...r16Matches, ...qfMatches, ...sfMatches, ...finalMatches],
   };
 }
 
@@ -193,12 +152,13 @@ export function computeDefaultDrawStage(
 ): DrawStage {
   const data = resolveDrawStageData(matchesOrData);
 
-  if (data.isUnifiedKnockout) {
-    return computeDefaultKnockoutDrawStage(data, today) ?? "qf";
-  }
-
   return (
-    computeLatestStartedStage(DRAW_STAGE_ORDER, data.availableStages, data.grouped, today) ?? "prelims"
+    computeLatestStartedStage(
+      DRAW_STAGE_ORDER,
+      data.availableStages,
+      data.grouped,
+      today,
+    ) ?? "pre"
   );
 }
 
@@ -207,16 +167,73 @@ export function computeDefaultKnockoutDrawStage(
   today: string,
 ): DrawKnockoutStage | null {
   const data = resolveDrawStageData(matchesOrData);
-  return computeLatestStartedStage(DRAW_KNOCKOUT_STAGES, data.availableKnockoutStages, data.grouped, today);
+
+  return computeLatestStartedStage(
+    DRAW_KNOCKOUT_STAGES,
+    data.availableKnockoutStages,
+    data.grouped,
+    today,
+  );
 }
 
 export function isoDateLocal(d = new Date()): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 }
 
 export function knockoutSubStageFromDrawStage(stage: DrawStage): KnockoutSubStage | null {
-  return stage === "prelims" ? null : stage;
+  return stage === "pre" ? null : stage;
+}
+
+export function buildPrelimRankMap(matches: MatchWithTeamNames[]): Map<string, number> {
+  const prelims = matches.filter((m) => m.round?.code === ROUND_PRE);
+  if (prelims.length === 0) return new Map();
+
+  type Stats = { w: number; sd: number; gd: number };
+  const stats = new Map<string, Stats>();
+
+  function ensure(id: string | null) {
+    if (id && !stats.has(id)) stats.set(id, { w: 0, sd: 0, gd: 0 });
+  }
+
+  for (const m of prelims) {
+    ensure(m.team1Id);
+    ensure(m.team2Id);
+    if (m.winner == null || !m.team1Id || !m.team2Id) continue;
+    const t1 = stats.get(m.team1Id)!;
+    const t2 = stats.get(m.team2Id)!;
+    if (m.winner === 1) { t1.w += 1; } else { t2.w += 1; }
+    const pairs: Array<[string | null, string | null]> = [
+      [m.set1ScoreTeam1, m.set1ScoreTeam2],
+      [m.set2ScoreTeam1, m.set2ScoreTeam2],
+      [m.set3ScoreTeam1, m.set3ScoreTeam2],
+    ];
+    for (const [a, b] of pairs) {
+      const n1 = a != null ? parseInt(a, 10) : NaN;
+      const n2 = b != null ? parseInt(b, 10) : NaN;
+      if (Number.isNaN(n1) || Number.isNaN(n2)) continue;
+      t1.gd += n1 - n2; t2.gd += n2 - n1;
+      if (n1 > n2) { t1.sd += 1; t2.sd -= 1; } else if (n2 > n1) { t2.sd += 1; t1.sd -= 1; }
+    }
+  }
+
+  const sorted = [...stats.entries()].sort(([, a], [, b]) =>
+    b.w !== a.w ? b.w - a.w : b.sd !== a.sd ? b.sd - a.sd : b.gd - a.gd,
+  );
+
+  const out = new Map<string, number>();
+  let rank = 0;
+  let prev: Stats | null = null;
+  for (let i = 0; i < sorted.length; i++) {
+    const [id, s] = sorted[i]!;
+    if (!prev || s.w !== prev.w || s.sd !== prev.sd || s.gd !== prev.gd) {
+      rank = i + 1;
+      prev = s;
+    }
+    out.set(id, rank);
+  }
+  return out;
 }

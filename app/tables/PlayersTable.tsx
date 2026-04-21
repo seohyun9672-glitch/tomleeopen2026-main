@@ -6,7 +6,7 @@ import { ntrpSortValue } from "@/lib/ntrpFormat";
 import { Table } from "@/app/components/ui/table/Table";
 import { useLocale } from "@/lib/locale-context";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
+import { ClubFilter } from "@/app/components/FilterControls";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import {
   TableDataChip,
@@ -270,23 +270,13 @@ export function PlayersTable({
 
       <FilterGroup>
         {showClubFilter ? (
-          <Filter control="club" htmlFor="players-club" label={t.shared.labels.club}>
-            <Filter.Select
-              id="players-club"
-              value={clubFilter}
-              onChange={(e) => {
-                setClubFilter(e.target.value);
-                e.currentTarget.blur();
-              }}
-            >
-              <option value="">{t.shared.labels.allClubs}</option>
-              {clubOptions.map((club) => (
-                <option key={club} value={club}>
-                  {club}
-                </option>
-              ))}
-            </Filter.Select>
-          </Filter>
+          <ClubFilter
+            id="players-club"
+            value={clubFilter}
+            options={clubOptions}
+            onChange={setClubFilter}
+            allLabel={t.shared.labels.allClubs}
+          />
         ) : null}
 
         <div className="min-w-0 flex-1 basis-0 max-w-xs">

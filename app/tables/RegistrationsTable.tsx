@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
+import { CategoryFilter } from "@/app/components/FilterControls";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
@@ -402,23 +402,13 @@ export function RegistrationsTable({
 
       {!categoryFilterControlled && categoryOptions.length > 1 ? (
         <FilterGroup>
-          <Filter control="category" htmlFor="registrations-category" label={t.shared.labels.category}>
-            <Filter.Select
-              id="registrations-category"
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                e.currentTarget.blur();
-              }}
-            >
-              <option value="">{t.shared.labels.allCategories}</option>
-              {categoryOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </Filter.Select>
-          </Filter>
+          <CategoryFilter
+            id="registrations-category"
+            value={categoryFilter}
+            options={categoryOptions}
+            onChange={setCategoryFilter}
+            allLabel={t.shared.labels.allCategories}
+          />
         </FilterGroup>
       ) : null}
 

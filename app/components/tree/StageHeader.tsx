@@ -26,11 +26,10 @@ type NavButtonProps = {
   onClick: () => void;
   direction: NavDirection;
 };
-
 const ROOT_CLASS =
-  "tournament-tree-stage-header flex shrink-0 items-center justify-center gap-1 overflow-hidden px-1 py-2 md:px-2 md:py-2.5";
+  "tournament-tree-stage-header flex h-12 shrink-0 items-center justify-center gap-1 overflow-hidden px-1 md:px-2";
 
-const NAV_BUTTON_CLASS = "h-9 w-9 shrink-0 md:hidden";
+  const NAV_BUTTON_CLASS = "h-9 w-9 shrink-0 md:hidden";
 
 const TITLE_CLASS =
   "m-0 min-w-0 flex-1 text-center text-[var(--color-text-primary)]";

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import type { MatchWithTeamNames } from "@/lib/matches";
-import { filterByValue } from "@/lib/filterUtils";
+import { filterByValue } from "@/app/components/FilterControls";
 import { useLocale } from "@/lib/locale-context";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { Filter } from "@/app/components/Filter";

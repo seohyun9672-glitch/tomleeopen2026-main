@@ -6,10 +6,9 @@ import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
 import type { CategoryRecord } from "@/lib/categories";
 import { isCategoryConfirmedForYear, type CategoryYearListItem } from "@/lib/categories";
 import type { HonourRollEntry } from "@/lib/matches";
-import { deriveYearOptions, filterByValue } from "@/lib/filterUtils";
+import { filterByValue, YearFilter, CategoryFilter } from "@/app/components/FilterControls";
 import { useLocale } from "@/lib/locale-context";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
 import { MatchCard } from "@/app/components/MatchCard";
 
 type Props = {
@@ -32,8 +31,6 @@ export function HonourRollHub({
     () => categories.filter((c) => (honourRollByCategory[c.id]?.length ?? 0) > 0),
     [categories, honourRollByCategory]
   );
-
-  const yearOptions = useMemo(() => deriveYearOptions(allYears).map(String), [allYears]);
 
   const [yearFilter, setYearFilter] = useUrlParam("year");
   const [rawCatParam, setCategoryId] = useUrlParam("cat");
@@ -73,39 +70,20 @@ export function HonourRollHub({
   return (
     <>
       <FilterGroup>
-        <Filter control="year" htmlFor="honour-roll-year" label={t.shared.labels.year}>
-          <Filter.Select
-            id="honour-roll-year"
-            value={yearFilter}
-            onChange={(e) => {
-              setYearFilter(e.currentTarget.value, { clear: ["cat"] });
-              e.currentTarget.blur();
-            }}
-          >
-            <option value="">{t.shared.labels.allYears}</option>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </Filter.Select>
-        </Filter>
-        <Filter control="stretch" htmlFor="honour-roll-category" label={t.shared.labels.category}>
-          <Filter.Select
-            id="honour-roll-category"
-            value={categoryId}
-            onChange={(e) => {
-              setCategoryId(e.currentTarget.value);
-              e.currentTarget.blur();
-            }}
-          >
-            {categoryOptions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </Filter.Select>
-        </Filter>
+        <YearFilter
+          id="honour-roll-year"
+          value={yearFilter}
+          years={allYears}
+          onChange={(v) => setYearFilter(v, { clear: ["cat"] })}
+          allLabel={t.shared.labels.allYears}
+        />
+        <CategoryFilter
+          id="honour-roll-category"
+          value={categoryId}
+          options={categoryOptions}
+          onChange={setCategoryId}
+          control="stretch"
+        />
       </FilterGroup>
 
       <div className="mt-[var(--content-gap)] md:mt-[var(--section-gap)] text-[var(--section-text)]">

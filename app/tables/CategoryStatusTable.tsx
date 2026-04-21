@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect, type ChangeEvent } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
+import { StatusFilter } from "@/app/components/FilterControls";
 import { buildCategoryByIdMap, categoryLabelForId, getCategoryId } from "@/lib/categories";
 import type { CategoryRecord } from "@/lib/categories";
 import {
@@ -233,22 +233,13 @@ export function CategoryStatusTable({
 
       {!statusFilterControlled ? (
         <FilterGroup>
-          <Filter control="status" htmlFor="category-status-filter" label={t.adminCategoryYears.tableStatus}>
-            <Filter.Select
-              id="category-status-filter"
-              value={statusFilter}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                setStatusFilter(e.target.value as CategoryYearStatus | "all");
-                e.currentTarget.blur();
-              }}
-            >
-              {statusOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </Filter.Select>
-          </Filter>
+          <StatusFilter
+            id="category-status-filter"
+            label={t.adminCategoryYears.tableStatus}
+            value={statusFilter}
+            options={statusOptions}
+            onChange={(v) => setStatusFilter(v as CategoryYearStatus | "all")}
+          />
         </FilterGroup>
       ) : null}
 
