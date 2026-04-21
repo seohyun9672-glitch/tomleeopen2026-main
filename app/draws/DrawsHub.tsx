@@ -2,8 +2,8 @@
 
 import { useCallback, useLayoutEffect, useMemo } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
-import type { CategoryRecord, CategoryYearListItem } from "@/lib/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
+import type { CategoryRecord, CategoryYearListItem } from "@/lib/cateogry/categories";
 import {
   buildDrawStageData,
   buildPrelimRankMap,

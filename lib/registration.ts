@@ -1,4 +1,4 @@
-import type { CategoryRecord } from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 
 // ─── Status chips ─────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export type RegistrationStatusKey = keyof typeof REGISTRATION_STATUS_CHIPS;
 export function registrationStatusKey(status: string): RegistrationStatusKey {
   const s = status.trim().toLowerCase();
   if (s === "confirmed") return "confirmed";
-  if (s === "cancelled" || s === "canceled") return "cancelled";
+  if (s === "cancelled") return "cancelled";
   if (s === "refunded" || s.includes("refund")) return "refunded";
   return "pending";
 }
@@ -46,9 +46,6 @@ export function registrationStatusChipClass(status: string): string {
 export const pricePerCategoryCad = process.env.NEXT_PUBLIC_REGISTRATION_PRICE
   ? Number(process.env.NEXT_PUBLIC_REGISTRATION_PRICE)
   : 50;
-
-// export const paymentDeadline =
-//   process.env.NEXT_PUBLIC_PAYMENT_DEADLINE ?? "March 15, 2026";
 
 export function formatPrice(cad: number): string {
   return `${cad} CAD`;

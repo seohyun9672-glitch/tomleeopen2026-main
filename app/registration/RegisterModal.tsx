@@ -6,7 +6,7 @@ import { Field } from "@/app/components/ui/Field";
 import { Label } from "@/app/components/ui/Label";
 import { Button } from "@/app/components/ui/Button";
 import { useLocale } from "@/lib/locale-context";
-import type { CategoryRecord } from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 
 import { RegistrationForm, type RegistrationFormHandle } from "./RegistrationForm";
 

@@ -2,14 +2,13 @@ import type { Locale } from "@/lib/content";
 import { formatNtrpDisplay } from "@/lib/ntrpFormat";
 import { siteContent } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
-import { getMatchesByYearBatch } from "@/lib/matches";
+import { getAvailableYears, getMatchesByYearBatch } from "@/lib/matches";
 import { PageContainer } from "@/app/components/PageContainer";
 import {
   getCategories,
   getCategoryParticipationForYear,
   getCategoryYearStatusList,
-  getDistinctTournamentCategoryYearsForFilter,
-} from "@/lib/categories";
+} from "@/lib/cateogry/categories";
 import { AdminHub } from "@/app/admin/AdminHub";
 import type { YearData } from "@/app/admin/AdminHub";
 import { AdminSignOut } from "@/app/admin/login/AdminSignOut";
@@ -21,12 +20,11 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ year?: string; [key: string]: string | string[] | undefined }>;
 };
 
 const thisYear = new Date().getFullYear();
 
-export default async function AdminPage({ params, searchParams }: Props) {
+export default async function AdminPage({ params }: Props) {
   const { locale: localeParam } = await params;
   const locale: Locale = localeParam === "ko" ? "ko" : "en";
   const localePrefix = locale === "ko" ? "/ko" : "";
@@ -43,39 +41,15 @@ export default async function AdminPage({ params, searchParams }: Props) {
   const categoryIds = categories.map((c) => c.id);
   const categoryIsDoubles = new Map(categories.map((c) => [c.id, c.isDoubles]));
 
-  // Gather available years for the year filter (fast — distinct queries only)
-  const [regYearRows, matchYearRows, categoryYearYears] = await Promise.all([
-    prisma.tournamentRegistration.findMany({
-      select: { tournamentYear: true },
-      distinct: ["tournamentYear"],
-      orderBy: { tournamentYear: "desc" },
-    }),
-    prisma.match.findMany({
-      select: { tournamentYear: true },
-      distinct: ["tournamentYear"],
-      orderBy: { tournamentYear: "desc" },
-    }),
-    getDistinctTournamentCategoryYearsForFilter(),
-  ]);
+  // Gather available years for the year filter
+  const { allYears: fetchedYears } = await getAvailableYears();
+  const allYears = fetchedYears.includes(thisYear)
+    ? fetchedYears
+    : [thisYear, ...fetchedYears].sort((a, b) => b - a);
 
-  const allYears = [
-    ...new Set([
-      ...regYearRows.map((r) => r.tournamentYear),
-      ...matchYearRows.map((r) => r.tournamentYear),
-      ...categoryYearYears,
-      thisYear,
-    ]),
-  ].sort((a, b) => b - a);
-
-  // Resolve the selected year from URL search params
-  const { year: yearParam } = await searchParams;
-  const yearParamNum = yearParam ? parseInt(yearParam, 10) : NaN;
-  const year = !isNaN(yearParamNum) && allYears.includes(yearParamNum) ? yearParamNum : (allYears[0] ?? thisYear);
-
-  // Fetch data for the selected year only
-  const rawRegs = await prisma.tournamentRegistration.findMany({
-    where: { tournamentYear: year },
-    orderBy: [{ createdAt: "desc" }],
+  // Fetch registrations for all years
+  const allRawRegs = await prisma.tournamentRegistration.findMany({
+    orderBy: [{ tournamentYear: "desc" }, { createdAt: "desc" }],
     include: {
       player: {
         select: {
@@ -93,12 +67,12 @@ export default async function AdminPage({ params, searchParams }: Props) {
     },
   });
 
-  // Clubs for players registered this year
-  const playerIds = [...new Set(rawRegs.map((r) => r.playerId))];
+  // Clubs for all registered players
+  const allPlayerIds = [...new Set(allRawRegs.map((r) => r.playerId))];
   const clubRows =
-    playerIds.length > 0
+    allPlayerIds.length > 0
       ? await prisma.playerClub.findMany({
-          where: { playerId: { in: playerIds } },
+          where: { playerId: { in: allPlayerIds } },
           select: { playerId: true, clubCode: true },
         })
       : [];
@@ -109,22 +83,36 @@ export default async function AdminPage({ params, searchParams }: Props) {
     clubsByPlayerId.set(row.playerId, list);
   }
 
-  const registrations = buildRegistrationRows(rawRegs, clubsByPlayerId, categoryIsDoubles);
+  // Group raw registrations by year
+  const rawRegsByYear = new Map<number, RawReg[]>();
+  for (const reg of allRawRegs) {
+    const list = rawRegsByYear.get(reg.tournamentYear) ?? [];
+    list.push(reg);
+    rawRegsByYear.set(reg.tournamentYear, list);
+  }
 
-  // Fetch matches, category statuses, and participation for the selected year
-  const [matchesByCat, statusItems, categoryParticipation] = await Promise.all([
-    getMatchesByYearBatch([year], categoryIds).then((r) => r[year] ?? {}),
-    getCategoryYearStatusList(year),
-    getCategoryParticipationForYear(year, categoryIds),
+  // Fetch matches, category statuses, and participation for all years in parallel
+  const [matchesByYearBatch, statusesByYearEntries, participationByYearEntries] = await Promise.all([
+    getMatchesByYearBatch(allYears, categoryIds),
+    Promise.all(allYears.map(async (y) => [y, await getCategoryYearStatusList(y)] as const)),
+    Promise.all(allYears.map(async (y) => [y, await getCategoryParticipationForYear(y, categoryIds)] as const)),
   ]);
 
-  const yearData: YearData = {
-    registrations,
-    matches: Object.values(matchesByCat).flat(),
-    categoryStatusItems: statusItems,
-    categoryStatusById: Object.fromEntries(statusItems.map((s) => [s.categoryId, s.status])),
-    categoryParticipation,
-  };
+  const statusesByYear = Object.fromEntries(statusesByYearEntries);
+  const participationByYear = Object.fromEntries(participationByYearEntries);
+
+  const yearDataByYear: Record<number, YearData> = {};
+  for (const y of allYears) {
+    const statusItems = statusesByYear[y] ?? [];
+    const matchesByCat = matchesByYearBatch[y] ?? {};
+    yearDataByYear[y] = {
+      registrations: buildRegistrationRows(rawRegsByYear.get(y) ?? [], clubsByPlayerId, categoryIsDoubles),
+      matches: Object.values(matchesByCat).flat(),
+      categoryStatusItems: statusItems,
+      categoryStatusById: Object.fromEntries(statusItems.map((s) => [s.categoryId, s.status])),
+      categoryParticipation: participationByYear[y] ?? {},
+    };
+  }
 
   // Players and admin users are not year-dependent
   const [playersForAdmin, adminUsersRaw] = await Promise.all([
@@ -160,8 +148,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
       actions={<AdminSignOut label={content.shared.buttons.signOut} />}
     >
       <AdminHub
-        yearData={yearData}
-        year={year}
+        yearDataByYear={yearDataByYear}
         allYears={allYears}
         categories={categories}
         players={players}

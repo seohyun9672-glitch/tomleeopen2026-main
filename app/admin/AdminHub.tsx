@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { mergeFilterParams } from "@/lib/filterState";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { YearFilter, CategoryFilter, RoundFilter, SeedFilter, StatusFilter } from "@/app/components/FilterControls";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
-import { isCategoryConfirmedInYearMap } from "@/lib/categories";
+import {
+  buildCategoryByIdMap,
+  categoryLabelForId,
+  isCategoryConfirmedInYearMap,
+  CATEGORY_YEAR_STATUSES,
+} from "@/lib/cateogry/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { Table } from "@/app/components/ui/table/Table";
 import { RegistrationsTable } from "../tables/RegistrationsTable";
@@ -17,15 +19,10 @@ import { MatchesTable } from "../tables/MatchesTable";
 import { PlayersTable } from "../tables/PlayersTable";
 import { useLocale } from "@/lib/locale-context";
 import type { RoundInfo } from "@/lib/matches";
-import type { CategoryRecord } from "@/lib/categories";
+import type { CategoryRecord, CategoryYearListItem, CategoryYearStatus, CategoryParticipation } from "@/lib/cateogry/categories";
 import type { RegistrationRow } from "../tables/RegistrationsTable";
 import type { PlayerTableRow } from "../tables/PlayersTable";
 import type { MatchWithTeamNames } from "@/lib/matches";
-import type {
-  CategoryYearListItem,
-  CategoryYearStatus,
-  CategoryParticipation,
-} from "@/lib/categories";
 
 export type YearData = {
   registrations: RegistrationRow[];
@@ -38,24 +35,29 @@ export type YearData = {
 type AdminView = "registrations" | "categories" | "matches" | "players" | "users";
 
 type Props = {
-  yearData: YearData;
-  year: number;
+  yearDataByYear: Record<number, YearData>;
   allYears: number[];
   categories: CategoryRecord[];
   players: PlayerTableRow[];
   adminUsers: { id: string; email: string; createdAt: string }[];
 };
 
+const emptyYearData: YearData = {
+  registrations: [],
+  matches: [],
+  categoryStatusItems: [],
+  categoryStatusById: {},
+  categoryParticipation: {},
+};
+
 export function AdminHub({
-  yearData,
-  year,
+  yearDataByYear,
   allYears,
   categories,
   players,
   adminUsers,
 }: Props) {
   const { t, locale } = useLocale();
-  const router = useRouter();
 
   const viewTabs = [
     { value: "registrations" as const, label: t.adminPage.hubTabRegistrations },
@@ -67,13 +69,20 @@ export function AdminHub({
 
   const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "seed", "club", "group"]);
 
+  // Year — derived from URL param; prefers the current calendar year when no valid param
+  // is present (same logic as the schedule page).
+  const [yearParamStr, setYearParam] = useUrlParam("year");
+  const yearParamNum = Number(yearParamStr);
+  const thisYear = new Date().getFullYear();
+  const year = yearParamNum > 0 && allYears.includes(yearParamNum)
+    ? yearParamNum
+    : allYears.includes(thisYear) ? thisYear : (allYears[0] ?? thisYear);
   const setYear = useCallback(
-    (y: number) => {
-      const next = mergeFilterParams(window.location.search, { year: String(y) }, ["cat", "round", "seed"]);
-      router.push(`?${next.toString()}`);
-    },
-    [router]
+    (y: number) => setYearParam(String(y), { clear: ["cat", "round", "seed"] }),
+    [setYearParam]
   );
+
+  const yearData = yearDataByYear[year] ?? emptyYearData;
 
   const [rawCatParam, setCatFilter] = useUrlParam("cat");
   const [rawRoundParam, setRoundFilter] = useUrlParam("round");
@@ -81,8 +90,7 @@ export function AdminHub({
   const [rawClubParam, setClubFilter] = useUrlParam("club");
 
   const [rawStatusParam, setStatusParam] = useUrlParam("status");
-  const VALID_CATEGORY_STATUSES = ["Pending", "Active", "Inactive"] as const;
-  const categoryStatusFilter: CategoryYearStatus | "all" = VALID_CATEGORY_STATUSES.includes(rawStatusParam as CategoryYearStatus) ? rawStatusParam as CategoryYearStatus : "all";
+  const categoryStatusFilter: CategoryYearStatus | "all" = CATEGORY_YEAR_STATUSES.includes(rawStatusParam as CategoryYearStatus) ? rawStatusParam as CategoryYearStatus : "all";
   const setCategoryStatusFilter = useCallback(
     (v: CategoryYearStatus | "all") => setStatusParam(v === "all" ? "" : v),
     [setStatusParam]

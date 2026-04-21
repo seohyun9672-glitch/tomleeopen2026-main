@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { RegistrationStatus } from "@/lib/registration";
 import { parseClubCodesFromBody } from "@/lib/clubs";
 import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
-import { getCategoryYearStatusDelegate } from "@/lib/categories";
+import { getCategoryYearStatusDelegate } from "@/lib/cateogry/categories";
 import {
   buildPlayerIdByPartnerNameMap,
   resolvePartnerIdFromPartnerName,

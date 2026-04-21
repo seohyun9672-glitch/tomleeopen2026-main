@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCategories, isDoublesCategory } from "@/lib/categories";
+import { getCategories, getCategory } from "@/lib/cateogry/categories";
 import { registrationStatusKey } from "@/lib/registration";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         if (used.has(reg.id)) continue;
         const label = idToLabel.get(reg.categoryId) ?? "";
 
-        if (isDoublesCategory(categories, label)) {
+        if (getCategory(categories, label)?.isDoubles ?? false) {
           const other =
             reg.partnerId != null &&
             reg.partner &&

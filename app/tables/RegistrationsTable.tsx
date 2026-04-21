@@ -8,10 +8,9 @@ import {
   buildCategoryByIdMap,
   categoryLabelForId,
   categoryChipClass,
-  getCategoryLabel,
-  getCategoryId,
-} from "@/lib/categories";
-import type { CategoryRecord } from "@/lib/categories";
+  getCategory,
+} from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 import { type Locale } from "@/lib/content";
 import { RegistrationForm, type RegistrationFormHandle } from "@/app/registration/RegistrationForm";
 import { prefetchRegistrationFormData } from "@/lib/registration";
@@ -26,7 +25,7 @@ import {
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories";
+import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/cateogry/categories";
 
 export type RegistrationRow = {
   id: string;
@@ -82,8 +81,8 @@ function formatPartnerNames(
       const entries = categoryIds.reduce<{ category: string; name: string }[]>((acc, c) => {
         const name =
           obj[c]?.trim() ??
-          obj[getCategoryId(categoryRecords, c)]?.trim() ??
-          obj[getCategoryLabel(categoryRecords, c)]?.trim() ??
+          obj[getCategory(categoryRecords, c)?.id ?? c]?.trim() ??
+          obj[getCategory(categoryRecords, c)?.label ?? c]?.trim() ??
           linked;
         if (name) acc.push({ category: categoryLabelForId(categoryById, c, locale), name });
         return acc;
@@ -135,7 +134,7 @@ export function registrationRowToRegistrationPageInitial(
   locale: Locale
 ) {
   const cats = parseRegistrationCategories(reg.categories, reg.category).map((c) =>
-    getCategoryId(categoryRecords, c)
+    getCategory(categoryRecords, c)?.id ?? c
   );
   const byId = buildCategoryByIdMap(categoryRecords);
   const isDoubles = (id: string) => byId.get(id)?.isDoubles ?? false;
@@ -145,7 +144,7 @@ export function registrationRowToRegistrationPageInitial(
     try {
       const obj = JSON.parse(reg.partnerNames) as Record<string, string>;
       cats.filter(isDoubles).forEach((catId) => {
-        const name = obj[catId] ?? obj[getCategoryLabel(categoryRecords, catId)] ?? "";
+        const name = obj[catId] ?? obj[getCategory(categoryRecords, catId)?.label ?? catId] ?? "";
         if (name) partnerNames[catId] = name;
       });
     } catch {
@@ -158,7 +157,7 @@ export function registrationRowToRegistrationPageInitial(
   if (partnerEn || partnerKo) {
     const forForm = locale === "ko" && partnerKo ? partnerKo : (partnerEn ?? partnerKo ?? "");
     if (forForm) {
-      const currentCategoryId = getCategoryId(categoryRecords, reg.category);
+      const currentCategoryId = getCategory(categoryRecords, reg.category)?.id ?? reg.category;
       if (currentCategoryId && isDoubles(currentCategoryId)) {
         partnerNames[currentCategoryId] = forForm;
       }

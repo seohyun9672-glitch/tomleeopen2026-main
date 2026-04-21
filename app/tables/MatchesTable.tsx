@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
-import type { CategoryRecord } from "@/lib/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 import type { RoundInfo } from "@/lib/round";
@@ -20,7 +20,7 @@ import {
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
 import { EditMatchModal } from "../admin/modals/EditMatchModal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/categories";
+import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/cateogry/categories";
 
 function formatMatchDateShort(isoDate: string | null | undefined, locale: "en" | "ko" = "en"): string {
   const d = isoDate?.trim();

@@ -7,19 +7,14 @@ export type CategoryRecord = {
   label: string;
   labelKo: string | null;
   isDoubles: boolean;
-  displayLabel: string;
-  displayLabelKo: string;
   ntrp: string | null;
   sortOrder: number;
 };
 
 type Locale = "en" | "ko";
 
-export const NTRP_LEVELS = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0+"] as const;
-export type NTRPLevel = (typeof NTRP_LEVELS)[number];
-
 export function categoryDisplayLabelFromDbRow(
-  row: { label: string; labelKo: string | null } | null | undefined,
+  row: { label: string; labelKo: string | null } | null | undefined,  
   locale: Locale
 ): string | null {
   if (!row) return null;
@@ -55,27 +50,12 @@ function normalizeCategoryId(value: string | null | undefined): string {
   return normalizeText(value).toUpperCase();
 }
 
-function getDisplayLabel(c: CategoryRecord): string {
-  return normalizeText(c.displayLabel);
-}
-
-function getDisplayLabelKo(c: CategoryRecord): string {
-  return normalizeText(c.displayLabelKo || c.labelKo || c.label);
-}
-
-function buildCategoryLookupKeys(c: CategoryRecord): string[] {
-  return [
-    normalizeCategoryId(c.id),
-    normalizeLookupKey(c.label),
-    normalizeLookupKey(c.displayLabel),
-    normalizeLookupKey(c.labelKo),
-    normalizeLookupKey(c.displayLabelKo),
-  ].filter(Boolean);
-}
-
-function findCategory(categories: CategoryRecord[], value: string): CategoryRecord | undefined {
+export function getCategory(
+  categories: CategoryRecord[],
+  value: string
+): CategoryRecord | null {
   const raw = normalizeText(value);
-  if (!raw) return undefined;
+  if (!raw) return null;
 
   const normalizedId = normalizeCategoryId(raw);
   for (const c of categories) {
@@ -83,31 +63,11 @@ function findCategory(categories: CategoryRecord[], value: string): CategoryReco
   }
 
   const normalizedValue = normalizeLookupKey(raw);
-  return categories.find((c) => buildCategoryLookupKeys(c).includes(normalizedValue));
-}
-
-export function getCategoryLabel(categories: CategoryRecord[], idOrLabel: string): string {
-  const category = findCategory(categories, idOrLabel);
-  return category ? getDisplayLabel(category) : idOrLabel;
-}
-
-export function getCategoryLabelByLocale(
-  categories: CategoryRecord[],
-  idOrLabel: string,
-  locale: Locale
-): string {
-  const category = findCategory(categories, idOrLabel);
-  if (!category) return idOrLabel;
-  return locale === "ko" ? getDisplayLabelKo(category) : getDisplayLabel(category);
-}
-
-export function getCategoryId(categories: CategoryRecord[], idOrLabel: string): string {
-  const category = findCategory(categories, idOrLabel);
-  return category ? category.id : idOrLabel;
-}
-
-export function isDoublesCategory(categories: CategoryRecord[], idOrLabel: string): boolean {
-  return findCategory(categories, idOrLabel)?.isDoubles ?? false;
+  return (
+    categories.find((c) =>
+      [normalizeLookupKey(c.label), normalizeLookupKey(c.labelKo)].includes(normalizedValue)
+    ) ?? null
+  );
 }
 
 const DEFAULT_CATEGORY_CHIP_SURFACE =
@@ -171,16 +131,6 @@ export const CATEGORY_CHIP_PRESETS: Record<string, { chipSurfaceClass: string }>
 export function categoryChipClass(categoryId: string): string {
   const id = normalizeCategoryId(categoryId);
   return CATEGORY_CHIP_PRESETS[id]?.chipSurfaceClass ?? DEFAULT_CATEGORY_CHIP_SURFACE;
-}
-
-const CATEGORY_TAG_BASE_CLASS = "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium";
-
-export function getCategoryTagClasses(categoryId: string): string {
-  return categoryChipClass(categoryId);
-}
-
-export function getCategoryTagFullClasses(categoryId: string): string {
-  return `${CATEGORY_TAG_BASE_CLASS} ${categoryChipClass(categoryId)}`.trim();
 }
 
 export const CATEGORY_YEAR_STATUSES = ["Pending", "Active", "Inactive"] as const;
@@ -289,24 +239,14 @@ export async function getCategories(): Promise<CategoryRecord[]> {
   });
 
   return rows
-    .map((c) => {
-      const label = normalizeText(c.label);
-      const labelKo = normalizeText(c.labelKo) || null;
-      const displayLabel = label;
-      const displayLabelKo = labelKo || label;
-      const ntrp = normalizeNtrp(c.ntrp);
-
-      return {
-        ...c,
-        id: normalizeCategoryId(c.id),
-        label,
-        labelKo,
-        isDoubles: c.isDoubles,
-        displayLabel,
-        displayLabelKo,
-        ntrp,
-      };
-    })
+    .map((c) => ({
+      id: normalizeCategoryId(c.id),
+      label: normalizeText(c.label),
+      labelKo: normalizeText(c.labelKo) || null,
+      isDoubles: c.isDoubles,
+      ntrp: normalizeNtrp(c.ntrp),
+      sortOrder: c.sortOrder,
+    }))
     .sort((a, b) => {
       const byPrefix = categoryPrefixRank(a.id) - categoryPrefixRank(b.id);
       if (byPrefix !== 0) return byPrefix;

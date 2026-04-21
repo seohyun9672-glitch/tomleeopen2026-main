@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
-  getCategoryLabel,
-} from "@/lib/categories";
-import type { CategoryRecord } from "@/lib/categories";
+  getCategory,
+} from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 import {
   CATEGORY_YEAR_STATUSES,
   type CategoryYearListItem,
   type CategoryYearStatus,
-} from "@/lib/categories";
+} from "@/lib/cateogry/categories";
 import { useLocale } from "@/lib/locale-context";
 import { Modal } from "@/app/components/ui/Modal";
 import { Field } from "@/app/components/ui/Field";
@@ -41,7 +41,7 @@ function resolvePartnerNameForCategory(params: {
     try {
       const parsed = JSON.parse(reg.partnerNames) as Record<string, string>;
       const byId = parsed[activeCategoryId]?.trim();
-      const byLabel = parsed[getCategoryLabel(categories, activeCategoryId)]?.trim();
+      const byLabel = parsed[getCategory(categories, activeCategoryId)?.label ?? activeCategoryId]?.trim();
       partnerNameFromMap = byId || byLabel || "";
     } catch {
       partnerNameFromMap = "";

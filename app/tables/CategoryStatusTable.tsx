@@ -4,13 +4,13 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { StatusFilter } from "@/app/components/FilterControls";
-import { buildCategoryByIdMap, categoryLabelForId, getCategoryId } from "@/lib/categories";
-import type { CategoryRecord } from "@/lib/categories";
+import { buildCategoryByIdMap, categoryLabelForId, getCategory } from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 import {
   type CategoryParticipation,
   type CategoryYearListItem,
   type CategoryYearStatus,
-} from "@/lib/categories";
+} from "@/lib/cateogry/categories";
 import { matchStatusChipClass } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
@@ -83,7 +83,7 @@ export function CategoryStatusTable({
       const categoryIds = Array.from(
         new Set(
           parseRegistrationCategories(reg.categories, reg.category)
-            .map((category) => getCategoryId(categories, category))
+            .map((category) => getCategory(categories, category)?.id ?? category)
             .filter((categoryId): categoryId is string => Boolean(categoryId))
         )
       );

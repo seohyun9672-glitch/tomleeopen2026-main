@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { NTRP_LEVELS } from "@/lib/categories";
+import { NTRP_LEVELS } from "@/lib/ntrp";
 import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
 import { Field } from "@/app/components/ui/Field";
 import { Chip } from "@/app/components/ui/Chip";

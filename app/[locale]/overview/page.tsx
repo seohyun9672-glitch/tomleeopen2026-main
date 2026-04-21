@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/content";
-import { buildCategoryByIdMap, categoryLabelForId, getCategories } from "@/lib/categories";
+import { buildCategoryByIdMap, categoryLabelForId, getCategories } from "@/lib/cateogry/categories";
 import { getSponsors } from "@/lib/sponsors";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";

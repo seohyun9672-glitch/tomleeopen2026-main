@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
-import type { CategoryRecord } from "@/lib/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/cateogry/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "@/lib/locale-context";
-import { categoriesConfirmedForYear, type CategoryYearListItem } from "@/lib/categories";
+import { categoriesConfirmedForYear, type CategoryYearListItem } from "@/lib/cateogry/categories";
 import { Filter, type FilterControlKind } from "./Filter";
 import type { ReactNode } from "react";
 
