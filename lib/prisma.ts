@@ -8,7 +8,4 @@ function createPrisma() {
   });
 }
 
-/**
- * Single client per dev server process to avoid exhausting DB connections during hot reload.
- */
 export const prisma = (globalForPrisma.prisma ??= createPrisma());

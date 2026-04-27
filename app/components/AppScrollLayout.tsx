@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { SiteFooter } from "@/app/components/SiteFooter";
+
+// Strip the /ko locale prefix so we can detect locale-only path changes.
+function normalizePath(p: string) {
+  return p.replace(/^\/ko(\/|$)/, "/");
+}
 
 /**
  * Fills space under the fixed header; only this region scrolls so the header stays full-width.
@@ -10,10 +15,24 @@ import { SiteFooter } from "@/app/components/SiteFooter";
  */
 export function AppScrollLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const prevPathRef = useRef(pathname);
+  const savedScrollRef = useRef(0);
+
+  // Track scroll position so we can restore it on locale switches.
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>("[data-app-scroll-root]");
+    if (!el) return;
+    const onScroll = () => { savedScrollRef.current = el.scrollTop; };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
-    const el = document.querySelector("[data-app-scroll-root]");
-    if (el) el.scrollTop = 0;
+    const el = document.querySelector<HTMLElement>("[data-app-scroll-root]");
+    if (!el) return;
+    const isLocaleSwitch = normalizePath(prevPathRef.current) === normalizePath(pathname);
+    el.scrollTop = isLocaleSwitch ? savedScrollRef.current : 0;
+    prevPathRef.current = pathname;
   }, [pathname]);
 
   return (
