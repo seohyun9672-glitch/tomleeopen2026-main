@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, type ComponentProps } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { YearFilter, CategoryFilter, RoundFilter, SeedFilter, StatusFilter } from "@/app/components/FilterControls";
+import { YearFilter, CategoryFilter, RoundFilter, GroupFilter, StatusFilter } from "@/app/components/FilterControls";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
   isCategoryConfirmedInYearMap,
   CATEGORY_YEAR_STATUSES,
-} from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { Table } from "@/app/components/ui/table/Table";
 import { RegistrationsTable } from "../tables/RegistrationsTable";
@@ -19,26 +19,23 @@ import { MatchesTable } from "../tables/MatchesTable";
 import { PlayersTable } from "../tables/PlayersTable";
 import { useLocale } from "@/lib/locale-context";
 import type { RoundInfo } from "@/lib/matches";
-import type { CategoryRecord, CategoryYearListItem, CategoryYearStatus, CategoryParticipation } from "@/lib/cateogry/categories";
-import type { RegistrationRow } from "../tables/RegistrationsTable";
-import type { PlayerTableRow } from "../tables/PlayersTable";
+import { categoryYearStatusLabel } from "@/lib/category/categories";
+import type { CategoryRecord, CategoryYearListItem, CategoryYearStatus, CategoryParticipation } from "@/lib/category/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
 
 export type YearData = {
-  registrations: RegistrationRow[];
+  registrations: ComponentProps<typeof RegistrationsTable>["initial"];
   matches: MatchWithTeamNames[];
   categoryStatusItems: CategoryYearListItem[];
   categoryStatusById: Record<string, CategoryYearStatus>;
   categoryParticipation: Record<string, CategoryParticipation>;
 };
 
-type AdminView = "registrations" | "categories" | "matches" | "players" | "users";
-
 type Props = {
   yearDataByYear: Record<number, YearData>;
   allYears: number[];
   categories: CategoryRecord[];
-  players: PlayerTableRow[];
+  players: ComponentProps<typeof PlayersTable>["rows"];
   adminUsers: { id: string; email: string; createdAt: string }[];
 };
 
@@ -60,17 +57,16 @@ export function AdminHub({
   const { t, locale } = useLocale();
 
   const viewTabs = [
-    { value: "registrations" as const, label: t.adminPage.hubTabRegistrations },
-    { value: "categories" as const, label: t.adminPage.hubTabCategories },
-    { value: "players" as const, label: t.adminPage.hubTabPlayers },
-    { value: "users" as const, label: t.adminPage.hubTabUsers },
-    { value: "matches" as const, label: t.adminMatches.title },
+    { value: "registrations" as const, label: t.adminPage.tabs.registrations },
+    { value: "categories" as const, label: t.adminPage.tabs.categories },
+    { value: "players" as const, label: t.adminPage.tabs.players },
+    { value: "users" as const, label: t.adminPage.tabs.users },
+    { value: "matches" as const, label: t.adminPage.tabs.matches },
   ];
+  type AdminView = (typeof viewTabs)[number]["value"];
 
-  const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "seed", "club", "group"]);
+  const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "club", "group"]);
 
-  // Year — derived from URL param; prefers the current calendar year when no valid param
-  // is present (same logic as the schedule page).
   const [yearParamStr, setYearParam] = useUrlParam("year");
   const yearParamNum = Number(yearParamStr);
   const thisYear = new Date().getFullYear();
@@ -78,7 +74,7 @@ export function AdminHub({
     ? yearParamNum
     : allYears.includes(thisYear) ? thisYear : (allYears[0] ?? thisYear);
   const setYear = useCallback(
-    (y: number) => setYearParam(String(y), { clear: ["cat", "round", "seed"] }),
+    (y: number) => setYearParam(String(y), { clear: ["cat", "round", "group"] }),
     [setYearParam]
   );
 
@@ -86,11 +82,11 @@ export function AdminHub({
 
   const [rawCatParam, setCatFilter] = useUrlParam("cat");
   const [rawRoundParam, setRoundFilter] = useUrlParam("round");
-  const [rawSeedParam, setSeedFilter] = useUrlParam("seed");
+  const [rawGroupParam, setGroupFilter] = useUrlParam("group");
   const [rawClubParam, setClubFilter] = useUrlParam("club");
 
   const [rawStatusParam, setStatusParam] = useUrlParam("status");
-  const categoryStatusFilter: CategoryYearStatus | "all" = CATEGORY_YEAR_STATUSES.includes(rawStatusParam as CategoryYearStatus) ? rawStatusParam as CategoryYearStatus : "all";
+  const categoryStatusFilter: CategoryYearStatus | "all" = rawStatusParam in CATEGORY_YEAR_STATUSES ? rawStatusParam as CategoryYearStatus : "all";
   const setCategoryStatusFilter = useCallback(
     (v: CategoryYearStatus | "all") => setStatusParam(v === "all" ? "" : v),
     [setStatusParam]
@@ -126,14 +122,13 @@ export function AdminHub({
     () =>
       [
         { value: "all" as const, label: t.shared.labels.allYears },
-        { value: "Pending" as const, label: t.adminCategoryYears.statusPending },
-        { value: "Active" as const, label: t.adminCategoryYears.statusActive },
-        { value: "Inactive" as const, label: t.adminCategoryYears.statusInactive },
+        { value: "Pending" as const, label: categoryYearStatusLabel("Pending", locale) },
+        { value: "Active" as const, label: categoryYearStatusLabel("Active", locale) },
+        { value: "Inactive" as const, label: categoryYearStatusLabel("Inactive", locale) },
       ],
-    [t]
+    [locale]
   );
 
-  // Build round filter options: deduplicate by code, sort newest-first (descending sortOrder).
   const matchesRoundOptions = useMemo(() => {
     const catFiltered = rawCatParam
       ? yearData.matches.filter((m) => m.categoryId === rawCatParam)
@@ -149,33 +144,33 @@ export function AdminHub({
     }));
   }, [yearData.matches, rawCatParam, locale]);
 
-  const matchesSeedOptions = useMemo(() => {
+  const matchesGroupOptions = useMemo(() => {
     if (!rawRoundParam) return [];
     const catFiltered = rawCatParam
       ? yearData.matches.filter((m) => m.categoryId === rawCatParam)
       : yearData.matches;
     const roundFiltered = catFiltered.filter((m) => m.round?.code === rawRoundParam);
-    const seeds = new Set<string>();
+    const groups = new Set<string>();
     roundFiltered.forEach((m) => {
-      if (m.team1Seed?.trim()) seeds.add(m.team1Seed.trim());
-      if (m.team2Seed?.trim()) seeds.add(m.team2Seed.trim());
+      if (m.team1Seed?.trim()) groups.add(m.team1Seed.trim());
+      if (m.team2Seed?.trim()) groups.add(m.team2Seed.trim());
     });
-    return [...seeds].sort().map((s) => ({ value: s, label: s }));
+    return [...groups].sort().map((g) => ({ value: g, label: g }));
   }, [yearData.matches, rawCatParam, rawRoundParam]);
 
   const regCategoryFilter = view === "registrations" && registrationCategoryOptions.some(o => o.id === rawCatParam) ? rawCatParam : "";
   const matchesCategoryFilter = view === "matches" && matchesCategoryOptions.some(o => o.id === rawCatParam) ? rawCatParam : "";
   const matchesRoundFilter = view === "matches" && matchesRoundOptions.some(o => o.value === rawRoundParam) ? rawRoundParam : "";
-  const matchesSeedFilter = view === "matches" && matchesRoundFilter && matchesSeedOptions.some(o => o.value === rawSeedParam) ? rawSeedParam : "";
+  const matchesGroupFilter = view === "matches" && matchesRoundFilter && matchesGroupOptions.some(o => o.value === rawGroupParam) ? rawGroupParam : "";
   const playersClubFilter = view === "players" ? rawClubParam : "";
 
   const showRegCategoryFilter = view === "registrations" && registrationCategoryOptions.length > 1;
   const showMatchesCategoryFilter = view === "matches" && matchesCategoryOptions.length > 1;
   const showMatchesRoundFilter = view === "matches" && matchesRoundOptions.length > 1;
-  const showMatchesSeedFilter = view === "matches" && !!matchesRoundFilter && matchesSeedOptions.length > 1;
+  const showMatchesGroupFilter = view === "matches" && !!matchesRoundFilter && matchesGroupOptions.length > 1;
   const showCategoryStatusFilter = view === "categories" && hasCategoryParticipation;
-  const showAdminFilterBar =
-    showYearFilter || showRegCategoryFilter || showMatchesCategoryFilter || showMatchesRoundFilter || showMatchesSeedFilter || showCategoryStatusFilter;
+  const showFilterBar =
+    showYearFilter || showRegCategoryFilter || showMatchesCategoryFilter || showMatchesRoundFilter || showMatchesGroupFilter || showCategoryStatusFilter;
 
   return (
     <section className="flex flex-col gap-[var(--content-gap)] md:gap-[var(--content-gap)]">
@@ -190,7 +185,7 @@ export function AdminHub({
             className="mb-0"
           />
         </div>
-        {showAdminFilterBar ? (
+        {showFilterBar ? (
           <div className="w-full min-w-0">
             <FilterGroup>
               {showYearFilter ? (
@@ -225,23 +220,23 @@ export function AdminHub({
                   id="admin-matches-round"
                   value={matchesRoundFilter}
                   options={matchesRoundOptions}
-                  onChange={(v) => setRoundFilter(v, { clear: ["seed"] })}
+                  onChange={(v) => setRoundFilter(v, { clear: ["group"] })}
                   allLabel={t.shared.labels.allRounds}
                 />
               ) : null}
-              {showMatchesSeedFilter ? (
-                <SeedFilter
-                  id="admin-matches-seed"
-                  value={matchesSeedFilter}
-                  options={matchesSeedOptions.map((s) => s.value)}
-                  onChange={setSeedFilter}
-                  allLabel={t.shared.labels.allSeeds}
+              {showMatchesGroupFilter ? (
+                <GroupFilter
+                  id="admin-matches-group"
+                  value={matchesGroupFilter}
+                  options={matchesGroupOptions.map((g) => g.value)}
+                  onChange={setGroupFilter}
+                  allLabel={t.shared.labels.allGroups}
                 />
               ) : null}
               {showCategoryStatusFilter ? (
                 <StatusFilter
                   id="admin-category-status-filter"
-                  label={t.adminCategoryYears.tableStatus}
+                  label={t.shared.labels.status}
                   value={categoryStatusFilter}
                   options={categoryStatusFilterOptions}
                   onChange={(v) => setCategoryStatusFilter(v as CategoryYearStatus | "all")}
@@ -317,8 +312,8 @@ export function AdminHub({
               onCategoryFilterChange={setCatFilter}
               roundFilter={matchesRoundFilter}
               onRoundFilterChange={setRoundFilter}
-              seedFilter={matchesSeedFilter}
-              onSeedFilterChange={setSeedFilter}
+              seedFilter={matchesGroupFilter}
+              onSeedFilterChange={setGroupFilter}
             />
           </section>
         )}

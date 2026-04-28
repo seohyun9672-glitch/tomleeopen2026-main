@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import type { MediaRecord, PhotoGalleryGroup } from "@/lib/media";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { MediaContentCard } from "@/app/components/ui/MediaContentCard";
 import { useLocale } from "@/lib/locale-context";

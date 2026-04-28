@@ -1,4 +1,4 @@
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 
 // ─── Status chips ─────────────────────────────────────────────────────────────
 

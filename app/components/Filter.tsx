@@ -45,7 +45,7 @@ const SELECT_CHEVRON_STYLE: CSSProperties = {
 };
 
 const CONTROL_INNER: Record<FilterControlKind, string> = {
-  default: "w-full min-w-0 max-w-full",
+  default: "w-fit min-w-0 max-w-full",
   year: "w-fit min-w-0 max-w-full",
   status: "w-fit min-w-0 max-w-full",
   club: "w-fit min-w-0 max-w-full",

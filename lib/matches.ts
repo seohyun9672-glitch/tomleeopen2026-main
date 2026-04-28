@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 
 import { ROUND_F, ROUND_PRE} from "@/lib/round";
 
-import { categoryDisplayLabelFromDbRow } from "@/lib/cateogry/categories";
+import { categoryDisplayLabelFromDbRow } from "@/lib/category/categories";
 import { prisma } from "@/lib/prisma";
 import type { RoundInfo } from "@/lib/round";
 

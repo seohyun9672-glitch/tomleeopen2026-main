@@ -1,28 +1,51 @@
-import type { ReactNode } from "react";
+"use client";
 
+import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { useLocale } from "@/lib/locale-context";
+import type { Messages } from "@/lib/content";
 import { PageHero } from "./layout/PageHero";
 
 const shellClassName =
   "page-shell min-h-[50vh] py-[var(--content-gap)] md:py-[var(--section-gap)] lg:py-[var(--section-gap)]";
 
+// Locale-aware title lookup keyed by locale-neutral path (no /ko prefix).
+// PageContainer uses this to override the server-rendered `title` prop with the
+// correct language whenever the client locale differs from the initial server render.
+const PATH_TITLES: Partial<Record<string, (t: Messages) => string>> = {
+  "/draws":        (t) => t.drawsPage.heroTitle,
+  "/schedule":     (t) => t.schedulePage.heroTitle,
+  "/players":      (t) => t.playersPage.heroTitle,
+  "/registration": (t) => t.registrationPage.heroTitle,
+  "/media":        (t) => t.mediaPage.heroTitle,
+  "/honour-roll":  (t) => t.heroTitle,
+  "/rules":        (t) => t.rulesPage.heroTitle,
+  "/overview":     (t) => t.overviewPage.heroTitle,
+  "/admin":        (t) => t.adminPage.heroTitle,
+};
+
 export type PageContainerProps = {
   children: ReactNode;
-  /** When set, renders {@link PageHero} above `children` (same padded shell). */
   title?: string;
-  /** Passed to {@link PageHero} (e.g. admin sign-out). */
   actions?: ReactNode;
-  /** Renders before {@link PageHero} when `title` is set (e.g. breadcrumb). */
   beforeTitle?: ReactNode;
 };
 
 /** Max-width container with page padding. Optional page title row via `title` / `actions`. */
 export function PageContainer({ children, title, actions, beforeTitle }: PageContainerProps) {
+  const { t } = useLocale();
+  const pathname = usePathname();
+
+  // Strip /ko prefix to get the locale-neutral path, then look up the locale-aware title.
+  const cleanPath = pathname === "/ko" ? "/" : pathname.startsWith("/ko/") ? pathname.slice(3) : pathname;
+  const resolvedTitle = PATH_TITLES[cleanPath]?.(t) ?? title;
+
   return (
     <div className={shellClassName}>
       {beforeTitle != null ? (
-        <div className={title != null ? "mb-[var(--content-gap)]" : undefined}>{beforeTitle}</div>
+        <div className={resolvedTitle != null ? "mb-[var(--content-gap)]" : undefined}>{beforeTitle}</div>
       ) : null}
-      {title != null ? <PageHero title={title} actions={actions} /> : null}
+      {resolvedTitle != null ? <PageHero title={resolvedTitle} actions={actions} /> : null}
       {children}
     </div>
   );

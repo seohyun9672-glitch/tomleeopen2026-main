@@ -1,6 +1,5 @@
 import type { Locale } from "@/lib/content";
 import { formatNtrpDisplay } from "@/lib/ntrpFormat";
-import { siteContent } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
 import { getAvailableYears, getMatchesByYearBatch } from "@/lib/matches";
 import { PageContainer } from "@/app/components/PageContainer";
@@ -8,7 +7,7 @@ import {
   getCategories,
   getCategoryParticipationForYear,
   getCategoryYearStatusList,
-} from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
 import { AdminHub } from "@/app/admin/AdminHub";
 import type { YearData } from "@/app/admin/AdminHub";
 import { AdminSignOut } from "@/app/admin/login/AdminSignOut";
@@ -34,8 +33,6 @@ export default async function AdminPage({ params }: Props) {
     const callbackUrl = encodeURIComponent(`${localePrefix}/admin`);
     redirect(`${localePrefix}/admin/login?callbackUrl=${callbackUrl}`);
   }
-
-  const content = siteContent[locale];
 
   const categories = await getCategories();
   const categoryIds = categories.map((c) => c.id);
@@ -144,8 +141,7 @@ export default async function AdminPage({ params }: Props) {
 
   return (
     <PageContainer
-      title={content.adminPage.heroTitle}
-      actions={<AdminSignOut label={content.shared.buttons.signOut} />}
+      actions={<AdminSignOut />}
     >
       <AdminHub
         yearDataByYear={yearDataByYear}

@@ -28,6 +28,8 @@ export const shared = {
         seed: "Seed",
         allSeeds: "All seeds",
         date: "Date",
+        status: "Status",
+        players: "Players",
         allYears: "All",
       },
       aria: {
@@ -74,6 +76,8 @@ export const shared = {
         seed: "시드",
         allSeeds: "전체 시드",
         date: "날짜",
+        status: "상태",
+        players: "선수",
         allYears: "전체",
       },
       aria: {

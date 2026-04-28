@@ -133,8 +133,16 @@ export function categoryChipClass(categoryId: string): string {
   return CATEGORY_CHIP_PRESETS[id]?.chipSurfaceClass ?? DEFAULT_CATEGORY_CHIP_SURFACE;
 }
 
-export const CATEGORY_YEAR_STATUSES = ["Pending", "Active", "Inactive"] as const;
-export type CategoryYearStatus = (typeof CATEGORY_YEAR_STATUSES)[number];
+export const CATEGORY_YEAR_STATUSES = {
+  Pending: { label: { en: "Pending", ko: "대기" } },
+  Active: { label: { en: "Active", ko: "활성" } },
+  Inactive: { label: { en: "Inactive", ko: "비활성" } },
+} as const;
+export type CategoryYearStatus = keyof typeof CATEGORY_YEAR_STATUSES;
+
+export function categoryYearStatusLabel(status: CategoryYearStatus, locale: "en" | "ko"): string {
+  return CATEGORY_YEAR_STATUSES[status].label[locale];
+}
 
 export type CategoryYearListItem = {
   categoryId: string;
@@ -158,7 +166,7 @@ export function parseCategoryYearStatus(v: unknown): CategoryYearStatus | null {
   if (normalized === "confirmed") return "Active";
   if (normalized === "cancelled") return "Inactive";
 
-  for (const s of CATEGORY_YEAR_STATUSES) {
+  for (const s of Object.keys(CATEGORY_YEAR_STATUSES) as CategoryYearStatus[]) {
     if (s.toLowerCase() === normalized) return s;
   }
 

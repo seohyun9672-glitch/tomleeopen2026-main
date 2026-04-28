@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 import type { RoundInfo } from "@/lib/round";
@@ -20,7 +20,7 @@ import {
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
 import { EditMatchModal } from "../admin/modals/EditMatchModal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/cateogry/categories";
+import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/category/categories";
 
 function formatMatchDateShort(isoDate: string | null | undefined, locale: "en" | "ko" = "en"): string {
   const d = isoDate?.trim();
@@ -229,20 +229,20 @@ export function MatchesTable({
 
   const { headers, sortKeys, columnNoWrap, dataRows } = useMemo(() => {
     const tailHeaders = [
-      am.tableSeed,
+      t.shared.labels.group,
       am.tableTeam1,
       am.tableTeam2,
-      am.tableDate,
-      am.tableTime,
+      t.shared.labels.date,
+      am.time,
       am.tableLocation,
       am.tableScore,
-      am.tableStatus,
+      t.shared.labels.status,
     ] as const;
     const tailKeys: (string | null)[] = [null, "team1", "team2", "date", "time", "location", "score", "status"];
 
     const headersResolved = showCategoryColumn
-      ? [am.tableCategory, am.tableRound, ...tailHeaders]
-      : [am.tableRound, ...tailHeaders];
+      ? [t.shared.labels.category, t.shared.labels.round, ...tailHeaders]
+      : [t.shared.labels.round, ...tailHeaders];
     const keysResolved: (string | null)[] = showCategoryColumn
       ? ["category", "round", ...tailKeys]
       : ["round", ...tailKeys];

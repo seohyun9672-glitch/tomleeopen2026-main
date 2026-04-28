@@ -1,10 +1,10 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { categoryChipClass, buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
+import { categoryChipClass, buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
 import { clubChipClass } from "@/lib/clubs";
 import { NTRP_LEVELS } from "@/lib/ntrp";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import { formatPhoneInput, isValidEmail, isValidNanpPhone, normalizePhone } from "@/lib/validation";
 import { loadRegistrationFormData, formatPrice, totalFromCategories } from "@/lib/registration";
 import { contactData } from "@/lib/contactData";

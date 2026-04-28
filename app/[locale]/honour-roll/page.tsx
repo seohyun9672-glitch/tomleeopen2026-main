@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/content";
 import { PageContainer } from "@/app/components/PageContainer";
-import { getCategories, getCategoryYearStatusList } from "@/lib/cateogry/categories";
+import { getCategories, getCategoryYearStatusList } from "@/lib/category/categories";
 import { getHonourRollByCategoryIds } from "@/lib/matches";
 import { prisma } from "@/lib/prisma";
 import { siteContent } from "@/lib/content";

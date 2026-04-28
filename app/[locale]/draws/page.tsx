@@ -1,7 +1,7 @@
 import type { Locale } from "@/lib/content";
 import { getAvailableYears } from "@/lib/matches";
 import { siteContent } from "@/lib/content";
-import { getCategories, getCategoryYearStatusList } from "@/lib/cateogry/categories";
+import { getCategories, getCategoryYearStatusList } from "@/lib/category/categories";
 import { getMatchesByYearBatch } from "@/lib/matches";
 import { PageContainer } from "@/app/components/PageContainer";
 import { DrawsHub } from "@/app/draws/DrawsHub";

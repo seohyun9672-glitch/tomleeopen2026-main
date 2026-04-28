@@ -9,11 +9,11 @@ import {
   categoryLabelForId,
   categoryChipClass,
   getCategory,
-} from "@/lib/cateogry/categories";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import { type Locale } from "@/lib/content";
 import { RegistrationForm, type RegistrationFormHandle } from "@/app/registration/RegistrationForm";
-import { prefetchRegistrationFormData } from "@/lib/registration";
+import { prefetchRegistrationFormData, registrationStatusLabel } from "@/lib/registration";
 import { matchStatusChipClass } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
@@ -25,7 +25,7 @@ import {
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/cateogry/categories";
+import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/category/categories";
 
 export type RegistrationRow = {
   id: string;
@@ -368,13 +368,13 @@ export function RegistrationsTable({
 
   const statusMeta = useCallback(
     (status: string): { label: string; chipClass: string } => {
-      if (status === "Confirmed") return { label: t.adminRegistrationStatus.confirmed, chipClass: matchStatusChipClass("Completed") };
-      if (status === "Cancelled") return { label: t.adminRegistrationStatus.cancelled, chipClass: matchStatusChipClass("Cancelled") };
-      if (status === "Refund Requested") return { label: t.adminRegistrationStatus.refundRequested, chipClass: matchStatusChipClass("Cancelled") };
-      if (status === "Refunded") return { label: t.adminRegistrationStatus.refunded, chipClass: matchStatusChipClass("Pending") };
-      return { label: t.adminCategoryYears.statusPending, chipClass: matchStatusChipClass("Pending") };
+      if (status === "Confirmed") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Completed") };
+      if (status === "Cancelled") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Cancelled") };
+      if (status === "Refund Requested") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Cancelled") };
+      if (status === "Refunded") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Pending") };
+      return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Pending") };
     },
-    [t.adminCategoryYears, t.adminRegistrationStatus]
+    [locale]
   );
 
   if (initial.length === 0) {
@@ -385,8 +385,8 @@ export function RegistrationsTable({
 
   const totalCountResolved = totalCount ?? initial.length;
   const headers = showConsentAndEngraving
-    ? [adminReg.tableRegNumber, adminReg.tableName, adminReg.tablePartner, adminReg.tableCategory, adminReg.tableStatus, adminReg.tableMediaConsent, adminReg.tableEngraving]
-    : [adminReg.tableRegNumber, adminReg.tableName, adminReg.tablePartner, adminReg.tableCategory, adminReg.tableStatus];
+    ? [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status, adminReg.tableMediaConsent, adminReg.tableEngraving]
+    : [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status];
   const sortKeys = showConsentAndEngraving
     ? (["regNumber", "name", "partner", "category", "status", "media", "engraving"] as RegSortKey[])
     : (["regNumber", "name", "partner", "category", "status"] as RegSortKey[]);

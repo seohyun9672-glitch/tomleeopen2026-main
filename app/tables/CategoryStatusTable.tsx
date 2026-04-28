@@ -4,13 +4,13 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { StatusFilter } from "@/app/components/FilterControls";
-import { buildCategoryByIdMap, categoryLabelForId, getCategory } from "@/lib/cateogry/categories";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+import { buildCategoryByIdMap, categoryLabelForId, categoryYearStatusLabel, getCategory } from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import {
   type CategoryParticipation,
   type CategoryYearListItem,
   type CategoryYearStatus,
-} from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
 import { matchStatusChipClass } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
@@ -36,15 +36,15 @@ type CategorySortKey = "category" | "players" | "status";
 
 function statusMeta(
   status: CategoryYearStatus,
-  t: ReturnType<typeof useLocale>["t"]
+  locale: "en" | "ko"
 ): { label: string; chipClass: string } {
   if (status === "Active") {
-    return { label: t.adminCategoryYears.statusActive, chipClass: matchStatusChipClass("Completed") };
+    return { label: categoryYearStatusLabel(status, locale), chipClass: matchStatusChipClass("Completed") };
   }
   if (status === "Inactive") {
-    return { label: t.adminCategoryYears.statusInactive, chipClass: matchStatusChipClass("Cancelled") };
+    return { label: categoryYearStatusLabel(status, locale), chipClass: matchStatusChipClass("Cancelled") };
   }
-  return { label: t.adminCategoryYears.statusPending, chipClass: matchStatusChipClass("Pending") };
+  return { label: categoryYearStatusLabel(status, locale), chipClass: matchStatusChipClass("Pending") };
 }
 
 export function CategoryStatusTable({
@@ -218,9 +218,9 @@ export function CategoryStatusTable({
 
   const statusOptions: { value: CategoryYearStatus | "all"; label: string }[] = [
     { value: "all", label: t.shared.labels.allYears },
-    { value: "Pending", label: t.adminCategoryYears.statusPending },
-    { value: "Active", label: t.adminCategoryYears.statusActive },
-    { value: "Inactive", label: t.adminCategoryYears.statusInactive },
+    { value: "Pending", label: categoryYearStatusLabel("Pending", locale) },
+    { value: "Active", label: categoryYearStatusLabel("Active", locale) },
+    { value: "Inactive", label: categoryYearStatusLabel("Inactive", locale) },
   ];
 
   return (
@@ -235,7 +235,7 @@ export function CategoryStatusTable({
         <FilterGroup>
           <StatusFilter
             id="category-status-filter"
-            label={t.adminCategoryYears.tableStatus}
+            label={t.shared.labels.status}
             value={statusFilter}
             options={statusOptions}
             onChange={(v) => setStatusFilter(v as CategoryYearStatus | "all")}
@@ -247,9 +247,9 @@ export function CategoryStatusTable({
         <Table
           variant="data"
           headers={[
-            t.adminCategoryYears.tableCategory,
-            t.adminCategoryYears.tablePlayers,
-            t.adminCategoryYears.tableStatus,
+            t.shared.labels.category,
+            t.shared.labels.players,
+            t.shared.labels.status,
           ]}
           sortConfig={{
             activeKey: sortKey,
@@ -260,7 +260,7 @@ export function CategoryStatusTable({
           dataRows={sorted.map((row) => {
             const label = categoryLabelForId(categoriesById, row.categoryId, locale);
             const p = participationByCategory[row.categoryId] ?? { teams: 0, players: 0 };
-            const { label: statusLabel, chipClass: statusChipClass } = statusMeta(row.status, t);
+            const { label: statusLabel, chipClass: statusChipClass } = statusMeta(row.status, locale);
 
             return [
               label,
@@ -278,7 +278,7 @@ export function CategoryStatusTable({
 
         <div className="mt-2 flex w-full justify-end">
           <p className="m-0 text-sm tabular-nums text-[var(--color-text-secondary)]">
-            {t.adminCategoryYears.countLabel(sorted.length)}
+            {t.categoryYears.countLabel(sorted.length)}
           </p>
         </div>
       </div>

@@ -5,13 +5,14 @@ import {
   buildCategoryByIdMap,
   categoryLabelForId,
   getCategory,
-} from "@/lib/cateogry/categories";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import {
   CATEGORY_YEAR_STATUSES,
+  categoryYearStatusLabel,
   type CategoryYearListItem,
   type CategoryYearStatus,
-} from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
 import { useLocale } from "@/lib/locale-context";
 import { Modal } from "@/app/components/ui/Modal";
 import { Field } from "@/app/components/ui/Field";
@@ -85,7 +86,7 @@ export function CategoryStatusModal({
   return (
     <Modal
       onClose={onClose}
-      title={t.adminCategoryYears.tableCategory}
+      title={t.shared.labels.category}
       ariaLabelledBy="category-status-modal-title"
       secondaryAction={{
         label: t.adminPlayers.cancel,
@@ -109,7 +110,7 @@ export function CategoryStatusModal({
 
         <section className="w-full space-y-2 md:w-1/2">
           <Label htmlFor={`category-status-${category.categoryId}`}>
-            {t.adminCategoryYears.tableStatus}
+            {t.shared.labels.status}
           </Label>
           <Field
             variant="select"
@@ -117,15 +118,11 @@ export function CategoryStatusModal({
             value={pendingStatus}
             disabled={saving}
             onChange={(e) => setPendingStatus(e.target.value as CategoryYearStatus)}
-            aria-label={t.adminCategoryYears.tableStatus}
+            aria-label={t.shared.labels.status}
           >
-            {CATEGORY_YEAR_STATUSES.map((status) => (
+            {(Object.keys(CATEGORY_YEAR_STATUSES) as CategoryYearStatus[]).map((status) => (
               <option key={status} value={status}>
-                {status === "Active"
-                  ? t.adminCategoryYears.statusActive
-                  : status === "Inactive"
-                    ? t.adminCategoryYears.statusInactive
-                    : t.adminCategoryYears.statusPending}
+                {categoryYearStatusLabel(status, locale)}
               </option>
             ))}
           </Field>
@@ -133,7 +130,7 @@ export function CategoryStatusModal({
 
         <section className="flex flex-col gap-[var(--content-gap)]">
           <h3 className="text-h3 m-0 text-[var(--section-text)]">
-            {t.adminCategoryYears.tablePlayers}
+            {t.shared.labels.players}
           </h3>
 
           {registrations.length === 0 ? (

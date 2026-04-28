@@ -1,6 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
-import type { Locale } from "@/lib/content";
-import { siteContent } from "@/lib/content";
+import { useLocale } from "@/lib/locale-context";
 import { contactData } from "@/lib/contactData";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
@@ -29,12 +30,8 @@ function buildFinalistsSelectionValue(items: readonly ReactNode[]): ReactNode {
   );
 }
 
-type Props = { params: Promise<{ locale: string }> };
-
-export default async function TournamentRulesPage({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
+export default function TournamentRulesPage() {
+  const { t } = useLocale();
   const {
     sectionTitles,
     formatAndScoring,
@@ -44,14 +41,23 @@ export default async function TournamentRulesPage({ params }: Props) {
     finalistsSelection,
     resultsSection,
     preliminariesCourt,
-  } = content.rulesPage;
+  } = t.rulesPage;
 
-  const scoringRows = [formatAndScoring.table[0], formatAndScoring.table[1], formatAndScoring.table[2]].filter(Boolean);
+  const scoringRows = [
+    formatAndScoring.table[0],
+    formatAndScoring.table[1],
+    formatAndScoring.table[2],
+  ].filter(Boolean);
+
   const matchGuidelinesRows = [
     { label: officialBall.title, items: officialBall.table[0]?.items ?? [] },
     { label: preliminaryMatches.title, items: preliminaryMatches.table[0]?.items ?? [] },
-    { label: finalistsSelection.title, value: buildFinalistsSelectionValue(finalistsSelection.table[0]?.items ?? []) },
+    {
+      label: finalistsSelection.title,
+      value: buildFinalistsSelectionValue(finalistsSelection.table[0]?.items ?? []),
+    },
   ];
+
   const resultsRows = [
     {
       label: resultsSection.reportingResultsLabel,
@@ -81,7 +87,7 @@ export default async function TournamentRulesPage({ params }: Props) {
   ];
 
   return (
-    <PageContainer title={content.rulesPage.heroTitle}>
+    <PageContainer>
       <div className="flex flex-col gap-[var(--layout-gap)]">
         <Section title={sectionTitles.matchGuidelines}>
           <Table variant="key-value" rows={matchGuidelinesRows} alignTop />
@@ -97,17 +103,11 @@ export default async function TournamentRulesPage({ params }: Props) {
             variant="data"
             headers={preliminariesCourt.prelimHeaders}
             dataRows={preliminariesCourt.prelimRows.map((row) => [
-              (() => {
-                const locationNote = "locationNote" in row ? row.locationNote : undefined;
-                return (
-                  <span key={`${row.location}-cell`}>
-                    <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
-                      {row.location}
-                    </a>
-                    {locationNote ? <span className="table-inline-secondary-line">{locationNote}</span> : null}
-                  </span>
-                );
-              })(),
+              <span key={`${row.location}-cell`}>
+                <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
+                  {row.location}
+                </a>
+              </span>,
               row.date,
               row.day,
               row.time,

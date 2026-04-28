@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/cateogry/categories";
-import type { CategoryRecord } from "@/lib/cateogry/categories";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
@@ -189,7 +189,7 @@ export function EditMatchModal({
 
           <div className="grid grid-cols-2 gap-4 md:col-span-2">
             <div>
-              <Label htmlFor="edit-date">{am.date}</Label>
+              <Label htmlFor="edit-date">{t.shared.labels.date}</Label>
               <Field variant="date" id="edit-date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>

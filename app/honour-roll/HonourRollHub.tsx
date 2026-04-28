@@ -6,8 +6,8 @@ import {
   buildCategoryByIdMap,
   categoryLabelForId,
   isCategoryConfirmedForYear,
-} from "@/lib/cateogry/categories";
-import type { CategoryRecord, CategoryYearListItem } from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
+import type { CategoryRecord, CategoryYearListItem } from "@/lib/category/categories";
 import type { HonourRollEntry } from "@/lib/matches";
 import {
   YearFilter,

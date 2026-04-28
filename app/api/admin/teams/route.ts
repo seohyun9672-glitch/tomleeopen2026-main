@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCategories, getCategory } from "@/lib/cateogry/categories";
+import { getCategories, getCategory } from "@/lib/category/categories";
 import { registrationStatusKey } from "@/lib/registration";
 
 export const dynamic = "force-dynamic";

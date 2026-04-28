@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/content";
-import { getCategories } from "@/lib/cateogry/categories";
+import { getCategories } from "@/lib/category/categories";
 import { getMedia, getPhotoGalleriesByYear } from "@/lib/media";
 import { siteContent } from "@/lib/content";
 import { PageContainer } from "@/app/components/PageContainer";

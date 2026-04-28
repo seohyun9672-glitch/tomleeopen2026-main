@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/content";
-import { buildCategoryByIdMap, categoryLabelForId, getCategories } from "@/lib/cateogry/categories";
+import { buildCategoryByIdMap, categoryLabelForId, getCategories } from "@/lib/category/categories";
 import { getSponsors } from "@/lib/sponsors";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
@@ -36,11 +36,8 @@ export default async function OverviewPage({ params }: Props) {
   const t = siteContent[locale];
   const { overview, categories: categoriesSection, prizes, importantDatesTitle, importantDatesRows } = t.overviewPage;
   const rd = t.registrationDetail;
-  const [categoriesFromDb, sponsors] = await Promise.all([
-    getCategories(),
-    getSponsors(),
-  ]);
-  const categoriesForOverview = categoriesFromDb;
+
+  const [categoriesFromDb, sponsors] = await Promise.all([getCategories(), getSponsors()]);
   const categoriesById = buildCategoryByIdMap(categoriesFromDb);
 
   const hostLookup = overview.hostSponsorLookupName.trim().toLowerCase();
@@ -48,11 +45,13 @@ export default async function OverviewPage({ params }: Props) {
     const n = s.name.trim().toLowerCase();
     return n === hostLookup || n.includes(hostLookup);
   });
+
   const overviewTableRows: KeyValueRow[] = overview.table.map((row) =>
     row.value.trim().toLowerCase().includes(hostLookup)
       ? { ...row, ...(hostSponsor?.website ? { href: hostSponsor.website } : {}) }
       : row
   );
+
   const importantDateRows: KeyValueRow[] = importantDatesRows.map((row) => {
     const match = row.value.match(/^(.*?)(\s*\([^)]*\))$/);
     if (!match) return row;
@@ -86,12 +85,7 @@ export default async function OverviewPage({ params }: Props) {
       label: rd.inquiryLabel,
       value: (
         <>
-          <a
-            href={contactData.kakao.href}
-            target="_blank"
-            rel="noreferrer"
-            className="link-default"
-          >
+          <a href={contactData.kakao.href} target="_blank" rel="noreferrer" className="link-default">
             {contactData.kakao.label}
           </a>
           {", "}
@@ -104,7 +98,7 @@ export default async function OverviewPage({ params }: Props) {
   ];
 
   return (
-    <PageContainer title={t.overviewPage.heroTitle}>
+    <PageContainer>
       <div className="flex flex-col gap-[var(--layout-gap)]">
         <Section title={overview.title}>
           <Table variant="key-value" rows={overviewTableRows} />
@@ -123,17 +117,17 @@ export default async function OverviewPage({ params }: Props) {
             variant="data"
             columnNoWrap={[false, true]}
             headers={[t.overviewPage.categoriesTableHeaderCategory, t.overviewPage.categoriesTableHeaderNtrp]}
-            dataRows={categoriesForOverview.map((c) => [
+            dataRows={categoriesFromDb.map((c) => [
               categoryLabelForId(categoriesById, c.id, locale),
               c.ntrp ?? "—",
             ])}
             rowGroupBreakBefore={(rowIndex) =>
               rowIndex > 0 &&
               categoryFamilyLabel(
-                categoryLabelForId(categoriesById, categoriesForOverview[rowIndex]?.id ?? "", locale)
+                categoryLabelForId(categoriesById, categoriesFromDb[rowIndex]?.id ?? "", locale)
               ) !==
                 categoryFamilyLabel(
-                  categoryLabelForId(categoriesById, categoriesForOverview[rowIndex - 1]?.id ?? "", locale)
+                  categoryLabelForId(categoriesById, categoriesFromDb[rowIndex - 1]?.id ?? "", locale)
                 )
             }
           />
@@ -152,7 +146,6 @@ export default async function OverviewPage({ params }: Props) {
             rowGroupBreakBefore={(rowIndex) => prizesRowGroupBreak(rowIndex, prizes.tableRows)}
           />
         </Section>
-
       </div>
     </PageContainer>
   );

@@ -2,8 +2,10 @@
 
 import { signOut } from "next-auth/react";
 import { Button } from "@/app/components/ui/Button";
+import { useLocale } from "@/lib/locale-context";
 
-export function AdminSignOut({ label }: { label: string }) {
+export function AdminSignOut() {
+  const { t } = useLocale();
   return (
     <Button
       type="button"
@@ -12,7 +14,7 @@ export function AdminSignOut({ label }: { label: string }) {
       className="min-w-0"
       onClick={() => void signOut()}
     >
-      {label}
+      {t.shared.buttons.signOut}
     </Button>
   );
 }

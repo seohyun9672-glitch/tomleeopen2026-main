@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/content";
 import { siteContent } from "@/lib/content";
-import { getCategories } from "@/lib/cateogry/categories";
+import { getCategories } from "@/lib/category/categories";
 import { prisma } from "@/lib/prisma";
 import { PageContainer } from "@/app/components/PageContainer";
 import { RegistrationPageClient } from "@/app/registration/RegisterModal";

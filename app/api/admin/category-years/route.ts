@@ -4,7 +4,7 @@ import {
   getCategoryYearStatusDelegate,
   getCategoryYearStatusList,
   parseCategoryYearStatus,
-} from "@/lib/cateogry/categories";
+} from "@/lib/category/categories";
 
 export const dynamic = "force-dynamic";
 
