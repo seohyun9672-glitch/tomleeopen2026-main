@@ -2,8 +2,6 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { StatusFilter } from "@/app/components/FilterControls";
 import { buildCategoryByIdMap, categoryLabelForId, categoryYearStatusLabel, getCategory } from "@/lib/category/categories";
 import type { CategoryRecord } from "@/lib/category/categories";
 import {
@@ -11,7 +9,6 @@ import {
   type CategoryYearListItem,
   type CategoryYearStatus,
 } from "@/lib/category/categories";
-import { matchStatusChipClass } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
 import { TableDataChip, TableDataChipGroup } from "@/app/components/ui/table/tableCells";
@@ -19,7 +16,7 @@ import {
   parseRegistrationCategories,
   type RegistrationRow,
 } from "@/app/tables/RegistrationsTable";
-import { CategoryStatusModal } from "../admin/modals/CategoryStatusModal";
+import { CategoryStatusModal } from "@/app/[locale]/admin/modals/CategoryStatusModal";
 
 type Props = {
   categories: CategoryRecord[];
@@ -27,24 +24,21 @@ type Props = {
   initialItems: CategoryYearListItem[];
   participationByCategory: Record<string, CategoryParticipation>;
   registrations: RegistrationRow[];
-  /** When set with {@link onStatusFilterChange}, status filter UI is omitted (parent renders it). */
-  statusFilter?: CategoryYearStatus | "all";
-  onStatusFilterChange?: (value: CategoryYearStatus | "all") => void;
+  statusFilter: CategoryYearStatus | "all";
 };
 
 type CategorySortKey = "category" | "players" | "status";
+
+const STATUS_ORDER: Record<CategoryYearStatus, number> = { Active: 0, Pending: 1, Inactive: 2 };
 
 function statusMeta(
   status: CategoryYearStatus,
   locale: "en" | "ko"
 ): { label: string; chipClass: string } {
-  if (status === "Active") {
-    return { label: categoryYearStatusLabel(status, locale), chipClass: matchStatusChipClass("Completed") };
-  }
-  if (status === "Inactive") {
-    return { label: categoryYearStatusLabel(status, locale), chipClass: matchStatusChipClass("Cancelled") };
-  }
-  return { label: categoryYearStatusLabel(status, locale), chipClass: matchStatusChipClass("Pending") };
+  return {
+    label: categoryYearStatusLabel(status, locale),
+    chipClass: `category-status-chip-${status.toLowerCase()}`,
+  };
 }
 
 export function CategoryStatusTable({
@@ -53,8 +47,7 @@ export function CategoryStatusTable({
   initialItems,
   participationByCategory,
   registrations,
-  statusFilter: statusFilterProp,
-  onStatusFilterChange,
+  statusFilter,
 }: Props) {
   const { locale, t } = useLocale();
   const router = useRouter();
@@ -62,10 +55,6 @@ export function CategoryStatusTable({
   const [items, setItems] = useState<CategoryYearListItem[]>(initialItems);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const statusFilterControlled = onStatusFilterChange != null;
-  const [internalStatusFilter, setInternalStatusFilter] = useState<CategoryYearStatus | "all">("all");
-  const statusFilter = statusFilterControlled ? (statusFilterProp ?? "all") : internalStatusFilter;
-  const setStatusFilter = statusFilterControlled ? onStatusFilterChange! : setInternalStatusFilter;
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<CategorySortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -99,14 +88,9 @@ export function CategoryStatusTable({
   }, [registrations, categories]);
 
   const sorted = useMemo(() => {
-    const filtered = items.filter((item) => {
-      const regRows = registrationsByCategory.get(item.categoryId)?.length ?? 0;
-      const p = participationByCategory[item.categoryId] ?? { teams: 0, players: 0 };
-      const hasActivity = regRows > 0 || p.teams > 0 || p.players > 0;
-      return hasActivity && (statusFilter === "all" || item.status === statusFilter);
-    });
-
-    if (!sortKey) return filtered;
+    const filtered = items.filter((item) =>
+      statusFilter === "all" || item.status === statusFilter
+    );
 
     const dir = sortDir === "asc" ? 1 : -1;
     const cmpStr = (a: string, b: string) =>
@@ -119,6 +103,12 @@ export function CategoryStatusTable({
       const pa = participationByCategory[a.categoryId] ?? { teams: 0, players: 0 };
       const pb = participationByCategory[b.categoryId] ?? { teams: 0, players: 0 };
 
+      if (!sortKey) {
+        const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+        if (statusDiff !== 0) return statusDiff;
+        return labelA.localeCompare(labelB, undefined, { sensitivity: "base" });
+      }
+
       switch (sortKey) {
         case "category":
           return cmpStr(labelA, labelB);
@@ -130,7 +120,7 @@ export function CategoryStatusTable({
           return 0;
       }
     });
-  }, [items, sortKey, sortDir, categoriesById, locale, participationByCategory, registrationsByCategory, statusFilter]);
+  }, [items, sortKey, sortDir, categoriesById, locale, participationByCategory, statusFilter]);
 
   const handleSort = useCallback(
     (key: string) => {
@@ -212,35 +202,12 @@ export function CategoryStatusTable({
     return Array.from(byPlayer.values());
   }, [editingCategoryId, registrationsByCategory]);
 
-  if (activeCategoryItem) {
-    // keep derived data available for modal props below
-  }
-
-  const statusOptions: { value: CategoryYearStatus | "all"; label: string }[] = [
-    { value: "all", label: t.shared.labels.allYears },
-    { value: "Pending", label: categoryYearStatusLabel("Pending", locale) },
-    { value: "Active", label: categoryYearStatusLabel("Active", locale) },
-    { value: "Inactive", label: categoryYearStatusLabel("Inactive", locale) },
-  ];
-
   return (
     <>
       {error ? (
         <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
           {error}
         </div>
-      ) : null}
-
-      {!statusFilterControlled ? (
-        <FilterGroup>
-          <StatusFilter
-            id="category-status-filter"
-            label={t.shared.labels.status}
-            value={statusFilter}
-            options={statusOptions}
-            onChange={(v) => setStatusFilter(v as CategoryYearStatus | "all")}
-          />
-        </FilterGroup>
       ) : null}
 
       <div className="flex w-full min-w-0 flex-col">

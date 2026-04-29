@@ -7,8 +7,6 @@ import type { CategoryRecord } from "@/lib/category/categories";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 import type { RoundInfo } from "@/lib/round";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { CategoryFilter, RoundFilter, SeedFilter } from "@/app/components/FilterControls";
 import { useLocale } from "@/lib/locale-context";
 import { ROUND_PRE } from "@/lib/round";
 import { Table } from "@/app/components/ui/table/Table";
@@ -19,8 +17,7 @@ import {
   TableStackedPlayersCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
-import { EditMatchModal } from "../admin/modals/EditMatchModal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/category/categories";
+import { EditMatchModal } from "@/app/[locale]/admin/modals/EditMatchModal";
 
 function formatMatchDateShort(isoDate: string | null | undefined, locale: "en" | "ko" = "en"): string {
   const d = isoDate?.trim();
@@ -55,14 +52,10 @@ type Props = {
   year: number;
   categories: CategoryRecord[];
   matches: MatchWithTeamNames[];
-  categoryStatusById?: Record<string, CategoryYearStatus>;
   totalCount?: number;
-  categoryFilter?: string;
-  onCategoryFilterChange?: (value: string) => void;
-  roundFilter?: string;
-  onRoundFilterChange?: (value: string) => void;
-  seedFilter?: string;
-  onSeedFilterChange?: (value: string) => void;
+  categoryFilter: string;
+  roundFilter: string;
+  seedFilter: string;
 };
 
 type MatchSortKey =
@@ -91,32 +84,16 @@ export function MatchesTable({
   year,
   categories,
   matches,
-  categoryStatusById,
   totalCount: _totalCount,
-  categoryFilter: categoryFilterProp,
-  onCategoryFilterChange,
-  roundFilter: roundFilterProp,
-  onRoundFilterChange,
-  seedFilter: seedFilterProp,
-  onSeedFilterChange,
+  categoryFilter,
+  roundFilter,
+  seedFilter,
 }: Props) {
   const { t, locale } = useLocale();
   const router = useRouter();
   const am = t.adminMatches;
 
   const [rows, setRows] = useState<MatchWithTeamNames[]>(matches);
-  const categoryFilterControlled = onCategoryFilterChange != null;
-  const [internalCategoryFilter, setInternalCategoryFilter] = useState("");
-  const categoryFilter = categoryFilterControlled ? (categoryFilterProp ?? "") : internalCategoryFilter;
-  const setCategoryFilter = categoryFilterControlled ? onCategoryFilterChange! : setInternalCategoryFilter;
-  const roundFilterControlled = onRoundFilterChange != null;
-  const [internalRoundFilter, setInternalRoundFilter] = useState("");
-  const roundFilter = roundFilterControlled ? (roundFilterProp ?? "") : internalRoundFilter;
-  const setRoundFilter = roundFilterControlled ? onRoundFilterChange! : setInternalRoundFilter;
-  const seedFilterControlled = onSeedFilterChange != null;
-  const [internalSeedFilter, setInternalSeedFilter] = useState("");
-  const seedFilter = seedFilterControlled ? (seedFilterProp ?? "") : internalSeedFilter;
-  const setSeedFilter = seedFilterControlled ? onSeedFilterChange! : setInternalSeedFilter;
   const [editing, setEditing] = useState<MatchWithTeamNames | null>(null);
   const [deletingMatch, setDeletingMatch] = useState<MatchWithTeamNames | null>(null);
   const [saving, setSaving] = useState(false);
@@ -132,57 +109,15 @@ export function MatchesTable({
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
-  const categoryOptions = useMemo(() => {
-    const ids = [...new Set(rows.map((m) => m.categoryId).filter((id): id is string => !!id))].filter(
-      (id) => categoryStatusById == null || isCategoryConfirmedInYearMap(id, categoryStatusById)
-    );
-    return ids
-      .map((id) => ({ id, label: categoryLabelForId(categoriesById, id, locale) }))
-      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-  }, [rows, categoriesById, locale, categoryStatusById]);
-
-  useEffect(() => {
-    if (categoryFilter && !categoryOptions.some((c) => c.id === categoryFilter)) setCategoryFilter("");
-  }, [categoryFilter, categoryOptions, setCategoryFilter]);
-
   const categoryFilteredRows = useMemo(
     () => (categoryFilter ? rows.filter((m) => m.categoryId === categoryFilter) : rows),
     [rows, categoryFilter]
   );
 
-  // Round options: deduplicate by code, admin order (newest first = descending sortOrder).
-  const roundOptions = useMemo(() => {
-    const roundMap = new Map<string, RoundInfo>();
-    for (const m of categoryFilteredRows) {
-      if (m.round && !roundMap.has(m.round.code)) roundMap.set(m.round.code, m.round);
-    }
-    return [...roundMap.values()]
-      .sort((a, b) => b.sortOrder - a.sortOrder)
-      .map((r) => ({ value: r.code, label: roundLabel(r, locale) }));
-  }, [categoryFilteredRows, locale]);
-
-  useEffect(() => {
-    if (roundFilter && !roundOptions.some((r) => r.value === roundFilter)) setRoundFilter("");
-  }, [roundFilter, roundOptions, setRoundFilter]);
-
   const roundFilteredRows = useMemo(
     () => (roundFilter ? categoryFilteredRows.filter((m) => m.round?.code === roundFilter) : categoryFilteredRows),
     [categoryFilteredRows, roundFilter]
   );
-
-  const seedOptions = useMemo(() => {
-    if (!roundFilter) return [];
-    const seeds = new Set<string>();
-    roundFilteredRows.forEach((m) => {
-      if (m.team1Seed?.trim()) seeds.add(m.team1Seed.trim());
-      if (m.team2Seed?.trim()) seeds.add(m.team2Seed.trim());
-    });
-    return [...seeds].sort().map((s) => ({ value: s, label: s }));
-  }, [roundFilteredRows, roundFilter]);
-
-  useEffect(() => {
-    if (seedFilter && !seedOptions.some((s) => s.value === seedFilter)) setSeedFilter("");
-  }, [seedFilter, seedOptions, setSeedFilter]);
 
   const filteredRows = useMemo(
     () => (seedFilter ? roundFilteredRows.filter((m) => m.team1Seed?.trim() === seedFilter || m.team2Seed?.trim() === seedFilter) : roundFilteredRows),
@@ -366,39 +301,6 @@ export function MatchesTable({
           {error}
         </div>
       )}
-
-      {(!categoryFilterControlled && categoryOptions.length > 1) || (!roundFilterControlled && roundOptions.length > 1) || (!seedFilterControlled && seedOptions.length > 1) ? (
-        <FilterGroup>
-          {!categoryFilterControlled && categoryOptions.length > 1 ? (
-            <CategoryFilter
-              id="matches-category"
-              value={categoryFilter}
-              options={categoryOptions}
-              onChange={setCategoryFilter}
-              control="stretch"
-              allLabel={t.shared.labels.allCategories}
-            />
-          ) : null}
-          {!roundFilterControlled && roundOptions.length > 1 ? (
-            <RoundFilter
-              id="matches-round"
-              value={roundFilter}
-              options={roundOptions}
-              onChange={setRoundFilter}
-              allLabel={t.shared.labels.allRounds}
-            />
-          ) : null}
-          {!seedFilterControlled && seedOptions.length > 1 ? (
-            <SeedFilter
-              id="matches-seed"
-              value={seedFilter}
-              options={seedOptions.map((s) => s.value)}
-              onChange={setSeedFilter}
-              allLabel={t.shared.labels.allSeeds}
-            />
-          ) : null}
-        </FilterGroup>
-      ) : null}
 
       {rows.length === 0 ? (
         <p className="py-8 text-[var(--color-text-tertiary)]">{am.emptyState}</p>

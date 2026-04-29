@@ -65,10 +65,11 @@ function useDrawsState({
 
   // Category
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
-  const categoriesToShow = useMemo(
-    () => deriveCategoriesForYear(categories, statusesByYear, year),
-    [categories, statusesByYear, year],
-  );
+  const categoriesToShow = useMemo(() => {
+    const active = deriveCategoriesForYear(categories, statusesByYear, year);
+    const matchesForYear = matchesByYear[year] ?? {};
+    return active.filter((c) => (matchesForYear[c.id]?.length ?? 0) > 0);
+  }, [categories, statusesByYear, year, matchesByYear]);
   const [rawCatParam, setCatParam] = useUrlParam("cat");
   const categoryId = categoriesToShow.some((c) => c.id === rawCatParam)
     ? rawCatParam

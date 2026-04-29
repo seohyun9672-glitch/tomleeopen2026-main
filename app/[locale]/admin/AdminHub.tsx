@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useCallback, type ComponentProps } from "react";
+import { useMemo, useCallback, useState, type ComponentProps } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { YearFilter, CategoryFilter, RoundFilter, GroupFilter, StatusFilter } from "@/app/components/FilterControls";
+import { YearFilter, CategoryFilter, RoundFilter, GroupFilter, StatusFilter, ClubFilter } from "@/app/components/FilterControls";
+import { SearchBox } from "@/app/components/ui/SearchBox";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
@@ -13,10 +14,10 @@ import {
 } from "@/lib/category/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { Table } from "@/app/components/ui/table/Table";
-import { RegistrationsTable } from "../tables/RegistrationsTable";
-import { CategoryStatusTable } from "../tables/CategoryStatusTable";
-import { MatchesTable } from "../tables/MatchesTable";
-import { PlayersTable } from "../tables/PlayersTable";
+import { RegistrationsTable } from "../../tables/RegistrationsTable";
+import { CategoryStatusTable } from "../../tables/CategoryStatusTable";
+import { MatchesTable } from "../../tables/MatchesTable";
+import { PlayersTable } from "../../tables/PlayersTable";
 import { useLocale } from "@/lib/locale-context";
 import type { RoundInfo } from "@/lib/matches";
 import { categoryYearStatusLabel } from "@/lib/category/categories";
@@ -84,6 +85,7 @@ export function AdminHub({
   const [rawRoundParam, setRoundFilter] = useUrlParam("round");
   const [rawGroupParam, setGroupFilter] = useUrlParam("group");
   const [rawClubParam, setClubFilter] = useUrlParam("club");
+  const [playersSearch, setPlayersSearch] = useState("");
 
   const [rawStatusParam, setStatusParam] = useUrlParam("status");
   const categoryStatusFilter: CategoryYearStatus | "all" = rawStatusParam in CATEGORY_YEAR_STATUSES ? rawStatusParam as CategoryYearStatus : "all";
@@ -93,10 +95,6 @@ export function AdminHub({
   );
 
   const showYearFilter = view !== "players" && view !== "users";
-
-  const hasCategoryParticipation = Object.values(yearData.categoryParticipation).some(
-    (p) => p.players > 0 || p.teams > 0
-  );
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
@@ -164,13 +162,19 @@ export function AdminHub({
   const matchesGroupFilter = view === "matches" && matchesRoundFilter && matchesGroupOptions.some(o => o.value === rawGroupParam) ? rawGroupParam : "";
   const playersClubFilter = view === "players" ? rawClubParam : "";
 
+  const playersClubOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of players) for (const c of p.clubs) set.add(c);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "en"));
+  }, [players]);
+
   const showRegCategoryFilter = view === "registrations" && registrationCategoryOptions.length > 1;
   const showMatchesCategoryFilter = view === "matches" && matchesCategoryOptions.length > 1;
   const showMatchesRoundFilter = view === "matches" && matchesRoundOptions.length > 1;
   const showMatchesGroupFilter = view === "matches" && !!matchesRoundFilter && matchesGroupOptions.length > 1;
-  const showCategoryStatusFilter = view === "categories" && hasCategoryParticipation;
+  const showCategoryStatusFilter = view === "categories";
   const showFilterBar =
-    showYearFilter || showRegCategoryFilter || showMatchesCategoryFilter || showMatchesRoundFilter || showMatchesGroupFilter || showCategoryStatusFilter;
+    showYearFilter || showRegCategoryFilter || showMatchesCategoryFilter || showMatchesRoundFilter || showMatchesGroupFilter || showCategoryStatusFilter || view === "players";
 
   return (
     <section className="flex flex-col gap-[var(--content-gap)] md:gap-[var(--content-gap)]">
@@ -242,6 +246,26 @@ export function AdminHub({
                   onChange={(v) => setCategoryStatusFilter(v as CategoryYearStatus | "all")}
                 />
               ) : null}
+              {view === "players" ? (
+                <ClubFilter
+                  id="admin-players-club"
+                  value={playersClubFilter}
+                  options={playersClubOptions}
+                  onChange={setClubFilter}
+                  allLabel={t.shared.labels.allClubs}
+                />
+              ) : null}
+              {view === "players" ? (
+                <div className="min-w-0 flex-1 basis-0 max-w-xs">
+                  <SearchBox
+                    id="admin-players-search"
+                    value={playersSearch}
+                    onChange={(e) => setPlayersSearch(e.target.value)}
+                    ariaLabel={t.shared.labels.search}
+                    className="w-full"
+                  />
+                </div>
+              ) : null}
             </FilterGroup>
           </div>
         ) : null}
@@ -255,11 +279,10 @@ export function AdminHub({
               year={year}
               categoryStatusById={yearData.categoryStatusById}
               categoryFilter={regCategoryFilter}
-              onCategoryFilterChange={setCatFilter}
             />
           </section>
         )}
-        {view === "categories" && hasCategoryParticipation && (
+        {view === "categories" && (
           <section>
             <CategoryStatusTable
               categories={categories}
@@ -268,7 +291,6 @@ export function AdminHub({
               participationByCategory={yearData.categoryParticipation}
               registrations={yearData.registrations}
               statusFilter={categoryStatusFilter}
-              onStatusFilterChange={setCategoryStatusFilter}
             />
           </section>
         )}
@@ -277,13 +299,13 @@ export function AdminHub({
             <PlayersTable
               rows={players}
               mode="admin"
-              showClubFilter
               enableAdminEditor
               emptyNoRowsText="No players in the database yet."
               emptyNoMatchText={t.adminPlayers.noSearchResults}
               showCount
               clubFilter={playersClubFilter}
-              onClubFilterChange={setClubFilter}
+              search={playersSearch}
+              onSearchChange={setPlayersSearch}
             />
           </section>
         )}
@@ -307,13 +329,9 @@ export function AdminHub({
               year={year}
               categories={categories}
               matches={yearData.matches}
-              categoryStatusById={yearData.categoryStatusById}
               categoryFilter={matchesCategoryFilter}
-              onCategoryFilterChange={setCatFilter}
               roundFilter={matchesRoundFilter}
-              onRoundFilterChange={setRoundFilter}
               seedFilter={matchesGroupFilter}
-              onSeedFilterChange={setGroupFilter}
             />
           </section>
         )}

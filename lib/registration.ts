@@ -4,26 +4,14 @@ import type { CategoryRecord } from "@/lib/category/categories";
 
 export type RegistrationStatus = "Pending" | "Confirmed" | "Cancelled" | "Refund Requested" | "Refunded";
 
-export const REGISTRATION_STATUS_CHIPS = {
-  pending: {
-    label: { en: "Pending", ko: "대기" },
-    chipSurfaceClass: "bg-[var(--data-chip-neutral-bg)] text-[var(--data-chip-neutral-text)]",
-  },
-  confirmed: {
-    label: { en: "Confirmed", ko: "확정" },
-    chipSurfaceClass: "bg-[var(--data-chip-success-bg)] text-[var(--data-chip-success-text)]",
-  },
-  cancelled: {
-    label: { en: "Cancelled", ko: "취소" },
-    chipSurfaceClass: "bg-[var(--data-chip-status-cancelled-bg)] text-[var(--data-chip-status-cancelled-text)]",
-  },
-  refunded: {
-    label: { en: "Refunded", ko: "환불" },
-    chipSurfaceClass: "bg-[var(--data-chip-neutral-bg)] text-[var(--data-chip-neutral-text)]",
-  },
-} as const;
+const REGISTRATION_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
+  pending:   { en: "Pending",   ko: "대기" },
+  confirmed: { en: "Confirmed", ko: "확정" },
+  cancelled: { en: "Cancelled", ko: "취소" },
+  refunded:  { en: "Refunded",  ko: "환불" },
+};
 
-export type RegistrationStatusKey = keyof typeof REGISTRATION_STATUS_CHIPS;
+export type RegistrationStatusKey = "pending" | "confirmed" | "cancelled" | "refunded";
 
 export function registrationStatusKey(status: string): RegistrationStatusKey {
   const s = status.trim().toLowerCase();
@@ -34,11 +22,11 @@ export function registrationStatusKey(status: string): RegistrationStatusKey {
 }
 
 export function registrationStatusLabel(status: string, locale: "en" | "ko"): string {
-  return REGISTRATION_STATUS_CHIPS[registrationStatusKey(status)].label[locale];
+  return REGISTRATION_STATUS_LABELS[registrationStatusKey(status)]?.[locale] ?? status;
 }
 
 export function registrationStatusChipClass(status: string): string {
-  return REGISTRATION_STATUS_CHIPS[registrationStatusKey(status)].chipSurfaceClass;
+  return `registration-status-chip-${registrationStatusKey(status)}`;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────

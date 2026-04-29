@@ -8,9 +8,9 @@ import {
   getCategoryParticipationForYear,
   getCategoryYearStatusList,
 } from "@/lib/category/categories";
-import { AdminHub } from "@/app/admin/AdminHub";
-import type { YearData } from "@/app/admin/AdminHub";
-import { AdminSignOut } from "@/app/admin/login/AdminSignOut";
+import { AdminHub } from "./AdminHub";
+import type { YearData } from "./AdminHub";
+import { AdminSignOut } from "./login/AdminSignOut";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -34,45 +34,63 @@ export default async function AdminPage({ params }: Props) {
     redirect(`${localePrefix}/admin/login?callbackUrl=${callbackUrl}`);
   }
 
-  const categories = await getCategories();
+  // Batch 1: independent queries that don't depend on each other
+  const [categories, { allYears: fetchedYears }, allRawRegs] = await Promise.all([
+    getCategories(),
+    getAvailableYears(),
+    prisma.tournamentRegistration.findMany({
+      orderBy: [{ tournamentYear: "desc" }, { createdAt: "desc" }],
+      include: {
+        player: {
+          select: {
+            id: true,
+            fullNameEn: true,
+            fullNameKo: true,
+            email: true,
+            phone: true,
+            ntrp: true,
+          },
+        },
+        partner: {
+          select: { fullNameEn: true, fullNameKo: true },
+        },
+      },
+    }),
+  ]);
+
   const categoryIds = categories.map((c) => c.id);
   const categoryIsDoubles = new Map(categories.map((c) => [c.id, c.isDoubles]));
-
-  // Gather available years for the year filter
-  const { allYears: fetchedYears } = await getAvailableYears();
   const allYears = fetchedYears.includes(thisYear)
     ? fetchedYears
     : [thisYear, ...fetchedYears].sort((a, b) => b - a);
-
-  // Fetch registrations for all years
-  const allRawRegs = await prisma.tournamentRegistration.findMany({
-    orderBy: [{ tournamentYear: "desc" }, { createdAt: "desc" }],
-    include: {
-      player: {
-        select: {
-          id: true,
-          fullNameEn: true,
-          fullNameKo: true,
-          email: true,
-          phone: true,
-          ntrp: true,
-        },
-      },
-      partner: {
-        select: { fullNameEn: true, fullNameKo: true },
-      },
-    },
-  });
-
-  // Clubs for all registered players
   const allPlayerIds = [...new Set(allRawRegs.map((r) => r.playerId))];
-  const clubRows =
+
+  // Batch 2: all remaining queries except category statuses (which need participation)
+  const [
+    clubRows,
+    matchesByYearBatch,
+    participationByYearEntries,
+    playersForAdmin,
+    adminUsersRaw,
+  ] = await Promise.all([
     allPlayerIds.length > 0
-      ? await prisma.playerClub.findMany({
+      ? prisma.playerClub.findMany({
           where: { playerId: { in: allPlayerIds } },
           select: { playerId: true, clubCode: true },
         })
-      : [];
+      : Promise.resolve([]),
+    getMatchesByYearBatch(allYears, categoryIds),
+    Promise.all(allYears.map(async (y) => [y, await getCategoryParticipationForYear(y, categoryIds)] as const)),
+    prisma.player.findMany({
+      orderBy: { fullNameEn: "asc" },
+      include: { clubs: { select: { clubCode: true } } },
+    }),
+    prisma.adminUser.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, email: true, createdAt: true },
+    }),
+  ]);
+
   const clubsByPlayerId = new Map<number, string[]>();
   for (const row of clubRows) {
     const list = clubsByPlayerId.get(row.playerId) ?? [];
@@ -80,7 +98,6 @@ export default async function AdminPage({ params }: Props) {
     clubsByPlayerId.set(row.playerId, list);
   }
 
-  // Group raw registrations by year
   const rawRegsByYear = new Map<number, RawReg[]>();
   for (const reg of allRawRegs) {
     const list = rawRegsByYear.get(reg.tournamentYear) ?? [];
@@ -88,15 +105,13 @@ export default async function AdminPage({ params }: Props) {
     rawRegsByYear.set(reg.tournamentYear, list);
   }
 
-  // Fetch matches, category statuses, and participation for all years in parallel
-  const [matchesByYearBatch, statusesByYearEntries, participationByYearEntries] = await Promise.all([
-    getMatchesByYearBatch(allYears, categoryIds),
-    Promise.all(allYears.map(async (y) => [y, await getCategoryYearStatusList(y)] as const)),
-    Promise.all(allYears.map(async (y) => [y, await getCategoryParticipationForYear(y, categoryIds)] as const)),
-  ]);
-
-  const statusesByYear = Object.fromEntries(statusesByYearEntries);
   const participationByYear = Object.fromEntries(participationByYearEntries);
+
+  // Batch 3: category statuses — computed with participation so auto-status applies
+  const statusesByYearEntries = await Promise.all(
+    allYears.map(async (y) => [y, await getCategoryYearStatusList(y, categories, participationByYear[y])] as const)
+  );
+  const statusesByYear = Object.fromEntries(statusesByYearEntries);
 
   const yearDataByYear: Record<number, YearData> = {};
   for (const y of allYears) {
@@ -110,18 +125,6 @@ export default async function AdminPage({ params }: Props) {
       categoryParticipation: participationByYear[y] ?? {},
     };
   }
-
-  // Players and admin users are not year-dependent
-  const [playersForAdmin, adminUsersRaw] = await Promise.all([
-    prisma.player.findMany({
-      orderBy: { fullNameEn: "asc" },
-      include: { clubs: { select: { clubCode: true } } },
-    }),
-    prisma.adminUser.findMany({
-      orderBy: { createdAt: "asc" },
-      select: { id: true, email: true, createdAt: true },
-    }),
-  ]);
 
   const players = playersForAdmin.map((p) => ({
     id: p.id,

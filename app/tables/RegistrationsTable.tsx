@@ -2,8 +2,6 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { CategoryFilter } from "@/app/components/FilterControls";
 import {
   buildCategoryByIdMap,
   categoryLabelForId,
@@ -13,8 +11,7 @@ import {
 import type { CategoryRecord } from "@/lib/category/categories";
 import { type Locale } from "@/lib/content";
 import { RegistrationForm, type RegistrationFormHandle } from "@/app/registration/RegistrationForm";
-import { prefetchRegistrationFormData, registrationStatusLabel } from "@/lib/registration";
-import { matchStatusChipClass } from "@/lib/matches";
+import { prefetchRegistrationFormData, registrationStatusLabel, registrationStatusChipClass } from "@/lib/registration";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
 import {
@@ -25,7 +22,7 @@ import {
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
-import { isCategoryConfirmedInYearMap, type CategoryYearStatus } from "@/lib/category/categories";
+import { type CategoryYearStatus } from "@/lib/category/categories";
 
 export type RegistrationRow = {
   id: string;
@@ -199,9 +196,7 @@ type RegistrationsTableProps = {
   year: number;
   totalCount?: number;
   categoryStatusById: Record<string, CategoryYearStatus>;
-  /** When set with {@link onCategoryFilterChange}, category filter UI is omitted (parent renders it). */
-  categoryFilter?: string;
-  onCategoryFilterChange?: (value: string) => void;
+  categoryFilter: string;
 };
 
 type RegSortKey = "regNumber" | "name" | "partner" | "category" | "status" | "media" | "engraving";
@@ -212,17 +207,12 @@ export function RegistrationsTable({
   year,
   totalCount,
   categoryStatusById,
-  categoryFilter: categoryFilterProp,
-  onCategoryFilterChange,
+  categoryFilter,
 }: RegistrationsTableProps) {
   const { locale, t } = useLocale();
   const adminReg = t.adminRegistrations;
   const router = useRouter();
 
-  const categoryFilterControlled = onCategoryFilterChange != null;
-  const [internalCategoryFilter, setInternalCategoryFilter] = useState("");
-  const categoryFilter = categoryFilterControlled ? (categoryFilterProp ?? "") : internalCategoryFilter;
-  const setCategoryFilter = categoryFilterControlled ? onCategoryFilterChange! : setInternalCategoryFilter;
   const [editing, setEditing] = useState<RegistrationRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -232,15 +222,6 @@ export function RegistrationsTable({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
-
-  const categoryOptions = useMemo(() => {
-    const ids = [...new Set(initial.map((r) => r.category).filter(Boolean))].filter((id) =>
-      isCategoryConfirmedInYearMap(id, categoryStatusById)
-    );
-    return ids
-      .map((id) => ({ id, label: categoryLabelForId(categoriesById, id, locale) }))
-      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-  }, [initial, categoriesById, locale, categoryStatusById]);
 
   const editFormRef = useRef<RegistrationFormHandle>(null);
 
@@ -252,8 +233,7 @@ export function RegistrationsTable({
   useEffect(() => {
     setSortKey(null);
     setSortDir("asc");
-    setCategoryFilter("");
-  }, [year, showConsentAndEngraving, setCategoryFilter]);
+  }, [year, showConsentAndEngraving]);
 
   const derivedRows = useMemo<DerivedRow[]>(
     () =>
@@ -367,13 +347,10 @@ export function RegistrationsTable({
   const handleCancelDelete = useCallback(() => setDeletingId(null), []);
 
   const statusMeta = useCallback(
-    (status: string): { label: string; chipClass: string } => {
-      if (status === "Confirmed") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Completed") };
-      if (status === "Cancelled") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Cancelled") };
-      if (status === "Refund Requested") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Cancelled") };
-      if (status === "Refunded") return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Pending") };
-      return { label: registrationStatusLabel(status, locale), chipClass: matchStatusChipClass("Pending") };
-    },
+    (status: string): { label: string; chipClass: string } => ({
+      label: registrationStatusLabel(status, locale),
+      chipClass: registrationStatusChipClass(status),
+    }),
     [locale]
   );
 
@@ -398,18 +375,6 @@ export function RegistrationsTable({
           {error}
         </div>
       )}
-
-      {!categoryFilterControlled && categoryOptions.length > 1 ? (
-        <FilterGroup>
-          <CategoryFilter
-            id="registrations-category"
-            value={categoryFilter}
-            options={categoryOptions}
-            onChange={setCategoryFilter}
-            allLabel={t.shared.labels.allCategories}
-          />
-        </FilterGroup>
-      ) : null}
 
       <div className="flex flex-col w-full min-w-0">
         <Table

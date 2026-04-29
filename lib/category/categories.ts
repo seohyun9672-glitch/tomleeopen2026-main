@@ -70,67 +70,8 @@ export function getCategory(
   );
 }
 
-const DEFAULT_CATEGORY_CHIP_SURFACE =
-  "border-0 bg-[var(--category-chip-default-bg)] text-[var(--category-chip-default-text)]";
-
-export const CATEGORY_CHIP_PRESETS: Record<string, { chipSurfaceClass: string }> = {
-  "MD-B": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-md-b-bg)] text-[var(--category-chip-md-b-text)]",
-  },
-  "MD-S": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-md-s-bg)] text-[var(--category-chip-md-s-text)]",
-  },
-  "MD-G": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-md-g-bg)] text-[var(--category-chip-md-g-text)]",
-  },
-  "MS-B": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-ms-b-bg)] text-[var(--category-chip-ms-b-text)]",
-  },
-  "MS-S": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-ms-s-bg)] text-[var(--category-chip-ms-s-text)]",
-  },
-  "MS-G": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-ms-g-bg)] text-[var(--category-chip-ms-g-text)]",
-  },
-  "XD-B": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-xd-b-bg)] text-[var(--category-chip-xd-b-text)]",
-  },
-  "XD-S": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-xd-s-bg)] text-[var(--category-chip-xd-s-text)]",
-  },
-  "XD-G": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-xd-g-bg)] text-[var(--category-chip-xd-g-text)]",
-  },
-  "WD-B": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-wd-b-bg)] text-[var(--category-chip-wd-b-text)]",
-  },
-  "WD-S": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-wd-s-bg)] text-[var(--category-chip-wd-s-text)]",
-  },
-  "WS-B": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-ws-b-bg)] text-[var(--category-chip-ws-b-text)]",
-  },
-  "WS-S": {
-    chipSurfaceClass:
-      "border-0 bg-[var(--category-chip-ws-s-bg)] text-[var(--category-chip-ws-s-text)]",
-  },
-};
-
 export function categoryChipClass(categoryId: string): string {
-  const id = normalizeCategoryId(categoryId);
-  return CATEGORY_CHIP_PRESETS[id]?.chipSurfaceClass ?? DEFAULT_CATEGORY_CHIP_SURFACE;
+  return `border-0 category-chip-${normalizeCategoryId(categoryId).toLowerCase()}`;
 }
 
 export const CATEGORY_YEAR_STATUSES = {
@@ -156,6 +97,17 @@ export type CategoryParticipation = {
 
 export function defaultCategoryYearStatus(tournamentYear: number): CategoryYearStatus {
   return tournamentYear >= 2026 ? "Pending" : "Active";
+}
+
+/** Auto-computes status from registration participation thresholds.
+ *  Singles: >4 registered players → Active. Doubles: >4 registered teams → Active. */
+export function autoComputeCategoryYearStatus(
+  participation: CategoryParticipation | undefined,
+  isDoubles: boolean
+): CategoryYearStatus {
+  if (!participation) return "Pending";
+  if (isDoubles ? participation.teams > 4 : participation.players > 4) return "Active";
+  return "Pending";
 }
 
 export function parseCategoryYearStatus(v: unknown): CategoryYearStatus | null {
@@ -209,28 +161,6 @@ export function isCategoryConfirmedInYearMap(
   return parseCategoryYearStatus(categoryStatusById[categoryId]) === "Active";
 }
 
-const FAMILY_PREFIXES = ["MD", "WD", "XD", "MS", "WS"];
-const TIER_CODES = ["B", "S", "G"];
-
-function categoryPrefixRank(id: string): number {
-  const prefix = (normalizeCategoryId(id).split("-")[0] ?? "").toUpperCase();
-  const idx = FAMILY_PREFIXES.indexOf(prefix);
-  return idx >= 0 ? idx : FAMILY_PREFIXES.length;
-}
-
-function tierLetterRank(id: string): number {
-  const normalized = normalizeCategoryId(id);
-  const last = normalized.slice(-1);
-  const idx = TIER_CODES.indexOf(last);
-  return idx >= 0 ? idx : 9;
-}
-
-function normalizeNtrp(value: string | null | undefined): string | null {
-  const trimmed = normalizeText(value);
-  if (!trimmed) return null;
-  return trimmed.replace(/\s*[–-]\s*/g, " – ");
-}
-
 export async function getCategories(): Promise<CategoryRecord[]> {
   noStore();
 
@@ -252,19 +182,12 @@ export async function getCategories(): Promise<CategoryRecord[]> {
       label: normalizeText(c.label),
       labelKo: normalizeText(c.labelKo) || null,
       isDoubles: c.isDoubles,
-      ntrp: normalizeNtrp(c.ntrp),
+      ntrp: normalizeText(c.ntrp).replace(/\s*[–-]\s*/g, " – ") || null,
       sortOrder: c.sortOrder,
     }))
     .sort((a, b) => {
-      const byPrefix = categoryPrefixRank(a.id) - categoryPrefixRank(b.id);
-      if (byPrefix !== 0) return byPrefix;
-
-      const byTierLetter = tierLetterRank(a.id) - tierLetterRank(b.id);
-      if (byTierLetter !== 0) return byTierLetter;
-
-      const byDbOrder = a.sortOrder - b.sortOrder;
-      if (byDbOrder !== 0) return byDbOrder;
-
+      const bySortOrder = a.sortOrder - b.sortOrder;
+      if (bySortOrder !== 0) return bySortOrder;
       return a.id.localeCompare(b.id);
     });
 }
@@ -296,10 +219,6 @@ export function getCategoryYearStatusDelegate(): CategoryYearStatusDelegate {
   return delegate;
 }
 
-function normalizedCategoryYearStatus(stored: string | undefined, tournamentYear: number) {
-  return parseCategoryYearStatus(stored) ?? defaultCategoryYearStatus(tournamentYear);
-}
-
 export async function getDistinctTournamentCategoryYearsForFilter(): Promise<number[]> {
   const cy = getCategoryYearStatusDelegate();
 
@@ -313,12 +232,14 @@ export async function getDistinctTournamentCategoryYearsForFilter(): Promise<num
 }
 
 export async function getCategoryYearStatusList(
-  tournamentYear: number
+  tournamentYear: number,
+  categories?: CategoryRecord[],
+  participation?: Record<string, CategoryParticipation>
 ): Promise<CategoryYearListItem[]> {
   const cy = getCategoryYearStatusDelegate();
 
   const [cats, rows] = await Promise.all([
-    getCategories(),
+    categories ? Promise.resolve(categories) : getCategories(),
     cy.findMany({
       where: { tournamentYear },
       select: { categoryId: true, status: true },
@@ -327,10 +248,14 @@ export async function getCategoryYearStatusList(
 
   const byId = new Map(rows.map((r) => [normalizeCategoryId(r.categoryId), r.status]));
 
-  return cats.map((c) => ({
-    categoryId: c.id,
-    status: normalizedCategoryYearStatus(byId.get(c.id), tournamentYear),
-  }));
+  return cats.map((c) => {
+    const explicitStatus = parseCategoryYearStatus(byId.get(c.id));
+    if (explicitStatus) return { categoryId: c.id, status: explicitStatus };
+    if (participation) {
+      return { categoryId: c.id, status: autoComputeCategoryYearStatus(participation[c.id], c.isDoubles) };
+    }
+    return { categoryId: c.id, status: defaultCategoryYearStatus(tournamentYear) };
+  });
 }
 
 export async function getCategoryParticipationForYear(

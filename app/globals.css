@@ -323,73 +323,8 @@
   --match-withdrew-border: color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card));
   --match-withdrew-bg: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card));
   --match-withdrew-text: color-mix(in srgb, var(--color-status-orange) 55%, black);
-  --match-status-scheduled-border: var(--chip-palette-scheduled-border);
-  --match-status-scheduled-bg: var(--chip-palette-scheduled-bg);
-  --match-status-scheduled-text: var(--chip-palette-scheduled-fg);
-  --match-status-completed-border: var(--chip-palette-mint-border);
-  --match-status-completed-bg: var(--chip-palette-mint-bg);
-  --match-status-completed-text: var(--chip-palette-mint-fg);
-  --match-status-cancelled-border: var(--chip-palette-coral-border);
-  --match-status-cancelled-bg: var(--chip-palette-coral-bg);
-  --match-status-cancelled-text: var(--chip-palette-coral-fg);
-  --match-status-postponed-border: var(--chip-palette-sand-border);
-  --match-status-postponed-bg: var(--chip-palette-sand-bg);
-  --match-status-postponed-text: var(--chip-palette-sand-fg);
-  --match-status-default-border: var(--outline-blue-default);
-  --match-status-default-bg: var(--color-surface-strong);
-  --match-status-default-text: var(--color-text-primary);
   --match-card-meta-bg: var(--color-surface-strong);
   --match-card-meta-text: var(--color-text-secondary);
-
-  /* Category table chips */
-  --category-chip-md-b-bg: #ffedd5;
-  --category-chip-md-b-text: #9a3412;
-  --category-chip-md-s-bg: #fed7aa;
-  --category-chip-md-s-text: #7c2d12;
-  --category-chip-md-g-bg: #fdba74;
-  --category-chip-md-g-text: #7c2d12;
-  --category-chip-ms-b-bg: #e0f2fe;
-  --category-chip-ms-b-text: #0369a1;
-  --category-chip-ms-s-bg: #bae6fd;
-  --category-chip-ms-s-text: #075985;
-  --category-chip-ms-g-bg: #7dd3fc;
-  --category-chip-ms-g-text: #0c4a6e;
-  --category-chip-xd-b-bg: #ede9fe;
-  --category-chip-xd-b-text: #5b21b6;
-  --category-chip-xd-s-bg: #ddd6fe;
-  --category-chip-xd-s-text: #5b21b6;
-  --category-chip-xd-g-bg: #c4b5fd;
-  --category-chip-xd-g-text: #4c1d95;
-  --category-chip-wd-b-bg: #fce7f3;
-  --category-chip-wd-b-text: #9d174d;
-  --category-chip-wd-s-bg: #fbcfe8;
-  --category-chip-wd-s-text: #831843;
-  --category-chip-ws-b-bg: #d1fae5;
-  --category-chip-ws-b-text: #047857;
-  --category-chip-ws-s-bg: #a7f3d0;
-  --category-chip-ws-s-text: #065f46;
-  --category-chip-default-bg: var(--data-chip-neutral-bg);
-  --category-chip-default-text: var(--data-chip-neutral-text);
-
-  /* Club chips */
-  --club-chip-harang-bg: #e0f2fe;
-  --club-chip-harang-text: #0369a1;
-  --club-chip-vktc-bg: var(--data-chip-success-bg);
-  --club-chip-vktc-text: var(--data-chip-success-text);
-  --club-chip-ctc-bg: #ede9fe;
-  --club-chip-ctc-text: #5b21b6;
-  --club-chip-clayton-bg: #fef9c3;
-  --club-chip-clayton-text: #a16207;
-  --club-chip-sagol-bg: #ffedd5;
-  --club-chip-sagol-text: #9a3412;
-  --club-chip-machang-bg: #ccfbf1;
-  --club-chip-machang-text: #0f766e;
-  --club-chip-langley-bg: #fce7f3;
-  --club-chip-langley-text: #9d174d;
-  --club-chip-na-bg: #f1f5f9;
-  --club-chip-na-text: #475569;
-  --club-chip-default-bg: var(--data-chip-neutral-bg);
-  --club-chip-default-text: var(--chip-pastel-neutral-fg);
 
   /* Card chrome */
   --color-border-card: color-mix(in srgb, var(--color-border-ui) 82%, transparent);
@@ -700,6 +635,57 @@ html[lang="ko"] {
     --page-inline-padding: var(--layout-gap);
   }
 }
+
+/* ============================================================
+   CATEGORY CHIP COLORS — one class per Category.id (lowercase).
+   Add a matching class here when adding a new row to the DB.
+   ============================================================ */
+
+.category-chip-md-b { background-color: #ffedd5; color: #9a3412; }
+.category-chip-md-s { background-color: #fed7aa; color: #7c2d12; }
+.category-chip-md-g { background-color: #fdba74; color: #7c2d12; }
+.category-chip-ms-b { background-color: #e0f2fe; color: #0369a1; }
+.category-chip-ms-s { background-color: #bae6fd; color: #075985; }
+.category-chip-ms-g { background-color: #7dd3fc; color: #0c4a6e; }
+.category-chip-xd-b { background-color: #ede9fe; color: #5b21b6; }
+.category-chip-xd-s { background-color: #ddd6fe; color: #5b21b6; }
+.category-chip-xd-g { background-color: #c4b5fd; color: #4c1d95; }
+.category-chip-wd-b { background-color: #fce7f3; color: #9d174d; }
+.category-chip-wd-s { background-color: #fbcfe8; color: #831843; }
+.category-chip-ws-b { background-color: #d1fae5; color: #047857; }
+.category-chip-ws-s { background-color: #a7f3d0; color: #065f46; }
+
+/* ============================================================
+   CLUB CHIP COLORS — one class per Club.code (lowercase).
+   Add a matching class here when adding a new row to the DB.
+   ============================================================ */
+
+.club-chip-harang  { background-color: #e0f2fe; color: #0369a1; }
+.club-chip-vktc    { background-color: var(--chip-palette-mint-bg); color: var(--chip-palette-mint-fg); }
+.club-chip-ctc     { background-color: #ede9fe; color: #5b21b6; }
+.club-chip-clayton { background-color: #fef9c3; color: #a16207; }
+.club-chip-sagol   { background-color: #ffedd5; color: #9a3412; }
+.club-chip-machang { background-color: #ccfbf1; color: #0f766e; }
+.club-chip-langley { background-color: #fce7f3; color: #9d174d; }
+.club-chip-na      { background-color: #f1f5f9; color: #475569; }
+
+/* ============================================================
+   STATUS CHIP COLORS — shared palette vars where colours match.
+   ============================================================ */
+
+.match-status-chip-scheduled        { background-color: var(--chip-palette-scheduled-bg);  color: var(--chip-palette-scheduled-fg); }
+.match-status-chip-completed        { background-color: var(--chip-palette-mint-bg);        color: var(--chip-palette-mint-fg); }
+.match-status-chip-cancelled        { background-color: var(--chip-palette-coral-bg);       color: var(--chip-palette-coral-fg); }
+.match-status-chip-pending          { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
+
+.registration-status-chip-pending   { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
+.registration-status-chip-confirmed { background-color: var(--chip-palette-mint-bg);        color: var(--chip-palette-mint-fg); }
+.registration-status-chip-cancelled { background-color: var(--chip-palette-coral-bg);       color: var(--chip-palette-coral-fg); }
+.registration-status-chip-refunded  { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
+
+.category-status-chip-active        { background-color: var(--chip-palette-mint-bg);        color: var(--chip-palette-mint-fg); }
+.category-status-chip-inactive      { background-color: var(--chip-palette-coral-bg);       color: var(--chip-palette-coral-fg); }
+.category-status-chip-pending       { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
 
 /* ============================================================
    BASE ELEMENT STYLES

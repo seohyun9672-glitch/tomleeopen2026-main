@@ -111,7 +111,7 @@ export function EditMatchModal({
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     onSave({
       date: date.trim() || null,

@@ -85,6 +85,7 @@ type Props = {
   items: MediaRecord[];
   categories: CategoryRecord[];
   photoGalleries?: PhotoGalleryGroup[];
+  photoManifests?: Record<number, Record<string, string[]>>;
 };
 
 function isLocalAssetUrl(url: string): boolean {
@@ -188,6 +189,7 @@ export function MediaHub({
   items,
   categories,
   photoGalleries = [],
+  photoManifests,
 }: Props) {
   const { t, locale } = useLocale();
   const tabDefs = TABS.map((tab) => ({ value: tab, label: t.mediaPage.tabs[tab] }));
@@ -204,19 +206,52 @@ export function MediaHub({
   const photosWithoutCategory = items.filter(
     (m) => m.type === "photos" && (m.categoryId == null || m.tournamentYear == null)
   );
-  const useGalleryByCategory = currentTab === "photos" && photoGalleries.length > 0;
+
+  // Build one synthetic card per category/year from the manifest.
+  const manifestDisplayItems = useMemo<MediaRecord[]>(() => {
+    if (!photoManifests) return [];
+    const result: MediaRecord[] = [];
+    for (const [yearStr, catMap] of Object.entries(photoManifests)) {
+      const year = Number(yearStr);
+      for (const [categoryId, urls] of Object.entries(catMap)) {
+        if (urls.length === 0) continue;
+        result.push({
+          id: `manifest-${year}-${categoryId}`,
+          type: "photos",
+          title: categoryId,
+          subtitle: null,
+          date: null,
+          image: urls[0],
+          imagePlaceholder: null,
+          imagePlaceholderKo: null,
+          media: urls[0],
+          outlet: null,
+          sortOrder: 0,
+          categoryId,
+          tournamentYear: year,
+        });
+      }
+    }
+    return result;
+  }, [photoManifests]);
 
   const galleryUrlsForItem = useCallback(
-    (_item: MediaRecord) => undefined,
-    []
+    (item: MediaRecord): string[] | undefined => {
+      if (!item.categoryId || !item.tournamentYear) return undefined;
+      const manifestUrls = photoManifests?.[item.tournamentYear]?.[item.categoryId];
+      if (manifestUrls && manifestUrls.length > 0) return manifestUrls;
+      return undefined;
+    },
+    [photoManifests]
   );
 
   const displayItems: MediaRecord[] = (() => {
-    const base =
-      currentTab === "photos" && useGalleryByCategory
+    if (currentTab !== "photos") return filtered;
+    const base = manifestDisplayItems.length > 0
+      ? [...manifestDisplayItems, ...photosWithoutCategory]
+      : photoGalleries.length > 0
         ? [...photoGalleries.flatMap((g) => g.items), ...photosWithoutCategory]
         : filtered;
-    if (currentTab !== "photos") return base;
     return base.filter((item) => photoRecordHasDisplayableImages(item, galleryUrlsForItem(item)));
   })();
 

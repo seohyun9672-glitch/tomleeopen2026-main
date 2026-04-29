@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { ntrpSortValue } from "@/lib/ntrpFormat";
 import { Table } from "@/app/components/ui/table/Table";
 import { useLocale } from "@/lib/locale-context";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { ClubFilter } from "@/app/components/FilterControls";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import {
   TableDataChip,
@@ -15,8 +13,8 @@ import {
   TableTechnicalIdCell,
 } from "@/app/components/ui/table/tableCells";
 import { clubChipClass } from "@/lib/clubs";
-import { DeletePlayerModal } from "../admin/modals/DeletePlayerModal";
-import { EditPlayerModal } from "../admin/modals/EditPlayerModal";
+import { DeletePlayerModal } from "@/app/[locale]/admin/modals/DeletePlayerModal";
+import { EditPlayerModal } from "@/app/[locale]/admin/modals/EditPlayerModal";
 
 export type PlayerTableRow = {
   id: number;
@@ -35,14 +33,13 @@ export type PlayersTableProps = {
   enableAdminEditor?: boolean;
   emptyNoRowsText: string;
   emptyNoMatchText: string;
-  showClubFilter?: boolean;
   showCount?: boolean;
   clubFilter?: string;
-  onClubFilterChange?: (value: string) => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
 };
 
-type PublicSortKey = "name" | "club";
-type AdminSortKey = "id" | "name" | "email" | "phone" | "ntrp" | "clubs";
+type SortKey = "name" | "club" | "id" | "email" | "phone" | "ntrp" | "clubs";
 
 function PlayersDataTable({
   rows,
@@ -64,71 +61,50 @@ function PlayersDataTable({
   };
   onRowClick?: (row: PlayerTableRow) => void;
 }) {
-  const [publicSortKey, setPublicSortKey] = useState<PublicSortKey | null>(null);
-  const [publicSortDir, setPublicSortDir] = useState<"asc" | "desc">("asc");
-  const [adminSortKey, setAdminSortKey] = useState<AdminSortKey | null>(null);
-  const [adminSortDir, setAdminSortDir] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const sortedRows = useMemo(() => {
     const cmpStr = (a: string, b: string, dir: 1 | -1) =>
       a.localeCompare(b, undefined, { sensitivity: "base" }) * dir;
     const cmpNum = (a: number, b: number, dir: 1 | -1) => (a - b) * dir;
 
-    if (mode === "public") {
-      if (!publicSortKey) return rows;
-      const dir = publicSortDir === "asc" ? 1 : -1;
-      return [...rows].sort((a, b) => {
-        if (publicSortKey === "name") {
+    if (!sortKey) return rows;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortKey) {
+        case "name": {
           const aName = (locale === "ko" ? a.fullNameKo?.trim() || a.fullNameEn : a.fullNameEn).trim();
           const bName = (locale === "ko" ? b.fullNameKo?.trim() || b.fullNameEn : b.fullNameEn).trim();
           return cmpStr(aName, bName, dir);
         }
-        const aClub = a.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
-        const bClub = b.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
-        return cmpStr(aClub, bClub, dir);
-      });
-    }
-
-    if (!adminSortKey) return rows;
-    const dir = adminSortDir === "asc" ? 1 : -1;
-    return [...rows].sort((a, b) => {
-      switch (adminSortKey) {
-        case "id":
-          return cmpNum(a.id, b.id, dir);
-        case "name":
-          return cmpStr(a.fullNameEn.trim(), b.fullNameEn.trim(), dir);
-        case "email":
-          return cmpStr((a.email ?? "").trim(), (b.email ?? "").trim(), dir);
-        case "phone":
-          return cmpStr((a.phone ?? "").trim(), (b.phone ?? "").trim(), dir);
-        case "ntrp":
-          return cmpNum(ntrpSortValue(a.ntrp ?? null), ntrpSortValue(b.ntrp ?? null), dir);
-        case "clubs":
-          return cmpStr(a.clubs.join(", "), b.clubs.join(", "), dir);
-        default:
-          return 0;
+        case "club":
+        case "clubs": {
+          const aClub = a.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
+          const bClub = b.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
+          return cmpStr(aClub, bClub, dir);
+        }
+        case "id":   return cmpNum(a.id, b.id, dir);
+        case "email": return cmpStr((a.email ?? "").trim(), (b.email ?? "").trim(), dir);
+        case "phone": return cmpStr((a.phone ?? "").trim(), (b.phone ?? "").trim(), dir);
+        case "ntrp":  return cmpNum(ntrpSortValue(a.ntrp ?? null), ntrpSortValue(b.ntrp ?? null), dir);
+        default:      return 0;
       }
     });
-  }, [rows, locale, mode, publicSortKey, publicSortDir, adminSortKey, adminSortDir]);
+  }, [rows, locale, sortKey, sortDir]);
+
+  const handleSort = (key: string) => {
+    const next = key as SortKey;
+    if (sortKey === next) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(next); setSortDir("asc"); }
+  };
 
   if (mode === "public") {
     return (
       <Table
         variant="data"
         headers={[labels.name, labels.club]}
-        sortConfig={{
-          activeKey: publicSortKey,
-          direction: publicSortDir,
-          keys: ["name", "club"],
-          onSort: (key) => {
-            const next = key as PublicSortKey;
-            if (publicSortKey === next) setPublicSortDir((d) => (d === "asc" ? "desc" : "asc"));
-            else {
-              setPublicSortKey(next);
-              setPublicSortDir("asc");
-            }
-          },
-        }}
+        sortConfig={{ activeKey: sortKey, direction: sortDir, keys: ["name", "club"], onSort: handleSort }}
         dataRows={sortedRows.map((p) => {
           const en = p.fullNameEn.trim();
           const ko = p.fullNameKo?.trim() ?? "";
@@ -149,19 +125,7 @@ function PlayersDataTable({
       variant="data"
       columnNoWrap={[false, false, false, false, true, false]}
       headers={[labels.id, labels.name, labels.email, labels.phone, labels.ntrp, labels.club]}
-      sortConfig={{
-        activeKey: adminSortKey,
-        direction: adminSortDir,
-        keys: ["id", "name", "email", "phone", "ntrp", "clubs"],
-        onSort: (key) => {
-          const next = key as AdminSortKey;
-          if (adminSortKey === next) setAdminSortDir((d) => (d === "asc" ? "desc" : "asc"));
-          else {
-            setAdminSortKey(next);
-            setAdminSortDir("asc");
-          }
-        },
-      }}
+      sortConfig={{ activeKey: sortKey, direction: sortDir, keys: ["id", "name", "email", "phone", "ntrp", "clubs"], onSort: handleSort }}
       dataRows={sortedRows.map((p) => {
         const displayName =
           locale === "ko" && p.fullNameKo?.trim() ? p.fullNameKo.trim() : p.fullNameEn;
@@ -210,35 +174,26 @@ export function PlayersTable({
   enableAdminEditor = false,
   emptyNoRowsText,
   emptyNoMatchText,
-  showClubFilter = mode === "public",
   showCount = false,
   clubFilter: clubFilterProp,
-  onClubFilterChange,
+  search: searchProp,
+  onSearchChange,
 }: PlayersTableProps) {
   const router = useRouter();
   const { t, locale } = useLocale();
   const [search, setSearch] = useState("");
-  const clubFilterControlled = onClubFilterChange != null;
-  const [internalClubFilter, setInternalClubFilter] = useState("");
-  const clubFilter = clubFilterControlled ? (clubFilterProp ?? "") : internalClubFilter;
-  const setClubFilter = clubFilterControlled ? onClubFilterChange : setInternalClubFilter;
   const [editing, setEditing] = useState<PlayerTableRow | null>(null);
   const [deleting, setDeleting] = useState<PlayerTableRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const adminEditorEnabled = mode === "admin" && enableAdminEditor;
 
-  const clubOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of rows) for (const c of p.clubs) set.add(c);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "en"));
-  }, [rows]);
-
   const filteredRows = useMemo(() => {
-    let list = rows.filter((r) => rowMatchesSearch(r, search, mode));
-    if (showClubFilter && clubFilter) list = list.filter((r) => r.clubs.includes(clubFilter));
+    const q = searchProp ?? search;
+    let list = rows.filter((r) => rowMatchesSearch(r, q, mode));
+    if (clubFilterProp) list = list.filter((r) => r.clubs.includes(clubFilterProp));
     return list;
-  }, [rows, search, mode, showClubFilter, clubFilter]);
+  }, [rows, searchProp, search, mode, clubFilterProp]);
 
   async function handleDelete(player: PlayerTableRow) {
     setError("");
@@ -268,27 +223,17 @@ export function PlayersTable({
         </div>
       ) : null}
 
-      <FilterGroup>
-        {showClubFilter ? (
-          <ClubFilter
-            id="players-club"
-            value={clubFilter}
-            options={clubOptions}
-            onChange={setClubFilter}
-            allLabel={t.shared.labels.allClubs}
-          />
-        ) : null}
-
-        <div className="min-w-0 flex-1 basis-0 max-w-xs">
+      {!onSearchChange ? (
+        <div className="min-w-0 max-w-xs">
           <SearchBox
-            id={mode === "admin" ? "admin-players-search" : "players-search"}
+            id="players-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             ariaLabel={t.shared.labels.search}
             className="w-full"
           />
         </div>
-      </FilterGroup>
+      ) : null}
 
       {filteredRows.length === 0 ? (
         <div className="text-center text-[var(--color-text-tertiary)]">

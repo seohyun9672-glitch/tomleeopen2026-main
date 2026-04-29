@@ -7,13 +7,7 @@ import { useLocale } from "@/lib/locale-context";
 export function AdminSignOut() {
   const { t } = useLocale();
   return (
-    <Button
-      type="button"
-      variant="transparent"
-      size="small"
-      className="min-w-0"
-      onClick={() => void signOut()}
-    >
+    <Button variant="secondary" type="button" onClick={() => signOut()}>
       {t.shared.buttons.signOut}
     </Button>
   );

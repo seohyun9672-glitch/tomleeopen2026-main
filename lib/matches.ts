@@ -430,26 +430,14 @@ export async function getMatchesByYearBatch(
 
 // ─── Match status chips ───────────────────────────────────────────────────────
 
-const MATCH_STATUS_CHIPS = {
-  scheduled: {
-    label: { en: "Scheduled", ko: "예정" },
-    chipClass: "bg-[var(--match-status-scheduled-bg)] text-[var(--match-status-scheduled-text)]",
-  },
-  completed: {
-    label: { en: "Completed", ko: "종료" },
-    chipClass: "bg-[var(--data-chip-success-bg)] text-[var(--data-chip-success-text)]",
-  },
-  cancelled: {
-    label: { en: "Cancelled", ko: "취소" },
-    chipClass: "bg-[var(--data-chip-status-cancelled-bg)] text-[var(--data-chip-status-cancelled-text)]",
-  },
-  pending: {
-    label: { en: "Pending", ko: "대기" },
-    chipClass: "bg-[var(--data-chip-neutral-bg)] text-[var(--data-chip-neutral-text)]",
-  },
-} as const;
+const MATCH_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
+  scheduled: { en: "Scheduled", ko: "예정" },
+  completed:  { en: "Completed", ko: "종료" },
+  cancelled:  { en: "Cancelled", ko: "취소" },
+  pending:    { en: "Pending",   ko: "대기" },
+};
 
-function matchStatusVariant(status: string): keyof typeof MATCH_STATUS_CHIPS {
+function matchStatusVariant(status: string): string {
   const s = status.trim().toLowerCase();
   if (s === "scheduled") return "scheduled";
   if (s === "completed") return "completed";
@@ -458,11 +446,11 @@ function matchStatusVariant(status: string): keyof typeof MATCH_STATUS_CHIPS {
 }
 
 export function matchStatusLabel(status: string, locale: "en" | "ko"): string {
-  return MATCH_STATUS_CHIPS[matchStatusVariant(status)].label[locale];
+  return MATCH_STATUS_LABELS[matchStatusVariant(status)]?.[locale] ?? status;
 }
 
 export function matchStatusChipClass(status: string): string {
-  return MATCH_STATUS_CHIPS[matchStatusVariant(status)].chipClass;
+  return `match-status-chip-${matchStatusVariant(status)}`;
 }
 
 // ─── Match ID helpers ─────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ export default async function HonourRollPage({ params }: Props) {
   const [honourRollByCategory, statusesByYear] = await Promise.all([
     getHonourRollByCategoryIds(categoryIds),
     Promise.all(
-      allYears.map(async (y) => [y, await getCategoryYearStatusList(y)] as const)
+      allYears.map(async (y) => [y, await getCategoryYearStatusList(y, categories)] as const)
     ).then((entries) => Object.fromEntries(entries)),
   ]);
 

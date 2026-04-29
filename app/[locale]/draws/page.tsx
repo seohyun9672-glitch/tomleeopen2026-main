@@ -19,7 +19,7 @@ export default async function DrawsPage({ params }: Props) {
   const categoryIds = categories.map((c) => c.id);
 
   const [statusesByYearEntries, matchesByYear] = await Promise.all([
-    Promise.all(allYears.map(async (y) => [y, await getCategoryYearStatusList(y)] as const)),
+    Promise.all(allYears.map(async (y) => [y, await getCategoryYearStatusList(y, categories)] as const)),
     getMatchesByYearBatch(allYears, categoryIds),
   ]);
 
