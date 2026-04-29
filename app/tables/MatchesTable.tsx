@@ -10,12 +10,6 @@ import type { RoundInfo } from "@/lib/round";
 import { useLocale } from "@/lib/locale-context";
 import { ROUND_PRE } from "@/lib/round";
 import { Table } from "@/app/components/ui/table/Table";
-import {
-  TableDataChip,
-  TableDataChipGroup,
-  TableMatchScoresStacked,
-  TableStackedPlayersCell,
-} from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
 import { EditMatchModal } from "@/app/[locale]/admin/modals/EditMatchModal";
 
@@ -201,15 +195,13 @@ export function MatchesTable({
 
       const tailCells: ReactNode[] = [
         seedCell,
-        <TableStackedPlayersCell key={`${m.id}-t1`} text={locale === "ko" ? (m.team1DisplayNameKo ?? m.team1DisplayName) : m.team1DisplayName} />,
-        <TableStackedPlayersCell key={`${m.id}-t2`} text={locale === "ko" ? (m.team2DisplayNameKo ?? m.team2DisplayName) : m.team2DisplayName} />,
+        <Table.Cell key={`${m.id}-t1`} type="players" text={locale === "ko" ? (m.team1DisplayNameKo ?? m.team1DisplayName) : m.team1DisplayName} />,
+        <Table.Cell key={`${m.id}-t2`} type="players" text={locale === "ko" ? (m.team2DisplayNameKo ?? m.team2DisplayName) : m.team2DisplayName} />,
         formatMatchDateShort(m.date, locale),
         m.time ?? "—",
         m.location ?? "—",
-        <TableMatchScoresStacked key={`${m.id}-score`} lines={matchScoreLines(m)} />,
-        <TableDataChipGroup key={`${m.id}-status`}>
-          <TableDataChip className={matchStatusChipClass(m.matchStatus)} label={matchStatusLabel(m.matchStatus, locale)} />
-        </TableDataChipGroup>,
+        <Table.Cell key={`${m.id}-score`} type="match-scores" lines={matchScoreLines(m)} />,
+        <Table.Cell key={`${m.id}-status`} type="chips" items={[{ className: matchStatusChipClass(m.matchStatus), label: matchStatusLabel(m.matchStatus, locale) }]} />,
       ];
 
       return showCategoryColumn

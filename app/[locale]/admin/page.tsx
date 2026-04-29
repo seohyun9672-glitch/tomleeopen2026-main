@@ -10,10 +10,11 @@ import {
 } from "@/lib/category/categories";
 import { AdminHub } from "./AdminHub";
 import type { YearData } from "./AdminHub";
-import { AdminSignOut } from "./login/AdminSignOut";
+import { AdminSignOut } from "./SignOut";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import type { SerializedRawReg } from "@/app/tables/registrationRows";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,7 @@ export default async function AdminPage({ params }: Props) {
             email: true,
             phone: true,
             ntrp: true,
+            clubs: { select: { clubCode: true } },
           },
         },
         partner: {
@@ -59,26 +61,17 @@ export default async function AdminPage({ params }: Props) {
   ]);
 
   const categoryIds = categories.map((c) => c.id);
-  const categoryIsDoubles = new Map(categories.map((c) => [c.id, c.isDoubles]));
   const allYears = fetchedYears.includes(thisYear)
     ? fetchedYears
     : [thisYear, ...fetchedYears].sort((a, b) => b - a);
-  const allPlayerIds = [...new Set(allRawRegs.map((r) => r.playerId))];
 
   // Batch 2: all remaining queries except category statuses (which need participation)
   const [
-    clubRows,
     matchesByYearBatch,
     participationByYearEntries,
     playersForAdmin,
     adminUsersRaw,
   ] = await Promise.all([
-    allPlayerIds.length > 0
-      ? prisma.playerClub.findMany({
-          where: { playerId: { in: allPlayerIds } },
-          select: { playerId: true, clubCode: true },
-        })
-      : Promise.resolve([]),
     getMatchesByYearBatch(allYears, categoryIds),
     Promise.all(allYears.map(async (y) => [y, await getCategoryParticipationForYear(y, categoryIds)] as const)),
     prisma.player.findMany({
@@ -91,18 +84,19 @@ export default async function AdminPage({ params }: Props) {
     }),
   ]);
 
-  const clubsByPlayerId = new Map<number, string[]>();
-  for (const row of clubRows) {
-    const list = clubsByPlayerId.get(row.playerId) ?? [];
-    if (!list.includes(row.clubCode)) list.push(row.clubCode);
-    clubsByPlayerId.set(row.playerId, list);
-  }
-
-  const rawRegsByYear = new Map<number, RawReg[]>();
+  const registrationsByYear = new Map<number, SerializedRawReg[]>();
   for (const reg of allRawRegs) {
-    const list = rawRegsByYear.get(reg.tournamentYear) ?? [];
-    list.push(reg);
-    rawRegsByYear.set(reg.tournamentYear, list);
+    const list = registrationsByYear.get(reg.tournamentYear) ?? [];
+    list.push({
+      ...reg,
+      createdAt: reg.createdAt.toISOString(),
+      updatedAt: reg.updatedAt.toISOString(),
+      player: {
+        ...reg.player,
+        clubs: reg.player.clubs.map((c) => c.clubCode),
+      },
+    });
+    registrationsByYear.set(reg.tournamentYear, list);
   }
 
   const participationByYear = Object.fromEntries(participationByYearEntries);
@@ -118,7 +112,7 @@ export default async function AdminPage({ params }: Props) {
     const statusItems = statusesByYear[y] ?? [];
     const matchesByCat = matchesByYearBatch[y] ?? {};
     yearDataByYear[y] = {
-      registrations: buildRegistrationRows(rawRegsByYear.get(y) ?? [], clubsByPlayerId, categoryIsDoubles),
+      registrations: registrationsByYear.get(y) ?? [],
       matches: Object.values(matchesByCat).flat(),
       categoryStatusItems: statusItems,
       categoryStatusById: Object.fromEntries(statusItems.map((s) => [s.categoryId, s.status])),
@@ -157,102 +151,3 @@ export default async function AdminPage({ params }: Props) {
   );
 }
 
-type RawReg = {
-  id: string;
-  playerId: number;
-  partnerId: number | null;
-  tournamentYear: number;
-  categoryId: string;
-  status: string;
-  nameOnEtransfer: string | null;
-  photoVideoConsent: boolean;
-  engraving: string | null;
-  notes: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  player: { id: number; fullNameEn: string; fullNameKo: string | null; email: string; phone: string | null; ntrp: string | null };
-  partner: { fullNameEn: string; fullNameKo: string | null } | null;
-};
-
-function buildRegistrationRows(
-  rawRegs: RawReg[],
-  clubsByPlayerId: Map<number, string[]>,
-  categoryIsDoubles: Map<string, boolean>
-) {
-  // Deduplicate doubles pairs (show one row per pair)
-  const deduped: RawReg[] = [];
-  const seenPairKeys = new Set<string>();
-  for (const reg of rawRegs) {
-    if (!(categoryIsDoubles.get(reg.categoryId) ?? false)) {
-      deduped.push(reg);
-      continue;
-    }
-    const resolvedPartnerId = reg.partnerId ?? null;
-    if (!resolvedPartnerId || resolvedPartnerId === reg.playerId) {
-      deduped.push(reg);
-      continue;
-    }
-    const a = Math.min(reg.playerId, resolvedPartnerId);
-    const b = Math.max(reg.playerId, resolvedPartnerId);
-    const pairKey = `${reg.tournamentYear}:${reg.categoryId}:${a}:${b}`;
-    if (seenPairKeys.has(pairKey)) continue;
-    seenPairKeys.add(pairKey);
-    deduped.push(reg);
-  }
-
-  // Registration numbers: sorted by createdAt ascending
-  const regNumberById = new Map<string, number>();
-  [...rawRegs]
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-    .forEach((r, i) => regNumberById.set(r.id, i + 1));
-
-  // Group regs by player to show partner names across all their categories
-  const regsByPlayer = new Map<number, RawReg[]>();
-  for (const reg of rawRegs) {
-    const list = regsByPlayer.get(reg.playerId) ?? [];
-    list.push(reg);
-    regsByPlayer.set(reg.playerId, list);
-  }
-
-  return deduped.map((r) => {
-    const groupedRegs = regsByPlayer.get(r.playerId) ?? [r];
-    const allCategoryIds = groupedRegs.map((gr) => gr.categoryId);
-    const partnerNameByCategory: Record<string, string> = {};
-    for (const gr of groupedRegs) {
-      const linkedEn = gr.partner?.fullNameEn?.trim();
-      const linkedKo = gr.partner?.fullNameKo?.trim();
-      const partnerDisplay = linkedEn ?? linkedKo ?? "";
-      if (partnerDisplay) partnerNameByCategory[gr.categoryId] = partnerDisplay;
-    }
-    const linkedEn = r.partner?.fullNameEn?.trim() ?? null;
-    const linkedKo = r.partner?.fullNameKo?.trim() ?? null;
-    return {
-      id: r.id,
-      playerId: r.playerId,
-      registrationNumber: regNumberById.get(r.id) ?? null,
-      tournamentYear: r.tournamentYear,
-      fullNameEn: r.player.fullNameEn,
-      fullNameKo: r.player.fullNameKo,
-      email: r.player.email,
-      phone: r.player.phone,
-      ntrp: r.player.ntrp != null ? formatNtrpDisplay(r.player.ntrp) : null,
-      partnerNameEn: linkedEn ?? null,
-      partnerNameKo: linkedKo ?? null,
-      clubs: JSON.stringify(clubsByPlayerId.get(r.playerId) ?? []),
-      category: r.categoryId,
-      categories: JSON.stringify(allCategoryIds),
-      partnerId: r.partnerId,
-      partnerNames:
-        Object.keys(partnerNameByCategory).length > 0
-          ? JSON.stringify(partnerNameByCategory)
-          : null,
-      nameOnEtransfer: r.nameOnEtransfer,
-      photoVideoConsent: r.photoVideoConsent,
-      engraving: r.engraving,
-      notes: r.notes,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    };
-  });
-}

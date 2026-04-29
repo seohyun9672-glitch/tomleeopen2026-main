@@ -6,12 +6,6 @@ import { ntrpSortValue } from "@/lib/ntrpFormat";
 import { Table } from "@/app/components/ui/table/Table";
 import { useLocale } from "@/lib/locale-context";
 import { SearchBox } from "@/app/components/ui/SearchBox";
-import {
-  TableDataChip,
-  TableDataChipGroup,
-  TablePlayerDirectoryNameCell,
-  TableTechnicalIdCell,
-} from "@/app/components/ui/table/tableCells";
 import { clubChipClass } from "@/lib/clubs";
 import { DeletePlayerModal } from "@/app/[locale]/admin/modals/DeletePlayerModal";
 import { EditPlayerModal } from "@/app/[locale]/admin/modals/EditPlayerModal";
@@ -110,10 +104,8 @@ function PlayersDataTable({
           const ko = p.fullNameKo?.trim() ?? "";
           const primary = locale === "ko" ? ko || en : en;
           return [
-            <TablePlayerDirectoryNameCell key={p.id} primary={primary} />,
-            <TableDataChipGroup key={`${p.id}-c`}>
-              {p.clubs.map((c) => <TableDataChip key={c} className={clubChipClass(c)} label={c} />)}
-            </TableDataChipGroup>,
+            <span key={p.id} className="table-player-name-primary">{primary}</span>,
+            <Table.Cell key={`${p.id}-c`} type="chips" items={p.clubs.map((c) => ({ label: c, className: clubChipClass(c) }))} />,
           ];
         })}
       />
@@ -130,14 +122,12 @@ function PlayersDataTable({
         const displayName =
           locale === "ko" && p.fullNameKo?.trim() ? p.fullNameKo.trim() : p.fullNameEn;
         return [
-          <TableTechnicalIdCell key={`${p.id}-id`}>{p.id}</TableTechnicalIdCell>,
+          <Table.Cell key={`${p.id}-id`} type="technical-id">{p.id}</Table.Cell>,
           <span key={`${p.id}-name`}>{displayName}</span>,
           p.email ?? "—",
           p.phone ?? "—",
           p.ntrp ?? "—",
-          <TableDataChipGroup key={`${p.id}-clubs`}>
-            {p.clubs.map((c) => <TableDataChip key={c} className={clubChipClass(c)} label={c} />)}
-          </TableDataChipGroup>,
+          <Table.Cell key={`${p.id}-clubs`} type="chips" items={p.clubs.map((c) => ({ label: c, className: clubChipClass(c) }))} />,
         ];
       })}
       onRowClick={

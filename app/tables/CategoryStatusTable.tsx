@@ -11,11 +11,11 @@ import {
 } from "@/lib/category/categories";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
-import { TableDataChip, TableDataChipGroup } from "@/app/components/ui/table/tableCells";
 import {
   parseRegistrationCategories,
   type RegistrationRow,
 } from "@/app/tables/RegistrationsTable";
+import { buildRegistrationRows, type SerializedRawReg } from "@/app/tables/registrationRows";
 import { CategoryStatusModal } from "@/app/[locale]/admin/modals/CategoryStatusModal";
 
 type Props = {
@@ -23,7 +23,7 @@ type Props = {
   year: number;
   initialItems: CategoryYearListItem[];
   participationByCategory: Record<string, CategoryParticipation>;
-  registrations: RegistrationRow[];
+  registrations: SerializedRawReg[];
   statusFilter: CategoryYearStatus | "all";
 };
 
@@ -65,10 +65,20 @@ export function CategoryStatusTable({
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
+  const categoryIsDoubles = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.isDoubles])),
+    [categories]
+  );
+
+  const processedRegs = useMemo<RegistrationRow[]>(
+    () => buildRegistrationRows(registrations, categoryIsDoubles) as RegistrationRow[],
+    [registrations, categoryIsDoubles]
+  );
+
   const registrationsByCategory = useMemo(() => {
     const map = new Map<string, RegistrationRow[]>();
 
-    for (const reg of registrations) {
+    for (const reg of processedRegs) {
       const categoryIds = Array.from(
         new Set(
           parseRegistrationCategories(reg.categories, reg.category)
@@ -232,9 +242,7 @@ export function CategoryStatusTable({
             return [
               label,
               String(p.players),
-              <TableDataChipGroup key={`${row.categoryId}-status-chip`}>
-                <TableDataChip className={statusChipClass} label={statusLabel} />
-              </TableDataChipGroup>,
+              <Table.Cell key={`${row.categoryId}-status-chip`} type="chips" items={[{ className: statusChipClass, label: statusLabel }]} />,
             ];
           })}
           onRowClick={(_, rowIndex) => {

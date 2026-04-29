@@ -13,11 +13,11 @@ import {
   CATEGORY_YEAR_STATUSES,
 } from "@/lib/category/categories";
 import { TabList } from "@/app/components/ui/TabList";
-import { Table } from "@/app/components/ui/table/Table";
 import { RegistrationsTable } from "../../tables/RegistrationsTable";
 import { CategoryStatusTable } from "../../tables/CategoryStatusTable";
 import { MatchesTable } from "../../tables/MatchesTable";
 import { PlayersTable } from "../../tables/PlayersTable";
+import { AdminUsersTable } from "../../tables/AdminUsersTable";
 import { useLocale } from "@/lib/locale-context";
 import type { RoundInfo } from "@/lib/matches";
 import { categoryYearStatusLabel } from "@/lib/category/categories";
@@ -99,7 +99,7 @@ export function AdminHub({
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
   const registrationCategoryOptions = useMemo(() => {
-    const ids = [...new Set(yearData.registrations.map((r) => r.category).filter(Boolean))].filter((id) =>
+    const ids = [...new Set(yearData.registrations.map((r) => r.categoryId).filter(Boolean))].filter((id) =>
       isCategoryConfirmedInYearMap(id, yearData.categoryStatusById)
     );
     return ids
@@ -311,16 +311,7 @@ export function AdminHub({
         )}
         {view === "users" && (
           <section>
-            <Table
-              variant="data"
-              headers={["Email", "Created"]}
-              dataRows={adminUsers.map((u) => [u.email, u.createdAt.slice(0, 10)])}
-            />
-            <div className="mt-2 flex w-full justify-end">
-              <p className="m-0 text-sm tabular-nums text-[var(--color-text-secondary)]">
-                Total: {adminUsers.length}
-              </p>
-            </div>
+            <AdminUsersTable rows={adminUsers} />
           </section>
         )}
         {view === "matches" && (

@@ -1,5 +1,9 @@
 export const adminPage = {
   en: {
+    adminLogin: {
+      title: "Admin sign in",
+      invalidCredentials: "Invalid email or password.",
+    },
     adminPage: {
       heroTitle: "Admin",
       tabs: {
@@ -8,6 +12,11 @@ export const adminPage = {
         players: "Players",
         users: "Admins",
         matches: "Matches",
+      },
+      users: {
+        email: "Email",
+        createdOn: "Created On",
+        total: (count: number) => `Total: ${count}`,
       },
     },
     adminPlayers: {
@@ -51,6 +60,7 @@ export const adminPage = {
       delete: "Delete",
       deleting: "Deleting…",
       noLocations: "No locations",
+      status: "Status",
       tableTeam1: "Team 1",
       tableTeam2: "Team 2",
       tableLocation: "Location",
@@ -76,6 +86,10 @@ export const adminPage = {
   },
 
   ko: {
+    adminLogin: {
+      title: "관리자 로그인",
+      invalidCredentials: "관리자로 등록되지 않은 이메일입니다.",
+    },
     adminPage: {
       heroTitle: "관리자",
       tabs: {
@@ -84,6 +98,11 @@ export const adminPage = {
         players: "선수",
         users: "관리자",
         matches: "경기",
+      },
+      users: {
+        email: "이메일",
+        createdOn: "가입일",
+        total: (count: number) => `총 ${count}명`,
       },
     },
     adminPlayers: {
@@ -127,6 +146,7 @@ export const adminPage = {
       delete: "삭제",
       deleting: "삭제 중…",
       noLocations: "장소 없음",
+      status: "상태",
       tableTeam1: "팀 1",
       tableTeam2: "팀 2",
       tableLocation: "장소",

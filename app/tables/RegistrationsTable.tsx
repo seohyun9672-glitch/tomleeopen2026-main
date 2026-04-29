@@ -14,15 +14,9 @@ import { RegistrationForm, type RegistrationFormHandle } from "@/app/registratio
 import { prefetchRegistrationFormData, registrationStatusLabel, registrationStatusChipClass } from "@/lib/registration";
 import { useLocale } from "@/lib/locale-context";
 import { Table } from "@/app/components/ui/table/Table";
-import {
-  TableDataChip,
-  TableDataChipGroup,
-  TableCellIconCenter,
-  TableStackedPlayersCell,
-  TableTechnicalIdCell,
-} from "@/app/components/ui/table/tableCells";
 import { Modal } from "@/app/components/ui/Modal";
 import { type CategoryYearStatus } from "@/lib/category/categories";
+import { buildRegistrationRows, type SerializedRawReg } from "./registrationRows";
 
 export type RegistrationRow = {
   id: string;
@@ -191,7 +185,7 @@ type DerivedRow = {
 };
 
 type RegistrationsTableProps = {
-  initial: RegistrationRow[];
+  initial: SerializedRawReg[];
   categories: CategoryRecord[];
   year: number;
   totalCount?: number;
@@ -223,6 +217,16 @@ export function RegistrationsTable({
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
+  const categoryIsDoubles = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.isDoubles])),
+    [categories]
+  );
+
+  const rows = useMemo(
+    () => buildRegistrationRows(initial, categoryIsDoubles),
+    [initial, categoryIsDoubles]
+  );
+
   const editFormRef = useRef<RegistrationFormHandle>(null);
 
   // Pre-warm registration form data cache so edit modal opens instantly
@@ -237,7 +241,7 @@ export function RegistrationsTable({
 
   const derivedRows = useMemo<DerivedRow[]>(
     () =>
-      initial.map((r) => ({
+      rows.map((r) => ({
         raw: r,
         displayName: locale === "ko" && r.fullNameKo?.trim() ? r.fullNameKo.trim() : r.fullNameEn,
         partnerDisplay: formatPartnerNames(
@@ -262,7 +266,7 @@ export function RegistrationsTable({
         ) as DerivedRow["status"],
         cats: [r.category] as [string],
       })),
-    [initial, categories, categoriesById, locale, categoryStatusById]
+    [rows, categories, categoriesById, locale, categoryStatusById]
   );
 
   const sortedRows = useMemo<DerivedRow[]>(() => {
@@ -354,13 +358,13 @@ export function RegistrationsTable({
     [locale]
   );
 
-  if (initial.length === 0) {
+  if (rows.length === 0) {
     return (
       <div className="p-12 text-center text-[var(--color-text-tertiary)]">No registrations yet.</div>
     );
   }
 
-  const totalCountResolved = totalCount ?? initial.length;
+  const totalCountResolved = totalCount ?? rows.length;
   const headers = showConsentAndEngraving
     ? [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status, adminReg.tableMediaConsent, adminReg.tableEngraving]
     : [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status];
@@ -390,9 +394,9 @@ export function RegistrationsTable({
             const { label: statusLabel, chipClass: statusChipClass } = statusMeta(status);
 
             const baseCells: (string | ReactNode)[] = [
-              <TableTechnicalIdCell key={`${r.id}-regnum`}>
+              <Table.Cell key={`${r.id}-regnum`} type="technical-id">
                 {r.registrationNumber != null ? String(r.registrationNumber) : "—"}
-              </TableTechnicalIdCell>,
+              </Table.Cell>,
               <span key={`${r.id}-name`} title={r.id}>
                 {displayName}
               </span>,
@@ -400,21 +404,15 @@ export function RegistrationsTable({
                 key={`${r.id}-partner`}
                 title={partnerDisplay.hasMultiplePartners ? "Partner per category (multiple doubles)" : undefined}
               >
-                <TableStackedPlayersCell text={partnerDisplay.text || undefined} splitSemicolons />
+                <Table.Cell type="players" text={partnerDisplay.text || undefined} splitSemicolons />
               </span>,
-              <TableDataChipGroup key={`${r.id}-cats`}>
-                {cats.map((c) => (
-                  <TableDataChip key={c} className={categoryChipClass(c)} label={categoryLabelForId(categoriesById, c, locale)} title={c} />
-                ))}
-              </TableDataChipGroup>,
-              <TableDataChipGroup key={`${r.id}-status-group`}>
-                <TableDataChip key={`${r.id}-${cats[0]}-status`} className={statusChipClass} label={statusLabel} />
-              </TableDataChipGroup>,
+              <Table.Cell key={`${r.id}-cats`} type="chips" items={cats.map((c) => ({ label: categoryLabelForId(categoriesById, c, locale), className: categoryChipClass(c), title: c }))} />,
+              <Table.Cell key={`${r.id}-status-group`} type="chips" items={[{ className: statusChipClass, label: statusLabel }]} />,
             ];
 
             if (showConsentAndEngraving) {
               baseCells.push(
-                <TableCellIconCenter key={`${r.id}-media`}>
+                <Table.Cell key={`${r.id}-media`} type="icon-center">
                   <span
                     className="inline-flex"
                     onClick={(e) => e.stopPropagation()}
@@ -427,7 +425,7 @@ export function RegistrationsTable({
                       aria-label={`Media consent for ${r.fullNameEn}`}
                     />
                   </span>
-                </TableCellIconCenter>,
+                </Table.Cell>,
                 r.engraving?.trim() ? r.engraving : "—"
               );
             }

@@ -7,7 +7,13 @@ export const shared = {
       buttons: {
         contact: "Contact",
         viewDetail: "View detail",
+        signIn: "Sign in",
+        signingIn: "Signing in…",
         signOut: "Sign out",
+      },
+      form: {
+        email: "Email",
+        password: "Password",
       },
       labels: {
         coach: "Coach",
@@ -55,7 +61,13 @@ export const shared = {
       buttons: {
         contact: "연락하기",
         viewDetail: "자세히",
+        signIn: "로그인",
+        signingIn: "로그인 중…",
         signOut: "로그아웃",
+      },
+      form: {
+        email: "이메일",
+        password: "비밀번호",
       },
       labels: {
         coach: "코치",
