@@ -86,10 +86,6 @@ export async function PATCH(request: Request) {
       ? body.categories.filter((c: unknown): c is string => typeof c === "string" && c.trim().length > 0)
       : [];
 
-    if (requestedCategories.length === 0) {
-      return NextResponse.json({ error: "At least one category is required" }, { status: 400 });
-    }
-
     // Fetch current registrations (excluding already-refunded/cancelled)
     const currentRegs = await prisma.tournamentRegistration.findMany({
       where: {
@@ -100,6 +96,18 @@ export async function PATCH(request: Request) {
     });
 
     const currentCategoryIds = currentRegs.map((r) => r.categoryId);
+
+    if (requestedCategories.length === 0) {
+      // Full refund — mark all non-refunded registrations as "Refund Requested"
+      if (currentCategoryIds.length > 0) {
+        await prisma.tournamentRegistration.updateMany({
+          where: { playerId: player.id, tournamentYear: year, categoryId: { in: currentCategoryIds } },
+          data: { status: "Refund Requested" },
+        });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const removedCategoryIds = currentCategoryIds.filter((c) => !requestedCategories.includes(c));
     const newCategoryIds = requestedCategories.filter((c) => !currentCategoryIds.includes(c));
     const keptCategoryIds = requestedCategories.filter((c) => currentCategoryIds.includes(c));

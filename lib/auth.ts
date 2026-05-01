@@ -3,7 +3,6 @@
  */
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { hash, compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 // ─── Allowlist & users (used by login, setup API, and NextAuth `authorize`) ─────
@@ -33,36 +32,51 @@ export async function getAdminUserByEmail(email: string) {
   });
 }
 
-/** Returns { allowed, registered }. */
+/**
+ * Returns { allowed, registered }.
+ * An email is allowed if it exists in the AdminUser table (stub or full) or the hardcoded allowlist.
+ * Registered means the user has set a password.
+ */
 export async function checkAdminEmail(email: string): Promise<{ allowed: boolean; registered: boolean }> {
   const normalized = normalizeEmail(email);
-  const allowed = ALLOWED_ADMIN_EMAILS.includes(normalized);
   const user = await prisma.adminUser.findUnique({ where: { email: normalized } });
-  return { allowed, registered: !!user };
+  if (user) return { allowed: true, registered: !!user.passwordHash };
+  return { allowed: ALLOWED_ADMIN_EMAILS.includes(normalized), registered: false };
 }
 
 export async function createAdminUser(email: string, password: string): Promise<{ ok: true } | { error: string }> {
   const normalized = normalizeEmail(email);
-  if (!ALLOWED_ADMIN_EMAILS.includes(normalized)) {
+  const existing = await prisma.adminUser.findUnique({ where: { email: normalized } });
+
+  // Allow if in allowlist or already has a stub record (added by admin via UI)
+  if (!existing && !ALLOWED_ADMIN_EMAILS.includes(normalized)) {
     return { error: "This email is not authorized for admin access." };
   }
-  const existing = await prisma.adminUser.findUnique({ where: { email: normalized } });
-  if (existing) {
+  if (existing?.passwordHash) {
     return { error: "An account with this email already exists. Sign in with your password." };
   }
   if (!password || password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
+  const { hash } = await import("bcryptjs");
   const passwordHash = await hash(password, 10);
-  await prisma.adminUser.create({
-    data: { email: normalized, passwordHash },
-  });
+  if (existing) {
+    await prisma.adminUser.update({
+      where: { email: normalized },
+      data: { passwordHash, active: true },
+    });
+  } else {
+    await prisma.adminUser.create({
+      data: { email: normalized, passwordHash },
+    });
+  }
   return { ok: true };
 }
 
 export async function verifyAdminPassword(email: string, password: string): Promise<boolean> {
   const user = await getAdminUserByEmail(email);
   if (!user) return false;
+  const { compare } = await import("bcryptjs");
   return compare(password, user.passwordHash);
 }
 
@@ -87,9 +101,8 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email?.trim();
         const password = credentials?.password;
         if (!email || !password) return null;
-        if (!isAllowedAdminEmail(email)) return null;
         const user = await getAdminUserByEmail(email);
-        if (!user) return null;
+        if (!user || !user.active || !user.passwordHash) return null;
         const valid = await verifyAdminPassword(email, password);
         if (!valid) return null;
         return { id: user.id, email: user.email };

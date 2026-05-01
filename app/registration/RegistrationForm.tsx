@@ -2,18 +2,16 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { categoryChipClass, buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
-import { clubChipClass } from "@/lib/clubs";
-import { NTRP_LEVELS } from "@/lib/ntrp";
 import type { CategoryRecord } from "@/lib/category/categories";
 import { formatPhoneInput, isValidEmail, isValidNanpPhone, normalizePhone } from "@/lib/validation";
-import { loadRegistrationFormData, formatPrice, totalFromCategories } from "@/lib/registration";
+import { loadRegistrationFormData, formatPrice, totalFromCategories, REGISTRATION_STATUSES, registrationStatusLabel } from "@/lib/registration";
 import { contactData } from "@/lib/contactData";
 import { Field } from "@/app/components/ui/Field";
-import { Label } from "@/app/components/ui/Label";
 import { CheckboxField } from "@/app/components/ui/Checkbox";
 import { useLocale } from "@/lib/locale-context";
 import { Chip } from "@/app/components/ui/Chip";
 import { Divider } from "@/app/components/ui/Divider";
+import { PlayerForm } from "@/app/components/PlayerForm";
 import { RegistrationSuccessModal } from "@/app/registration/RegistrationSuccessModal";
 
 export type RegistrationFormHandle = {
@@ -22,12 +20,6 @@ export type RegistrationFormHandle = {
 
 const FORM_SURFACE_CLASS =
   "bg-[var(--form-surface-bg)] text-[var(--color-text-primary)] [--section-text:var(--color-text-primary)] [--input-text:var(--color-text-primary)] [--input-bg:var(--form-surface-bg)] [--input-focus-border:var(--outline-blue-focus)] [--input-focus-ring:var(--outline-blue-focus-ring)]";
-
-const FORM_CHIP_SHELL =
-  "inline-block max-w-full min-h-[1.25rem] rounded-2xl border border-[color:var(--chip-palette-ring)] px-1.5 py-0.5 text-left text-sm font-medium leading-snug whitespace-normal [overflow-wrap:break-word] align-middle [box-decoration-break:clone]";
-
-const formCategoryChipClass = (categoryId: string) => `${FORM_CHIP_SHELL} ${categoryChipClass(categoryId)}`;
-const formClubChipClass = (code: string) => `${FORM_CHIP_SHELL} ${clubChipClass(code)}`;
 
 type FormState = {
   selectedPlayerId: string | null;
@@ -207,8 +199,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
     [removedCategories, newlyAddedCategories]
   );
 
-  // adminEdit: allow explicitly setting registration status
-  const [adminStatus, setAdminStatus] = useState<string>(initialStatus ?? "");
+  const [registrationStatus, setRegistrationStatus] = useState<string>(initialStatus ?? "Pending");
 
   const registrantPlayerIdNum = useMemo(() => {
     const n = form.selectedPlayerId ? Number(form.selectedPlayerId) : NaN;
@@ -282,7 +273,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
       if (!state.phone.trim()) err.phone = rf.errors.required;
       else if (!isValidNanpPhone(state.phone)) err.phone = rf.errors.invalidPhone;
 
-      if (state.categories.length === 0) err.categories = rf.errors.selectAtLeastOneCategory;
+      if (!isPublicEdit && state.categories.length === 0) err.categories = rf.errors.selectAtLeastOneCategory;
 
       const doubles = state.categories.filter((c) => byId.get(c)?.isDoubles ?? false);
       doubles.forEach((cat) => {
@@ -297,9 +288,14 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
         if (!state.etransferSent) err.etransferSent = rf.errors.etransferSentRequired;
       }
 
+      if (isPublicEdit) {
+        const hasNew = state.categories.some((c) => !(originalCategories ?? []).includes(c));
+        if (hasNew && !state.etransferSent) err.etransferSent = rf.errors.etransferSentRequired;
+      }
+
       return err;
     },
-    [rf, isAdminEdit, categoriesById]
+    [rf, isAdminEdit, isPublicEdit, categoriesById, originalCategories]
   );
 
   // Keep a ref to form so applyBlurValidation doesn't need `form` as a dep,
@@ -377,15 +373,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
     []
   );
 
-  const clubSelectedOptions = useMemo(
-    () => form.clubs.map((code) => ({ id: code, label: code })),
-    [form.clubs]
-  );
-
-  const clubAvailableOptions = useMemo(
-    () => clubOptions.map((code) => ({ id: code, label: code })),
-    [clubOptions]
-  );
 
   const categoryChipLabel = useCallback(
     (catId: string) => categoryLabelForId(categoriesById, catId, locale),
@@ -393,7 +380,11 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
   );
 
   const categorySelectedOptions = useMemo(
-    () => form.categories.map((catId) => ({ id: catId, label: categoryChipLabel(catId) })),
+    () => form.categories.map((catId) => ({
+      id: catId,
+      label: categoryChipLabel(catId),
+      chipClassName: categoryChipClass(catId),
+    })),
     [form.categories, categoryChipLabel]
   );
 
@@ -467,7 +458,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
   }
 
   async function handleAdminSave() {
-    if (!registrationId) return;
     if (!validateRegistrationForm()) return;
 
     const doubles = form.categories.filter((c) => categoriesById.get(c)?.isDoubles ?? false);
@@ -480,8 +470,10 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
             (Object.values(form.partnerNames).find((v) => v.trim()) ?? "")
           : "";
 
-      const res = await fetch(`/api/registrations/${registrationId}`, {
-        method: "PATCH",
+      const url = registrationId ? `/api/registrations/${registrationId}` : "/api/registrations";
+      const method = registrationId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullNameEn: form.fullNameEn.trim(),
@@ -497,7 +489,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
           photoVideoConsent: form.photoVideoConsent,
           engraving: form.engravingWanted ? form.engravingText.trim().slice(0, 25) || null : null,
           notes: form.etransferSent ? "E-transfer sent by registrant." : null,
-          ...(adminStatus && { status: adminStatus }),
+          status: registrationStatus,
         }),
       });
 
@@ -616,106 +608,46 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
           {rs.personalDetails}
         </h3>
 
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <Label htmlFor="registration-fullNameEn">
-              {rf.fields.fullNameEn} <span className="text-[var(--form-required-mark)]">*</span>
-            </Label>
-            <Field<PlayerOption>
-              variant="combobox"
-              id="registration-fullNameEn"
-              value={form.fullNameEn}
-              onValueChange={(v) => updateForm({ fullNameEn: v })}
-              loadOptions={loadRegistrantPlayers}
-              onSelect={handleSelectPlayer}
-              getOptionKey={getPlayerOptionKey}
-              getOptionLabel={getPlayerOptionLabelEn}
-              aria-invalid={Boolean(fieldErrors.fullNameEn)}
-              onBlur={(e) => applyBlurValidation("fullNameEn", { fullNameEn: e.target.value })}
-            />
-            {fieldErrors.fullNameEn && <p className="form-field-error">{fieldErrors.fullNameEn}</p>}
-          </div>
-
-          <div>
-            <Label htmlFor="registration-fullNameKo">{rf.fields.fullNameKo}</Label>
-            <Field<PlayerOption>
-              variant="combobox"
-              id="registration-fullNameKo"
-              value={form.fullNameKo}
-              onValueChange={(v) => updateForm({ fullNameKo: v })}
-              loadOptions={loadRegistrantPlayers}
-              onSelect={handleSelectPlayer}
-              getOptionKey={getPlayerOptionKey}
-              getOptionLabel={getPlayerOptionLabelKo}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="registration-email">
-            {rf.fields.email} <span className="text-[var(--form-required-mark)]">*</span>
-          </Label>
-          <Field
-            variant="email"
-            id="registration-email"
-            value={form.email}
-            onChange={(e) => updateForm({ email: e.target.value })}
-            onBlur={(e) => applyBlurValidation("email", { email: e.target.value })}
-          />
-          {fieldErrors.email && <p className="form-field-error">{fieldErrors.email}</p>}
-        </div>
-
-        <div>
-          <Label htmlFor="registration-phone">
-            {rf.fields.phone} <span className="text-[var(--form-required-mark)]">*</span>
-          </Label>
-          <Field
-            variant="tel"
-            id="registration-phone"
-            inputMode="numeric"
-            autoComplete="tel-national"
-            placeholder="000-000-0000"
-            value={form.phone}
-            onChange={(e) => updateForm({ phone: formatPhoneInput(e.target.value) })}
-            onBlur={(e) => {
-              const v = e.target.value;
-              const n = normalizePhone(v);
-              const nextPhone = n || (v.trim() ? formatPhoneInput(v) : "");
+        <PlayerForm<PlayerOption>
+          values={{
+            fullNameEn: form.fullNameEn,
+            fullNameKo: form.fullNameKo,
+            email: form.email,
+            phone: form.phone,
+            ntrp: form.ntrp,
+            clubs: form.clubs,
+          }}
+          onChange={(updates) => {
+            if ("phone" in updates && updates.phone !== undefined) {
+              updateForm({ ...updates, phone: formatPhoneInput(updates.phone) });
+            } else {
+              updateForm(updates);
+            }
+          }}
+          clubOptions={clubOptions}
+          idPrefix="registration"
+          errors={fieldErrors}
+          required={{ fullNameEn: true, email: true, phone: true }}
+          nameCombobox={{
+            loadOptions: loadRegistrantPlayers,
+            onSelect: handleSelectPlayer,
+            getOptionKey: getPlayerOptionKey,
+            getOptionLabelEn: getPlayerOptionLabelEn,
+            getOptionLabelKo: getPlayerOptionLabelKo,
+          }}
+          onFieldBlur={(field, value) => {
+            if (field === "phone") {
+              const n = normalizePhone(value);
+              const nextPhone = n || (value.trim() ? formatPhoneInput(value) : "");
               if (n) updateForm({ phone: n });
-              else if (v.trim()) updateForm({ phone: formatPhoneInput(v) });
+              else if (value.trim()) updateForm({ phone: formatPhoneInput(value) });
               applyBlurValidation("phone", { phone: nextPhone });
-            }}
-          />
-          {fieldErrors.phone && <p className="form-field-error">{fieldErrors.phone}</p>}
-        </div>
-
-        <div>
-          <Label htmlFor="registration-ntrp">{rf.fields.ntrp}</Label>
-          <Field variant="select" id="registration-ntrp" value={form.ntrp} onChange={(e) => updateForm({ ntrp: e.target.value })}>
-            <option value="">{rf.options.selectLevel}</option>
-            {NTRP_LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </Field>
-          {fieldErrors.ntrp && <p className="form-field-error">{fieldErrors.ntrp}</p>}
-        </div>
-
-        <div>
-          <Label htmlFor="registration-clubs">{rf.fields.clubs}</Label>
-          <Field
-            variant="multiselect"
-            id="registration-clubs"
-            selected={clubSelectedOptions}
-            available={clubAvailableOptions}
-            onChange={(selected) => updateForm({ clubs: selected })}
-            renderChip={(o) => <Chip className={formClubChipClass(o.id)} label={o.label} />}
-            placeholder={rf.fields.searchClubsPlaceholder}
-            searchable={false}
-          />
-          {fieldErrors.clubs && <p className="form-field-error">{fieldErrors.clubs}</p>}
-        </div>
+            } else {
+              applyBlurValidation(field, { [field]: value } as Partial<FormState>);
+            }
+          }}
+          phoneInputProps={{ inputMode: "numeric", autoComplete: "tel-national", placeholder: "000-000-0000" }}
+        />
       </section>
 
       <Divider className="mt-8" />
@@ -729,20 +661,18 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
         </h3>
 
         <div className="md:col-span-2">
-          <Label htmlFor="registration-categories-multiselect">
-            {rf.fields.categories} <span className="text-[var(--form-required-mark)]">*</span>
-          </Label>
           <Field
+            label={rf.fields.categories}
+            required
+            error={fieldErrors.categories && <p className="form-field-error">{fieldErrors.categories}</p>}
             variant="multiselect"
             id="registration-categories-multiselect"
             selected={categorySelectedOptions}
             available={categoryAvailableOptions}
             onChange={handleCategoriesMultiselectChange}
-            renderChip={(o) => <Chip className={formCategoryChipClass(o.id)} label={categoryChipLabel(o.id)} />}
             placeholder={rf.fields.searchCategoriesPlaceholder}
             searchable={false}
           />
-          {fieldErrors.categories && <p className="form-field-error">{fieldErrors.categories}</p>}
           {isPublicEdit && refundCategories.length > 0 && (
             <div className="mt-2 rounded-md border border-[color:var(--color-status-warning-border,#d97706)] bg-[var(--color-status-warning-bg-subtle,#fffbeb)] px-3 py-2 text-sm text-[var(--color-status-warning-text,#92400e)]">
               <p className="m-0 font-medium">Refund will be requested for:</p>
@@ -750,7 +680,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
                 {refundCategories.map((catId) => (
                   <Chip
                     key={`refund-${catId}`}
-                    className={formCategoryChipClass(catId)}
+                    className={categoryChipClass(catId)}
                     label={categoryLabelForId(categoriesById, catId, locale)}
                   />
                 ))}
@@ -766,11 +696,10 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
           .filter((catId) => categoriesById.get(catId)?.isDoubles ?? false)
           .map((catId) => (
             <div key={`partner-row-${catId}`} className="md:col-span-2">
-              <Label htmlFor={`registration-partner-${catId}`}>
-                {rf.fields.partnerName} ({categoryLabelForId(categoriesById, catId, locale)}){" "}
-                <span className="text-[var(--form-required-mark)]">*</span>
-              </Label>
               <Field<PlayerOption>
+                label={`${rf.fields.partnerName} (${categoryLabelForId(categoriesById, catId, locale)})`}
+                required
+                error={fieldErrors[`partner-${catId}`] && <p className="form-field-error">{fieldErrors[`partner-${catId}`]}</p>}
                 variant="combobox"
                 id={`registration-partner-${catId}`}
                 value={form.partnerNames[catId] ?? ""}
@@ -786,9 +715,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
                   })
                 }
               />
-              {fieldErrors[`partner-${catId}`] && (
-                <p className="form-field-error">{fieldErrors[`partner-${catId}`]}</p>
-              )}
             </div>
           ))}
       </section>
@@ -835,21 +761,18 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
               {rf.helper.tumblerEngraving}
             </CheckboxField>
             {form.engravingWanted ? (
-              <div>
-                <Label htmlFor="registration-engraving-text">
-                  {rf.fields.engravingText} <span className="text-[var(--form-required-mark)]">*</span>
-                </Label>
-                <Field
-                  variant="text"
-                  id="registration-engraving-text"
-                  value={form.engravingText}
-                  onChange={(e) => updateForm({ engravingText: e.target.value.slice(0, 25) })}
-                  onBlur={(e) => applyBlurValidation("engravingText", { engravingText: e.target.value.slice(0, 25) })}
-                  maxLength={25}
-                  aria-invalid={Boolean(fieldErrors.engravingText)}
-                />
-                {fieldErrors.engravingText && <p className="form-field-error">{fieldErrors.engravingText}</p>}
-              </div>
+              <Field
+                label={rf.fields.engravingText}
+                required
+                error={fieldErrors.engravingText && <p className="form-field-error">{fieldErrors.engravingText}</p>}
+                variant="text"
+                id="registration-engraving-text"
+                value={form.engravingText}
+                onChange={(e) => updateForm({ engravingText: e.target.value.slice(0, 25) })}
+                onBlur={(e) => applyBlurValidation("engravingText", { engravingText: e.target.value.slice(0, 25) })}
+                maxLength={25}
+                aria-invalid={Boolean(fieldErrors.engravingText)}
+              />
             ) : null}
           </div>
 
@@ -886,7 +809,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
                   {newlyAddedCategories.map((catId) => (
                     <Chip
                       key={`new-cat-${catId}`}
-                      className={formCategoryChipClass(catId)}
+                      className={categoryChipClass(catId)}
                       label={categoryLabelForId(categoriesById, catId, locale)}
                     />
                   ))}
@@ -909,7 +832,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
                     {form.categories.map((catId) => (
                       <Chip
                         key={`summary-cat-${catId}`}
-                        className={formCategoryChipClass(catId)}
+                        className={categoryChipClass(catId)}
                         label={categoryLabelForId(categoriesById, catId, locale)}
                       />
                     ))}
@@ -953,21 +876,19 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
           </div>
         )}
 
-        <div className="max-w-[var(--form-max-width)] md:max-w-none md:col-span-2">
-          <Label htmlFor="registration-nameOnEtransfer">
-            {rf.fields.nameOnEtransfer} <span className="text-[var(--form-required-mark)]">*</span>
-          </Label>
-          <Field
-            variant="text"
-            id="registration-nameOnEtransfer"
-            value={form.nameOnEtransfer}
-            onChange={(e) => updateForm({ nameOnEtransfer: e.target.value })}
-            onBlur={(e) => applyBlurValidation("nameOnEtransfer", { nameOnEtransfer: e.target.value })}
-          />
-          {fieldErrors.nameOnEtransfer && <p className="form-field-error">{fieldErrors.nameOnEtransfer}</p>}
-        </div>
+        <Field
+          label={rf.fields.nameOnEtransfer}
+          required
+          wrapperClassName="max-w-[var(--form-max-width)] md:max-w-none md:col-span-2"
+          error={fieldErrors.nameOnEtransfer && <p className="form-field-error">{fieldErrors.nameOnEtransfer}</p>}
+          variant="text"
+          id="registration-nameOnEtransfer"
+          value={form.nameOnEtransfer}
+          onChange={(e) => updateForm({ nameOnEtransfer: e.target.value })}
+          onBlur={(e) => applyBlurValidation("nameOnEtransfer", { nameOnEtransfer: e.target.value })}
+        />
 
-        {!isPublicEdit && (
+        {(!isPublicEdit || newlyAddedCategories.length > 0) && (
           <div className="md:col-span-2">
             <CheckboxField
               checked={form.etransferSent}
@@ -981,19 +902,18 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
         )}
 
         {isAdminEdit && (
-          <div className="md:col-span-2">
-            <Label htmlFor="registration-admin-status">Registration Status</Label>
-            <Field
-              variant="select"
-              id="registration-admin-status"
-              value={adminStatus}
-              onChange={(e) => setAdminStatus(e.target.value)}
-            >
-              <option value="">— unchanged —</option>
-              <option value="Pending">Pending</option>
-              <option value="Refund Requested">Refund Requested</option>
-            </Field>
-          </div>
+          <Field
+            label={rf.fields.status}
+            wrapperClassName="md:col-span-2"
+            variant="select"
+            id="registration-admin-status"
+            value={registrationStatus}
+            onChange={(e) => setRegistrationStatus(e.target.value)}
+          >
+            {REGISTRATION_STATUSES.map((s) => (
+              <option key={s} value={s}>{registrationStatusLabel(s, locale)}</option>
+            ))}
+          </Field>
         )}
 
         {fieldErrors.submit && <p className="form-field-error md:col-span-2">{fieldErrors.submit}</p>}

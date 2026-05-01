@@ -12,8 +12,7 @@ import {
 } from "@/lib/category/categories";
 import type { RegistrationRow } from "@/app/tables/RegistrationsTable";
 import { Modal } from "@/app/components/ui/Modal";
-import { Select } from "@/app/components/ui/Select";
-import { Label } from "@/app/components/ui/Label";
+import { Field } from "@/app/components/ui/Field";
 import { useLocale } from "@/lib/locale-context";
 
 type Props = {
@@ -22,6 +21,7 @@ type Props = {
   locale: "en" | "ko";
   registrations: RegistrationRow[];
   saving: boolean;
+  error?: string;
   onClose: () => void;
   onSave: (status: CategoryYearStatus) => Promise<void>;
 };
@@ -32,6 +32,7 @@ export function CategoryStatusModal({
   locale,
   registrations,
   saving,
+  error,
   onClose,
   onSave,
 }: Props) {
@@ -64,20 +65,24 @@ export function CategoryStatusModal({
       }}
     >
       <div className="space-y-4">
-        <div>
-          <Label htmlFor="category-status-select">{t.shared.labels.status}</Label>
-          <Select
-            id="category-status-select"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as CategoryYearStatus)}
-          >
-            {(Object.keys(CATEGORY_YEAR_STATUSES) as CategoryYearStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {categoryYearStatusLabel(s, locale)}
-              </option>
-            ))}
-          </Select>
-        </div>
+        {error && (
+          <div className="rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
+            {error}
+          </div>
+        )}
+        <Field
+          label={t.shared.labels.status}
+          variant="select"
+          id="category-status-select"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as CategoryYearStatus)}
+        >
+          {(Object.keys(CATEGORY_YEAR_STATUSES) as CategoryYearStatus[]).map((s) => (
+            <option key={s} value={s}>
+              {categoryYearStatusLabel(s, locale)}
+            </option>
+          ))}
+        </Field>
         {registrations.length > 0 ? (
           <div>
             <p className="mb-2 text-sm font-medium text-[var(--color-text-secondary)]">

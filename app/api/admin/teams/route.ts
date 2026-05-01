@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
       for (const reg of regs) {
         const sk = registrationStatusKey(reg.status);
-        if (sk === "cancelled" || sk === "refunded") continue;
+        if (sk === "refunded" || sk === "refund-requested") continue;
         if (used.has(reg.id)) continue;
         const label = idToLabel.get(reg.categoryId) ?? "";
 

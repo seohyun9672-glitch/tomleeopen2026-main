@@ -8,7 +8,6 @@ import { matchStatusLabel } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { Modal } from "@/app/components/ui/Modal";
 import { Field } from "@/app/components/ui/Field";
-import { Label } from "@/app/components/ui/Label";
 import { Divider } from "@/app/components/ui/Divider";
 
 const FORM_SURFACE_CLASS =
@@ -63,6 +62,7 @@ type EditMatchModalProps = {
   onRequestDelete: () => void;
   onSave: (data: Partial<MatchWithTeamNames>) => void;
   saving: boolean;
+  error?: string;
 };
 
 export function EditMatchModal({
@@ -73,6 +73,7 @@ export function EditMatchModal({
   onRequestDelete,
   onSave,
   saving,
+  error,
 }: EditMatchModalProps) {
   const { t, locale } = useLocale();
   const am = t.adminMatches;
@@ -159,6 +160,11 @@ export function EditMatchModal({
       }}
     >
       <div className={FORM_SURFACE_CLASS}>
+        {error && (
+          <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
+            {error}
+          </div>
+        )}
         <div className="mb-4 text-sm text-[var(--color-text-secondary)]">{subtitle}</div>
 
         <form
@@ -166,36 +172,29 @@ export function EditMatchModal({
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-x-6"
         >
-          <div className="md:col-span-2">
-            <Label htmlFor="edit-location">{am.tableLocation}</Label>
-            <Field
-              variant="combobox"
-              id="edit-location"
-              value={location}
-              onValueChange={(v) => setLocation(v)}
-              loadOptions={async (query) => {
-                const q = query.trim().toLowerCase();
-                if (!q) return locationOptions;
-                return locationOptions.filter((loc) => loc.toLowerCase().includes(q));
-              }}
-              onSelect={(loc) => setLocation(loc)}
-              getOptionKey={(loc) => loc}
-              getOptionLabel={(loc) => loc}
-              minQueryLength={0}
-              showInitialOptions
-              emptyText={am.noLocations}
-            />
-          </div>
+          <Field
+            label={am.tableLocation}
+            variant="combobox"
+            id="edit-location"
+            wrapperClassName="md:col-span-2"
+            value={location}
+            onValueChange={(v) => setLocation(v)}
+            loadOptions={async (query) => {
+              const q = query.trim().toLowerCase();
+              if (!q) return locationOptions;
+              return locationOptions.filter((loc) => loc.toLowerCase().includes(q));
+            }}
+            onSelect={(loc) => setLocation(loc)}
+            getOptionKey={(loc) => loc}
+            getOptionLabel={(loc) => loc}
+            minQueryLength={0}
+            showInitialOptions
+            emptyText={am.noLocations}
+          />
 
           <div className="grid grid-cols-2 gap-4 md:col-span-2">
-            <div>
-              <Label htmlFor="edit-date">{t.shared.labels.date}</Label>
-              <Field variant="date" id="edit-date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="edit-time">{am.time}</Label>
-              <Field variant="time" id="edit-time" value={time} onChange={(e) => setTime(e.target.value)} />
-            </div>
+            <Field label={t.shared.labels.date} variant="date" id="edit-date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Field label={am.time} variant="time" id="edit-time" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
 
           <div className="md:col-span-2">
@@ -242,29 +241,32 @@ export function EditMatchModal({
             <Divider />
           </div>
 
-          <div className="md:col-span-2">
-            <Label htmlFor="edit-status">{am.status}</Label>
-            <Field
-              variant="select"
-              id="edit-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as MatchStatusOption)}
-            >
-              <option value="Pending">{matchStatusLabel("Pending", locale)}</option>
-              <option value="Scheduled">{matchStatusLabel("Scheduled", locale)}</option>
-              <option value="Completed">{matchStatusLabel("Completed", locale)}</option>
-              <option value="Cancelled">{matchStatusLabel("Cancelled", locale)}</option>
-            </Field>
-          </div>
+          <Field
+            label={am.status}
+            variant="select"
+            id="edit-status"
+            wrapperClassName="md:col-span-2"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as MatchStatusOption)}
+          >
+            <option value="Pending">{matchStatusLabel("Pending", locale)}</option>
+            <option value="Scheduled">{matchStatusLabel("Scheduled", locale)}</option>
+            <option value="Completed">{matchStatusLabel("Completed", locale)}</option>
+            <option value="Cancelled">{matchStatusLabel("Cancelled", locale)}</option>
+          </Field>
 
           <div className="md:col-span-2">
             <Divider />
           </div>
 
-          <div className="md:col-span-2">
-            <Label htmlFor="edit-comment">{am.comment}</Label>
-            <Field variant="text" id="edit-comment" value={comment} onChange={(e) => setComment(e.target.value)} />
-          </div>
+          <Field
+            label={am.comment}
+            variant="text"
+            id="edit-comment"
+            wrapperClassName="md:col-span-2"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
         </form>
       </div>
     </Modal>

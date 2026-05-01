@@ -298,7 +298,6 @@ export function DrawsHub(props: Props) {
             value={categoryId}
             options={categoryOptions}
             onChange={setCategoryId}
-            control="stretch"
           />
 
           {/* Round toggle: desktop only */}

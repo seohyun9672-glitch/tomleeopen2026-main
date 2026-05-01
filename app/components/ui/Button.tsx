@@ -12,9 +12,14 @@ export type ButtonSize = NonNullable<
   VariantProps<typeof buttonVariants>["size"]
 >;
 
+export type ButtonShape = NonNullable<
+  VariantProps<typeof buttonVariants>["shape"]
+>;
+
 type BaseButtonProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  shape?: ButtonShape;
   iconRight?: ReactNode;
   className?: string;
   children: ReactNode;
@@ -42,7 +47,6 @@ export type IconButtonProps = {
 
 const BUTTON_BASE_CLASS = [
   "inline-flex items-center justify-center text-center font-medium no-underline whitespace-nowrap",
-  "rounded-[var(--button-border-radius)]",
   "transition-[color,opacity,background-color,box-shadow,transform] duration-150 ease-out",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
   "disabled:cursor-not-allowed",
@@ -61,7 +65,7 @@ export const buttonVariants = cva(BUTTON_BASE_CLASS, {
         "disabled:hover:brightness-100 disabled:active:brightness-100",
       ].join(" "),
       secondary: [
-        "border-2 border-[var(--primary)]",
+        "border-2 border-[var(--button-secondary-border)]",
         "bg-[var(--button-secondary-fill)] !text-[var(--button-secondary-text)] visited:!text-[var(--button-secondary-text)]",
         "hover:bg-[var(--button-secondary-hover-bg)] active:bg-[var(--button-secondary-active-bg)]",
         "focus-visible:ring-[var(--primary)] focus-visible:ring-offset-[var(--color-background)]",
@@ -97,6 +101,13 @@ export const buttonVariants = cva(BUTTON_BASE_CLASS, {
         "min-w-[var(--button-min-width)] h-[var(--button-height-small)] px-[var(--button-px-small)]",
       icon: "h-10 w-10 p-0",
     },
+    shape: {
+      pill: "rounded-[var(--button-border-radius)]",
+      rounded: "rounded-[var(--button-border-radius-rounded)]",
+    },
+  },
+  defaultVariants: {
+    shape: "pill",
   },
 });
 
@@ -129,27 +140,30 @@ function ButtonContent({
 function resolveButtonClasses(
   variant?: ButtonVariant,
   size?: ButtonSize,
+  shape?: ButtonShape,
   className?: string,
 ) {
   return cn(
     buttonVariants({
       variant: variant ?? "primary",
       size: size ?? "medium",
+      shape: shape ?? "pill",
     }),
     className,
   );
 }
 
 export function Button(props: ButtonProps) {
-  const { variant, size, className, children, iconRight } = props;
+  const { variant, size, shape, className, children, iconRight } = props;
 
-  const resolvedClassName = resolveButtonClasses(variant, size, className);
+  const resolvedClassName = resolveButtonClasses(variant, size, shape, className);
 
   if (isLinkButton(props)) {
     const {
       href,
       variant: _v,
       size: _s,
+      shape: _sh,
       className: _c,
       children: _ch,
       iconRight: _i,
@@ -166,6 +180,7 @@ export function Button(props: ButtonProps) {
   const {
     variant: _v,
     size: _s,
+    shape: _sh,
     className: _c,
     children: _ch,
     iconRight: _i,
@@ -194,6 +209,7 @@ export function IconButton({
       className={resolveButtonClasses(
         variant ?? "transparent",
         "icon",
+        undefined,
         className,
       )}
       {...rest}

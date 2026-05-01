@@ -122,7 +122,7 @@ type RoundFilterProps = {
   allLabel?: string;
 };
 
-export function RoundFilter({ id, value, options, onChange, control = "stretch", allLabel }: RoundFilterProps) {
+export function RoundFilter({ id, value, options, onChange, control = "round", allLabel }: RoundFilterProps) {
   const { t } = useLocale();
   return (
     <Filter control={control} htmlFor={id} label={t.shared.labels.round}>
@@ -152,7 +152,7 @@ type SeedFilterProps = {
   allLabel?: string;
 };
 
-export function SeedFilter({ id, value, options, onChange, control = "stretch", allLabel }: SeedFilterProps) {
+export function SeedFilter({ id, value, options, onChange, control = "round", allLabel }: SeedFilterProps) {
   const { t } = useLocale();
   return (
     <Filter control={control} htmlFor={id} label={t.shared.labels.seed}>

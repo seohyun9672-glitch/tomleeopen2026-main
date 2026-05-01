@@ -25,6 +25,7 @@ type Props = {
   participationByCategory: Record<string, CategoryParticipation>;
   registrations: SerializedRawReg[];
   statusFilter: CategoryYearStatus | "all";
+  onCountChange?: (n: number) => void;
 };
 
 type CategorySortKey = "category" | "players" | "status";
@@ -48,6 +49,7 @@ export function CategoryStatusTable({
   participationByCategory,
   registrations,
   statusFilter,
+  onCountChange,
 }: Props) {
   const { locale, t } = useLocale();
   const router = useRouter();
@@ -132,6 +134,10 @@ export function CategoryStatusTable({
     });
   }, [items, sortKey, sortDir, categoriesById, locale, participationByCategory, statusFilter]);
 
+  useEffect(() => {
+    onCountChange?.(sorted.length);
+  }, [sorted.length, onCountChange]);
+
   const handleSort = useCallback(
     (key: string) => {
       const k = key as CategorySortKey;
@@ -214,12 +220,6 @@ export function CategoryStatusTable({
 
   return (
     <>
-      {error ? (
-        <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
-          {error}
-        </div>
-      ) : null}
-
       <div className="flex w-full min-w-0 flex-col">
         <Table
           variant="data"
@@ -251,11 +251,6 @@ export function CategoryStatusTable({
           }}
         />
 
-        <div className="mt-2 flex w-full justify-end">
-          <p className="m-0 text-sm tabular-nums text-[var(--color-text-secondary)]">
-            {t.categoryYears.countLabel(sorted.length)}
-          </p>
-        </div>
       </div>
 
       {activeCategoryItem ? (
@@ -265,6 +260,7 @@ export function CategoryStatusTable({
           locale={locale}
           registrations={activeCategoryRegistrations}
           saving={savingId === activeCategoryItem.categoryId}
+          error={error || undefined}
           onClose={() => setEditingCategoryId(null)}
           onSave={async (nextStatus) => {
             const ok = await handleStatusChange(activeCategoryItem.categoryId, nextStatus);

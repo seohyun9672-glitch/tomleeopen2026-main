@@ -19,12 +19,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      { source: "/tournament/about", destination: "/overview", permanent: true },
       { source: "/tournament/overview", destination: "/overview", permanent: true },
       { source: "/tournament/rules", destination: "/rules", permanent: true },
-      { source: "/tournament/divisions", destination: "/tournament/categories", permanent: true },
-      { source: "/results", destination: "/draws", permanent: true },
       { source: "/tournament/honour-roll", destination: "/honour-roll", permanent: true },
+      
+    ];
+  },
+  async rewrites() {
+    return [
+      { source: "/admin", destination: "/en/admin" },
+      { source: "/admin/login", destination: "/en/admin/login" },
     ];
   },
 };

@@ -11,7 +11,7 @@ export function Section({ title, id, children, zebra }: SectionProps) {
   const inner = (
     <section
       id={zebra === undefined ? id : undefined}
-      className="flex flex-col gap-[var(--content-gap)] md:gap-[var(--section-gap)]"
+      className="flex flex-col gap-[var(--content-gap)] "
     >
       <h2>{title}</h2>
       {children}

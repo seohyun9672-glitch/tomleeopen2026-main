@@ -59,7 +59,7 @@ export const overviewPage = {
     overviewPage: {
       heroTitle: "개요",
       overview: {
-        title: "개요",
+        title: "대회 요강",
         hostSponsorLookupName: "Tom Lee Sedation Dental Group",
         table: [
           { label: "대회명", value: "탐리오픈 2026" },

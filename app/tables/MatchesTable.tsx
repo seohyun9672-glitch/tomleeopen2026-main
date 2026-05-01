@@ -46,10 +46,10 @@ type Props = {
   year: number;
   categories: CategoryRecord[];
   matches: MatchWithTeamNames[];
-  totalCount?: number;
   categoryFilter: string;
   roundFilter: string;
   seedFilter: string;
+  onCountChange?: (n: number) => void;
 };
 
 type MatchSortKey =
@@ -78,10 +78,10 @@ export function MatchesTable({
   year,
   categories,
   matches,
-  totalCount: _totalCount,
   categoryFilter,
   roundFilter,
   seedFilter,
+  onCountChange,
 }: Props) {
   const { t, locale } = useLocale();
   const router = useRouter();
@@ -219,6 +219,10 @@ export function MatchesTable({
     };
   }, [sortedMatches, showCategoryColumn, categoriesById, am, locale]);
 
+  useEffect(() => {
+    onCountChange?.(sortedMatches.length);
+  }, [sortedMatches.length, onCountChange]);
+
   async function handleSaveMatch(formData: Partial<MatchWithTeamNames>) {
     if (!editing) return;
     setError("");
@@ -288,15 +292,7 @@ export function MatchesTable({
 
   return (
     <>
-      {error && (
-        <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
-          {error}
-        </div>
-      )}
-
-      {rows.length === 0 ? (
-        <p className="py-8 text-[var(--color-text-tertiary)]">{am.emptyState}</p>
-      ) : (
+      {sortedMatches.length > 0 && (
         <div className="flex w-full min-w-0 flex-col">
           <Table
             variant="data"
@@ -309,11 +305,6 @@ export function MatchesTable({
               if (match) setEditing(match);
             }}
           />
-          <div className="mt-2 flex w-full justify-end">
-            <p className="m-0 text-sm tabular-nums text-[var(--color-text-secondary)]">
-              {am.totalCount(sortedMatches.length)}
-            </p>
-          </div>
         </div>
       )}
 
@@ -327,6 +318,7 @@ export function MatchesTable({
           onRequestDelete={handleRequestDeleteMatch}
           onSave={handleSaveMatch}
           saving={saving}
+          error={error}
         />
       )}
 
@@ -343,6 +335,11 @@ export function MatchesTable({
             disabled: saving,
           }}
         >
+          {error && (
+            <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
+              {error}
+            </div>
+          )}
           <p className="text-sm leading-snug text-[var(--color-text-secondary)]">{am.deleteWarning}</p>
         </Modal>
       )}

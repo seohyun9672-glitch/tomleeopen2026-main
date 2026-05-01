@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Field } from "@/app/components/ui/Field";
-import { Label } from "@/app/components/ui/Label";
 import { Button } from "@/app/components/ui/Button";
 import { useLocale } from "@/lib/locale-context";
 import type { CategoryRecord } from "@/lib/category/categories";
@@ -170,8 +169,8 @@ export function RegistrationPageClient({ categories, clubCodes }: Props) {
             </p>
 
             <div>
-              <Label htmlFor="lookup-email">{rp.lookupEmailLabel}</Label>
               <Field
+                label={rp.lookupEmailLabel}
                 variant="email"
                 id="lookup-email"
                 value={lookupEmail}

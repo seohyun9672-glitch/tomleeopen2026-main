@@ -4,7 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import type { MediaRecord, PhotoGalleryGroup } from "@/lib/media";
 import type { CategoryRecord } from "@/lib/category/categories";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
+import {
+  buildCategoryByIdMap,
+  categoryLabelForId,
+} from "@/lib/category/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { MediaContentCard } from "@/app/components/ui/MediaContentCard";
 import { useLocale } from "@/lib/locale-context";
@@ -18,7 +21,10 @@ const MEDIA_VIDEO_HIGHLIGHT_ID = "media-video-2025-recap";
 const TABS = ["articles", "videos", "photos"] as const;
 type Tab = (typeof TABS)[number];
 
-function formatDate(d: Date | string | null | undefined, locale: "en" | "ko"): string {
+function formatDate(
+  d: Date | string | null | undefined,
+  locale: "en" | "ko",
+): string {
   if (d == null) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(date.getTime())) return "—";
@@ -59,8 +65,9 @@ function resolveLocalizedMediaText(item: MediaRecord, locale: "en" | "ko") {
       ? item.outlet
         ? (MEDIA_OUTLET_LABELS[item.outlet] ?? item.outlet)
         : null
-      : item.outlet ?? null;
-  if (locale !== "ko") return { outlet, title: item.title, subtitle: item.subtitle };
+      : (item.outlet ?? null);
+  if (locale !== "ko")
+    return { outlet, title: item.title, subtitle: item.subtitle };
   const koCopy = MEDIA_KO_COPY_BY_ID[item.id];
   return {
     outlet,
@@ -73,7 +80,7 @@ function resolveLocalizedMediaText(item: MediaRecord, locale: "en" | "ko") {
 function resolveMediaTitle(
   item: MediaRecord,
   categoriesById: Map<string, CategoryRecord>,
-  locale: "en" | "ko"
+  locale: "en" | "ko",
 ): string {
   if (item.categoryId) {
     return categoryLabelForId(categoriesById, item.categoryId, locale);
@@ -95,10 +102,14 @@ function isLocalAssetUrl(url: string): boolean {
 /** Photo tab: omit cards when there is no cover in DB and no files in the category gallery manifest. */
 function photoRecordHasDisplayableImages(
   item: MediaRecord,
-  categoryGalleryUrls: string[] | undefined
+  categoryGalleryUrls: string[] | undefined,
 ): boolean {
-  const hasDbCover = Boolean((item.media ?? "").trim() || (item.image ?? "").trim());
-  const hasManifest = Boolean(categoryGalleryUrls && categoryGalleryUrls.length > 0);
+  const hasDbCover = Boolean(
+    (item.media ?? "").trim() || (item.image ?? "").trim(),
+  );
+  const hasManifest = Boolean(
+    categoryGalleryUrls && categoryGalleryUrls.length > 0,
+  );
   return hasDbCover || hasManifest;
 }
 
@@ -121,35 +132,46 @@ function MediaHubItemCard({
 
   const isPhoto = item.type === "photos";
   const youtubeId =
-    item.type === "videos" && item.media ? extractYouTubeVideoId(item.media) : null;
+    item.type === "videos" && item.media
+      ? extractYouTubeVideoId(item.media)
+      : null;
   const hasGallery = Boolean(
-    isPhoto && categoryGalleryUrls && categoryGalleryUrls.length > 0 && onOpenGallery
+    isPhoto &&
+    categoryGalleryUrls &&
+    categoryGalleryUrls.length > 0 &&
+    onOpenGallery,
   );
-  const photoStackBadge = isPhoto && hasGallery && (categoryGalleryUrls?.length ?? 0) >= 2;
+  const photoStackBadge =
+    isPhoto && hasGallery && (categoryGalleryUrls?.length ?? 0) >= 2;
   const coverSrc = isPhoto
-    ? item.media ?? item.image ?? categoryGalleryUrls?.[0] ?? null
+    ? (item.media ?? item.image ?? categoryGalleryUrls?.[0] ?? null)
     : item.type === "videos"
-      ? item.image ?? (youtubeId ? youtubeThumbnailHqUrl(youtubeId) : null)
-      : item.image ?? null;
+      ? (item.image ?? (youtubeId ? youtubeThumbnailHqUrl(youtubeId) : null))
+      : (item.image ?? null);
   const imageLinkHref =
-    isPhoto && !hasGallery && coverSrc && !isLocalAssetUrl(coverSrc) ? coverSrc : null;
-  const openGallery = hasGallery && categoryGalleryUrls && onOpenGallery
-    ? () => onOpenGallery(categoryGalleryUrls)
-    : undefined;
+    isPhoto && !hasGallery && coverSrc && !isLocalAssetUrl(coverSrc)
+      ? coverSrc
+      : null;
+  const openGallery =
+    hasGallery && categoryGalleryUrls && onOpenGallery
+      ? () => onOpenGallery(categoryGalleryUrls)
+      : undefined;
 
   const metaStart =
     item.type === "videos"
       ? t.mediaPage.defaultMetaOutlet
       : isPhoto
-        ? text.outlet ?? t.mediaPage.defaultMetaOutlet
-        : text.outlet ?? "—";
+        ? (text.outlet ?? t.mediaPage.defaultMetaOutlet)
+        : (text.outlet ?? "—");
 
   const assignedPlaceholder =
     locale === "ko"
       ? item.imagePlaceholderKo?.trim() || item.imagePlaceholder?.trim()
       : item.imagePlaceholder?.trim();
   const noImageLabel =
-    assignedPlaceholder && assignedPlaceholder.length > 0 ? assignedPlaceholder : t.mediaPage.noImage;
+    assignedPlaceholder && assignedPlaceholder.length > 0
+      ? assignedPlaceholder
+      : t.mediaPage.noImage;
 
   return (
     <MediaContentCard
@@ -192,11 +214,20 @@ export function MediaHub({
   photoManifests,
 }: Props) {
   const { t, locale } = useLocale();
-  const tabDefs = TABS.map((tab) => ({ value: tab, label: t.mediaPage.tabs[tab] }));
+  const tabDefs = TABS.map((tab) => ({
+    value: tab,
+    label: t.mediaPage.tabs[tab],
+  }));
   const [currentTab, setCurrentTab] = useTabParam(tabDefs);
-  const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
+  const categoriesById = useMemo(
+    () => buildCategoryByIdMap(categories),
+    [categories],
+  );
 
-  const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
+  const [lightbox, setLightbox] = useState<{
+    urls: string[];
+    index: number;
+  } | null>(null);
   const openGallery = useCallback((urls: string[]) => {
     if (urls.length === 0) return;
     setLightbox({ urls, index: 0 });
@@ -204,7 +235,8 @@ export function MediaHub({
 
   const filtered = items.filter((m) => m.type === currentTab);
   const photosWithoutCategory = items.filter(
-    (m) => m.type === "photos" && (m.categoryId == null || m.tournamentYear == null)
+    (m) =>
+      m.type === "photos" && (m.categoryId == null || m.tournamentYear == null),
   );
 
   // Build one synthetic card per category/year from the manifest.
@@ -238,21 +270,28 @@ export function MediaHub({
   const galleryUrlsForItem = useCallback(
     (item: MediaRecord): string[] | undefined => {
       if (!item.categoryId || !item.tournamentYear) return undefined;
-      const manifestUrls = photoManifests?.[item.tournamentYear]?.[item.categoryId];
+      const manifestUrls =
+        photoManifests?.[item.tournamentYear]?.[item.categoryId];
       if (manifestUrls && manifestUrls.length > 0) return manifestUrls;
       return undefined;
     },
-    [photoManifests]
+    [photoManifests],
   );
 
   const displayItems: MediaRecord[] = (() => {
     if (currentTab !== "photos") return filtered;
-    const base = manifestDisplayItems.length > 0
-      ? [...manifestDisplayItems, ...photosWithoutCategory]
-      : photoGalleries.length > 0
-        ? [...photoGalleries.flatMap((g) => g.items), ...photosWithoutCategory]
-        : filtered;
-    return base.filter((item) => photoRecordHasDisplayableImages(item, galleryUrlsForItem(item)));
+    const base =
+      manifestDisplayItems.length > 0
+        ? [...manifestDisplayItems, ...photosWithoutCategory]
+        : photoGalleries.length > 0
+          ? [
+              ...photoGalleries.flatMap((g) => g.items),
+              ...photosWithoutCategory,
+            ]
+          : filtered;
+    return base.filter((item) =>
+      photoRecordHasDisplayableImages(item, galleryUrlsForItem(item)),
+    );
   })();
 
   const photoGridClass =
@@ -287,7 +326,9 @@ export function MediaHub({
 
       <div className="text-[var(--section-text)]">
         {displayItems.length === 0 ? (
-          <p className="text-[var(--color-text-tertiary)] text-center py-8 px-4">{t.mediaPage.emptyState}</p>
+          <p className="text-[var(--color-text-tertiary)] text-center py-8 px-4">
+            {t.mediaPage.emptyState}
+          </p>
         ) : currentTab === "articles" ? (
           <ul className={photoGridClass}>
             {displayItems.map((item) => (
@@ -305,7 +346,10 @@ export function MediaHub({
                     aria-labelledby={`media-photos-year-${year}`}
                     className="h3-card-stack"
                   >
-                    <h2 id={`media-photos-year-${year}`} className="text-h2 m-0 text-[var(--color-text-primary)]">
+                    <h2
+                      id={`media-photos-year-${year}`}
+                      className="text-h2 m-0 text-[var(--color-text-primary)]"
+                    >
                       {t.mediaPage.finalYearSectionTitle(year)}
                     </h2>
                     <ul className={photoGridClass}>
@@ -328,12 +372,17 @@ export function MediaHub({
         ) : currentTab === "videos" ? (
           (() => {
             const itemsForVideoPartition = displayItems.map((item) =>
-              item.id === MEDIA_VIDEO_HIGHLIGHT_ID && item.tournamentYear == null
+              item.id === MEDIA_VIDEO_HIGHLIGHT_ID &&
+              item.tournamentYear == null
                 ? { ...item, tournamentYear: 2025 }
-                : item
+                : item,
             );
-            const { sections, orphans } = partitionMediaByYear(itemsForVideoPartition);
-            const highlight = itemsForVideoPartition.find((m) => m.id === MEDIA_VIDEO_HIGHLIGHT_ID);
+            const { sections, orphans } = partitionMediaByYear(
+              itemsForVideoPartition,
+            );
+            const highlight = itemsForVideoPartition.find(
+              (m) => m.id === MEDIA_VIDEO_HIGHLIGHT_ID,
+            );
             const highlightEffectiveYear =
               highlight != null ? (highlight.tournamentYear ?? 2025) : null;
 
@@ -357,7 +406,10 @@ export function MediaHub({
                     : items;
 
                   return (
-                    <div key={year} className="flex flex-col gap-[var(--grid-gap)] md:gap-[var(--grid-gap-md)]">
+                    <div
+                      key={year}
+                      className="flex flex-col gap-[var(--grid-gap)] md:gap-[var(--grid-gap-md)]"
+                    >
                       {showFeatured ? (
                         <div className="overflow-hidden rounded-xl border border-[color:var(--color-border-ui)] bg-[var(--color-surface-card)] p-[var(--content-gap)] shadow-md md:p-[var(--section-gap)]">
                           <div
@@ -379,7 +431,11 @@ export function MediaHub({
                             <div
                               className={`flex min-w-0 flex-col justify-center gap-[var(--element-gap)] ${highlightYoutubeId ? "" : "max-w-2xl"}`}
                             >
-                              <h2 className="text-h2 m-0 text-[var(--color-text-primary)]">{highlightTitle}</h2>
+                        
+
+                              <h2 className="text-h2 m-0 text-[var(--color-text-primary)]">
+                                {highlightTitle}
+                              </h2>
                               <p className="text-body m-0 text-[var(--text-secondary)]">
                                 {t.mediaPage.featuredVideoDescription}
                               </p>
@@ -392,7 +448,11 @@ export function MediaHub({
                           aria-labelledby={`media-videos-year-${year}`}
                           className="h3-card-stack"
                         >
-                          <h2 id={`media-videos-year-${year}`} className="text-h2 m-0 text-[var(--color-text-primary)]">
+                          
+                          <h2
+                            id={`media-videos-year-${year}`}
+                            className="text-h2 m-0 text-[var(--color-text-primary)]"
+                          >
                             {t.mediaPage.finalYearSectionTitle(year)}
                           </h2>
                           <ul className={photoGridClass}>

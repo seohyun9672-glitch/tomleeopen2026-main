@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ntrpSortValue } from "@/lib/ntrpFormat";
 import { Table } from "@/app/components/ui/table/Table";
@@ -8,7 +8,7 @@ import { useLocale } from "@/lib/locale-context";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import { clubChipClass } from "@/lib/clubs";
 import { DeletePlayerModal } from "@/app/[locale]/admin/modals/DeletePlayerModal";
-import { EditPlayerModal } from "@/app/[locale]/admin/modals/EditPlayerModal";
+import { PlayerModal } from "@/app/[locale]/admin/modals/PlayerModal";
 
 export type PlayerTableRow = {
   id: number;
@@ -27,10 +27,10 @@ export type PlayersTableProps = {
   enableAdminEditor?: boolean;
   emptyNoRowsText: string;
   emptyNoMatchText: string;
-  showCount?: boolean;
   clubFilter?: string;
   search?: string;
   onSearchChange?: (value: string) => void;
+  onCountChange?: (n: number) => void;
 };
 
 type SortKey = "name" | "club" | "id" | "email" | "phone" | "ntrp" | "clubs";
@@ -68,29 +68,54 @@ function PlayersDataTable({
     return [...rows].sort((a, b) => {
       switch (sortKey) {
         case "name": {
-          const aName = (locale === "ko" ? a.fullNameKo?.trim() || a.fullNameEn : a.fullNameEn).trim();
-          const bName = (locale === "ko" ? b.fullNameKo?.trim() || b.fullNameEn : b.fullNameEn).trim();
+          const aName = (
+            locale === "ko"
+              ? a.fullNameKo?.trim() || a.fullNameEn
+              : a.fullNameEn
+          ).trim();
+          const bName = (
+            locale === "ko"
+              ? b.fullNameKo?.trim() || b.fullNameEn
+              : b.fullNameEn
+          ).trim();
           return cmpStr(aName, bName, dir);
         }
         case "club":
         case "clubs": {
-          const aClub = a.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
-          const bClub = b.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
+          const aClub =
+            a.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
+          const bClub =
+            b.clubs.slice().sort((x, y) => x.localeCompare(y, "en"))[0] ?? "";
           return cmpStr(aClub, bClub, dir);
         }
-        case "id":   return cmpNum(a.id, b.id, dir);
-        case "email": return cmpStr((a.email ?? "").trim(), (b.email ?? "").trim(), dir);
-        case "phone": return cmpStr((a.phone ?? "").trim(), (b.phone ?? "").trim(), dir);
-        case "ntrp":  return cmpNum(ntrpSortValue(a.ntrp ?? null), ntrpSortValue(b.ntrp ?? null), dir);
-        default:      return 0;
+        case "id":
+          return cmpNum(a.id, b.id, dir);
+        case "email":
+          return cmpStr((a.email ?? "").trim(), (b.email ?? "").trim(), dir);
+        case "phone":
+          return cmpStr((a.phone ?? "").trim(), (b.phone ?? "").trim(), dir);
+        case "ntrp":
+          return cmpNum(
+            ntrpSortValue(a.ntrp ?? null),
+            ntrpSortValue(b.ntrp ?? null),
+            dir,
+          );
+        default:
+          return 0;
       }
     });
   }, [rows, locale, sortKey, sortDir]);
 
+  const VALID_SORT_KEYS: SortKey[] = ["name", "club", "id", "email", "phone", "ntrp", "clubs"];
+
   const handleSort = (key: string) => {
+    if (!VALID_SORT_KEYS.includes(key as SortKey)) return;
     const next = key as SortKey;
     if (sortKey === next) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(next); setSortDir("asc"); }
+    else {
+      setSortKey(next);
+      setSortDir("asc");
+    }
   };
 
   if (mode === "public") {
@@ -98,14 +123,28 @@ function PlayersDataTable({
       <Table
         variant="data"
         headers={[labels.name, labels.club]}
-        sortConfig={{ activeKey: sortKey, direction: sortDir, keys: ["name", "club"], onSort: handleSort }}
+        sortConfig={{
+          activeKey: sortKey,
+          direction: sortDir,
+          keys: ["name", "club"],
+          onSort: handleSort,
+        }}
         dataRows={sortedRows.map((p) => {
           const en = p.fullNameEn.trim();
           const ko = p.fullNameKo?.trim() ?? "";
           const primary = locale === "ko" ? ko || en : en;
           return [
-            <span key={p.id} className="table-player-name-primary">{primary}</span>,
-            <Table.Cell key={`${p.id}-c`} type="chips" items={p.clubs.map((c) => ({ label: c, className: clubChipClass(c) }))} />,
+            <span key={p.id} className="table-player-name-primary">
+              {primary}
+            </span>,
+            <Table.Cell
+              key={`${p.id}-c`}
+              type="chips"
+              items={p.clubs.map((c) => ({
+                label: c,
+                className: clubChipClass(c),
+              }))}
+            />,
           ];
         })}
       />
@@ -116,18 +155,41 @@ function PlayersDataTable({
     <Table
       variant="data"
       columnNoWrap={[false, false, false, false, true, false]}
-      headers={[labels.id, labels.name, labels.email, labels.phone, labels.ntrp, labels.club]}
-      sortConfig={{ activeKey: sortKey, direction: sortDir, keys: ["id", "name", "email", "phone", "ntrp", "clubs"], onSort: handleSort }}
+      headers={[
+        labels.id,
+        labels.name,
+        labels.email,
+        labels.phone,
+        labels.ntrp,
+        labels.club,
+      ]}
+      sortConfig={{
+        activeKey: sortKey,
+        direction: sortDir,
+        keys: ["id", "name", "email", "phone", "ntrp", "clubs"],
+        onSort: handleSort,
+      }}
       dataRows={sortedRows.map((p) => {
         const displayName =
-          locale === "ko" && p.fullNameKo?.trim() ? p.fullNameKo.trim() : p.fullNameEn;
+          locale === "ko" && p.fullNameKo?.trim()
+            ? p.fullNameKo.trim()
+            : p.fullNameEn;
         return [
-          <Table.Cell key={`${p.id}-id`} type="technical-id">{p.id}</Table.Cell>,
+          <Table.Cell key={`${p.id}-id`} type="technical-id">
+            {p.id}
+          </Table.Cell>,
           <span key={`${p.id}-name`}>{displayName}</span>,
           p.email ?? "—",
           p.phone ?? "—",
           p.ntrp ?? "—",
-          <Table.Cell key={`${p.id}-clubs`} type="chips" items={p.clubs.map((c) => ({ label: c, className: clubChipClass(c) }))} />,
+          <Table.Cell
+            key={`${p.id}-clubs`}
+            type="chips"
+            items={p.clubs.map((c) => ({
+              label: c,
+              className: clubChipClass(c),
+            }))}
+          />,
         ];
       })}
       onRowClick={
@@ -142,11 +204,16 @@ function PlayersDataTable({
   );
 }
 
-function rowMatchesSearch(row: PlayerTableRow, rawQuery: string, mode: "public" | "admin"): boolean {
+function rowMatchesSearch(
+  row: PlayerTableRow,
+  rawQuery: string,
+  mode: "public" | "admin",
+): boolean {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return true;
   const lc = (s: string | null | undefined) => (s ?? "").toLowerCase();
-  if (lc(row.fullNameEn).includes(q) || lc(row.fullNameKo).includes(q)) return true;
+  if (lc(row.fullNameEn).includes(q) || lc(row.fullNameKo).includes(q))
+    return true;
   if (row.clubs.some((c) => c.toLowerCase().includes(q))) return true;
   if (mode === "admin") {
     if (String(row.id).includes(q)) return true;
@@ -164,10 +231,10 @@ export function PlayersTable({
   enableAdminEditor = false,
   emptyNoRowsText,
   emptyNoMatchText,
-  showCount = false,
   clubFilter: clubFilterProp,
   search: searchProp,
   onSearchChange,
+  onCountChange,
 }: PlayersTableProps) {
   const router = useRouter();
   const { t, locale } = useLocale();
@@ -181,9 +248,14 @@ export function PlayersTable({
   const filteredRows = useMemo(() => {
     const q = searchProp ?? search;
     let list = rows.filter((r) => rowMatchesSearch(r, q, mode));
-    if (clubFilterProp) list = list.filter((r) => r.clubs.includes(clubFilterProp));
+    if (clubFilterProp)
+      list = list.filter((r) => r.clubs.includes(clubFilterProp));
     return list;
   }, [rows, searchProp, search, mode, clubFilterProp]);
+
+  useEffect(() => {
+    onCountChange?.(filteredRows.length);
+  }, [filteredRows.length, onCountChange]);
 
   async function handleDelete(player: PlayerTableRow) {
     setError("");
@@ -192,7 +264,7 @@ export function PlayersTable({
       const res = await fetch(`/api/admin/players/${player.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Delete failed");
+        setError(typeof data.error === "string" ? data.error : t.adminPlayers.deleteFailed);
         return;
       }
       setDeleting(null);
@@ -203,15 +275,12 @@ export function PlayersTable({
     }
   }
 
-  const handleTableRowClick = onRowClick ?? (adminEditorEnabled ? (row: PlayerTableRow) => setEditing(row) : undefined);
+  const handleTableRowClick =
+    onRowClick ??
+    (adminEditorEnabled ? (row: PlayerTableRow) => setEditing(row) : undefined);
 
   return (
-    <div className="space-y-[var(--content-gap)] md:space-y-[var(--content-gap)]">
-      {error ? (
-        <div className="rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
-          {error}
-        </div>
-      ) : null}
+    <div className="space-y-[var(--content-gap)]">
 
       {!onSearchChange ? (
         <div className="min-w-0 max-w-xs">
@@ -245,29 +314,17 @@ export function PlayersTable({
               club: mode === "admin" ? t.adminPlayers.clubs : t.shared.labels.club,
             }}
           />
-          {showCount ? (
-            <div className="mt-2 flex w-full justify-end">
-              <p className="m-0 text-sm tabular-nums text-[var(--color-text-secondary)]">
-                {t.adminPlayers.totalCount(filteredRows.length)}
-              </p>
-            </div>
-          ) : null}
         </div>
       )}
 
       {adminEditorEnabled && editing ? (
-        <EditPlayerModal
+        <PlayerModal
           key={editing.id}
+          mode="edit"
           player={editing}
           onClose={() => setEditing(null)}
           onRequestDelete={() => setDeleting(editing)}
-          onSaved={() => {
-            setEditing(null);
-            router.refresh();
-          }}
-          saving={saving}
-          setSaving={setSaving}
-          setError={setError}
+          onSaved={() => { setEditing(null); router.refresh(); }}
         />
       ) : null}
 
@@ -277,6 +334,7 @@ export function PlayersTable({
           onClose={() => setDeleting(null)}
           onConfirm={() => handleDelete(deleting)}
           saving={saving}
+          error={error}
         />
       ) : null}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import type { ComboboxProps } from "@/app/components/ui/Combobox";
 import { Combobox } from "@/app/components/ui/Combobox";
 import { Input } from "@/app/components/ui/Input";
@@ -8,8 +8,6 @@ import { Label } from "@/app/components/ui/Label";
 import { MultiSelect } from "@/app/components/ui/MultiSelect";
 import { Select } from "@/app/components/ui/Select";
 import { Textarea } from "@/app/components/ui/Textarea";
-
-export const formInputMatchClass = "form-control-input form-control-button-match";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,17 +31,45 @@ export type FieldProps<TOption = unknown> =
   | ({ variant: "combobox" } & ComboboxProps<TOption>)
   | ({ variant: "multiselect" } & ComponentProps<typeof MultiSelect>);
 
-// ---------------------------------------------------------------------------
-// Primitives
-// ---------------------------------------------------------------------------
-
-export { Label as FormLabel, Input as FormInput, Select as FormSelect, Textarea as FormTextarea };
+type FieldWrapProps = {
+  /** Renders a label above the input. */
+  label?: ReactNode;
+  /** Appends a required (*) marker to the label. */
+  required?: boolean;
+  /** Renders content below the input (e.g. an error message). */
+  error?: ReactNode;
+  /** className applied to the wrapper div (only used when label is provided). */
+  wrapperClassName?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Dispatcher
 // ---------------------------------------------------------------------------
 
-export function Field<TOption = unknown>(props: FieldProps<TOption>) {
+export function Field<TOption = unknown>(props: FieldProps<TOption> & FieldWrapProps) {
+  const { label, required, error, wrapperClassName, ...rest } = props as FieldWrapProps & Record<string, unknown>;
+  const id = (props as { id?: string }).id;
+
+  const input = renderInput(rest as FieldProps<TOption>);
+
+  if (!label) return input;
+  return (
+    <div className={wrapperClassName}>
+      <Label htmlFor={id}>
+        {label}
+        {required && <span className="text-[var(--form-required-mark)]"> *</span>}
+      </Label>
+      {input}
+      {error}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Internal renderer (label-free)
+// ---------------------------------------------------------------------------
+
+function renderInput<TOption>(props: FieldProps<TOption>): ReactNode {
   switch (props.variant) {
     case "textarea": {
       const { variant: _v, ...rest } = props;

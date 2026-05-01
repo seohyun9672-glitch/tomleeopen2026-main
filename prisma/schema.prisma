@@ -233,7 +233,8 @@ model Media {
 model AdminUser {
   id           String   @id @default(cuid())
   email        String   @unique // lowercase, must be in allowed list
-  passwordHash String
+  passwordHash String?  // null = stub created by superadmin; user sets password on first login
+  active       Boolean  @default(true) // false = cannot log in
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

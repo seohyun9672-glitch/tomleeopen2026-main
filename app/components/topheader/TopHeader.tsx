@@ -18,6 +18,7 @@ import { HeaderNavLink, NavDropdown, NavDropdownItem } from "@/app/components/to
 import { MobileMenu } from "@/app/components/topheader/MobileMenu";
 import { getMenuData } from "@/lib/content/menu";
 import { LocaleSelector } from "@/app/components/LocaleSelector";
+import { importantDates } from "@/lib/importantDatesData";
 
 const tournamentButtonBase =
   "flex shrink-0 cursor-pointer items-center justify-center gap-1 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--header-bg)]";
@@ -90,6 +91,14 @@ export function TopHeader() {
     const menu = getMenuData(locale);
     return menu.nav as HeaderNavItem[];
   }, [locale]);
+
+  const isRegistrationOpen = useMemo(() => {
+    const reg = importantDates.find((d) => d.type === "range" && d.label === "Registration");
+    if (!reg || reg.type !== "range") return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today >= new Date(reg.startDate);
+  }, []);
 
   const { tournamentGroup, leafItems } = useMemo(() => {
     const first = navItems[0];
@@ -182,14 +191,16 @@ export function TopHeader() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2 lg:hidden">
-              <Button
-                href={`${localePrefix}/registration`}
-                variant="primary"
-                size="medium"
-                className="w-afiuto"
-              >
-                {t.header.register}
-              </Button>
+              {isRegistrationOpen && (
+                <Button
+                  href={`${localePrefix}/registration`}
+                  variant="primary"
+                  size="medium"
+                  className="w-afiuto"
+                >
+                  {t.header.register}
+                </Button>
+              )}
               <button
                 type="button"
                 onClick={() => setMenuOpen((o) => !o)}
@@ -263,14 +274,16 @@ export function TopHeader() {
                   className="shrink-0 lg:w-auto"
                 />
               ))}
-              <Button
-                href={`${localePrefix}/registration`}
-                variant="primary"
-                size="medium"
-                className="shrink-0"
-              >
-                {t.header.register}
-              </Button>
+              {isRegistrationOpen && (
+                <Button
+                  href={`${localePrefix}/registration`}
+                  variant="primary"
+                  size="medium"
+                  className="shrink-0"
+                >
+                  {t.header.register}
+                </Button>
+              )}
             </nav>
           </div>
         </div>

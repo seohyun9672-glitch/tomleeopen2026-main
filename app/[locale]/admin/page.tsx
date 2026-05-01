@@ -8,34 +8,29 @@ import {
   getCategoryParticipationForYear,
   getCategoryYearStatusList,
 } from "@/lib/category/categories";
-import { AdminHub } from "./AdminHub";
-import type { YearData } from "./AdminHub";
+import { AdminHub } from "@/app/admin/AdminHub";
+import type { YearData } from "@/app/admin/AdminHub";
 import { AdminSignOut } from "./SignOut";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import type { SerializedRawReg } from "@/app/tables/registrationRows";
 
-export const dynamic = "force-dynamic";
-
-type Props = {
-  params: Promise<{ locale: string }>;
-};
+type Props = { params: Promise<{ locale: string }> };
 
 const thisYear = new Date().getFullYear();
 
 export default async function AdminPage({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const localePrefix = locale === "ko" ? "/ko" : "";
+const { locale: localeParam } = await params;
+const locale: Locale = localeParam === "ko" ? "ko" : "en";
+const localePrefix = `/${locale}`;
+const session = await getServerSession(authOptions);
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    const callbackUrl = encodeURIComponent(`${localePrefix}/admin`);
-    redirect(`${localePrefix}/admin/login?callbackUrl=${callbackUrl}`);
-  }
+if (!session?.user?.email) {
+  const callbackUrl = encodeURIComponent(`${localePrefix}/admin`);
+  redirect(`${localePrefix}/admin/login?callbackUrl=${callbackUrl}`);
+}
 
-  // Batch 1: independent queries that don't depend on each other
   const [categories, { allYears: fetchedYears }, allRawRegs] = await Promise.all([
     getCategories(),
     getAvailableYears(),
@@ -65,7 +60,6 @@ export default async function AdminPage({ params }: Props) {
     ? fetchedYears
     : [thisYear, ...fetchedYears].sort((a, b) => b - a);
 
-  // Batch 2: all remaining queries except category statuses (which need participation)
   const [
     matchesByYearBatch,
     participationByYearEntries,
@@ -80,7 +74,7 @@ export default async function AdminPage({ params }: Props) {
     }),
     prisma.adminUser.findMany({
       orderBy: { createdAt: "asc" },
-      select: { id: true, email: true, createdAt: true },
+      select: { id: true, email: true, active: true, createdAt: true },
     }),
   ]);
 
@@ -101,7 +95,6 @@ export default async function AdminPage({ params }: Props) {
 
   const participationByYear = Object.fromEntries(participationByYearEntries);
 
-  // Batch 3: category statuses — computed with participation so auto-status applies
   const statusesByYearEntries = await Promise.all(
     allYears.map(async (y) => [y, await getCategoryYearStatusList(y, categories, participationByYear[y])] as const)
   );
@@ -133,13 +126,12 @@ export default async function AdminPage({ params }: Props) {
   const adminUsers = adminUsersRaw.map((u) => ({
     id: u.id,
     email: u.email,
+    active: u.active,
     createdAt: u.createdAt.toISOString(),
   }));
 
   return (
-    <PageContainer
-      actions={<AdminSignOut />}
-    >
+    <PageContainer actions={<AdminSignOut />}>
       <AdminHub
         yearDataByYear={yearDataByYear}
         allYears={allYears}
@@ -150,4 +142,3 @@ export default async function AdminPage({ params }: Props) {
     </PageContainer>
   );
 }
-

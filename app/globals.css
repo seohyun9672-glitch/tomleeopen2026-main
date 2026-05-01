@@ -266,43 +266,31 @@
   --chip-pastel-pink-fg: #9d174d;
   --chip-pastel-periwinkle-bg: #dbeafe;
   --chip-pastel-periwinkle-fg: #1e40af;
+  --chip-pastel-peach-mid-bg:  #fed7aa;
+  --chip-pastel-peach-mid-fg:  #7c2d12;
+  --chip-pastel-peach-deep-bg: #fdba74;
+  --chip-pastel-sky-mid-bg:    #bae6fd;
+  --chip-pastel-sky-mid-fg:    #075985;
+  --chip-pastel-sky-deep-bg:   #7dd3fc;
+  --chip-pastel-sky-deep-fg:   #0c4a6e;
+  --chip-pastel-violet-bg:     #ddd6fe;
+  --chip-pastel-violet-fg:     #5b21b6;
+  --chip-pastel-slate-bg:      #f1f5f9;
+  --chip-pastel-slate-fg:      #475569;
 
-  /* Global chip palette */
-  --chip-palette-ring: var(--chip-pastel-ring-mix);
-  --chip-palette-neutral-bg: var(--chip-pastel-neutral-bg);
-  --chip-palette-neutral-fg: var(--chip-pastel-neutral-fg);
-  --chip-palette-neutral-border: color-mix(in srgb, #6366f1 28%, transparent);
-  --chip-palette-lemon-bg: var(--chip-pastel-butter-bg);
-  --chip-palette-lemon-fg: var(--chip-pastel-butter-fg);
-  --chip-palette-lemon-border: color-mix(in srgb, #eab308 45%, transparent);
-  --chip-palette-azure-bg: var(--chip-pastel-sky-bg);
-  --chip-palette-azure-fg: var(--chip-pastel-sky-fg);
-  --chip-palette-azure-border: color-mix(in srgb, #0ea5e9 40%, transparent);
-  --chip-palette-cobalt-bg: var(--chip-pastel-periwinkle-bg);
-  --chip-palette-cobalt-fg: var(--chip-pastel-periwinkle-fg);
-  --chip-palette-cobalt-border: color-mix(in srgb, #3b82f6 38%, transparent);
-  --chip-palette-mint-bg: var(--chip-pastel-mint-bg);
-  --chip-palette-mint-fg: var(--chip-pastel-mint-fg);
-  --chip-palette-mint-border: color-mix(in srgb, #10b981 42%, transparent);
-  --chip-palette-coral-bg: var(--chip-pastel-rose-bg);
-  --chip-palette-coral-fg: var(--chip-pastel-rose-fg);
-  --chip-palette-coral-border: color-mix(in srgb, #f43f5e 40%, transparent);
-  --chip-palette-sand-bg: var(--chip-pastel-butter-bg);
-  --chip-palette-sand-fg: var(--chip-pastel-butter-fg);
-  --chip-palette-sand-border: color-mix(in srgb, #f59e0b 42%, transparent);
-  --chip-palette-scheduled-bg: #bfdbfe;
-  --chip-palette-scheduled-fg: #1d4ed8;
-  --chip-palette-scheduled-border: color-mix(in srgb, #2563eb 45%, transparent);
+  /* Global chip palette — semantic status tokens */
+  --chip-palette-ring:      var(--chip-pastel-ring-mix);
+  --chip-status-neutral-bg: var(--chip-pastel-neutral-bg);
+  --chip-status-neutral-fg: var(--chip-pastel-neutral-fg);
+  --chip-status-success-bg: var(--chip-pastel-mint-bg);
+  --chip-status-success-fg: var(--chip-pastel-mint-fg);
+  --chip-status-info-bg:    var(--chip-pastel-sky-bg);
+  --chip-status-info-fg:    var(--chip-pastel-sky-fg);
+  --chip-status-warning-bg: var(--chip-pastel-butter-bg);
+  --chip-status-warning-fg: var(--chip-pastel-butter-fg);
+  --chip-status-error-bg:   var(--chip-pastel-rose-bg);
+  --chip-status-error-fg:   var(--chip-pastel-rose-fg);
 
-  /* Data chip palette */
-  --data-chip-neutral-bg: var(--chip-palette-neutral-bg);
-  --data-chip-neutral-text: var(--chip-palette-neutral-fg);
-  --data-chip-success-bg: var(--chip-palette-mint-bg);
-  --data-chip-success-text: var(--chip-palette-mint-fg);
-  --data-chip-status-cancelled-bg: var(--chip-palette-coral-bg);
-  --data-chip-status-cancelled-text: var(--chip-palette-coral-fg);
-  --data-chip-status-default-bg: #f1f5f9;
-  --data-chip-status-default-text: #475569;
   --table-data-pill-note-color: color-mix(in srgb, var(--color-status-warning) 48%, black);
 
   /* Match card tokens */
@@ -352,6 +340,7 @@
   --button-disabled-bg: var(--color-surface-strong);
   --button-disabled-text: var(--color-text-tertiary);
   --button-secondary-fill: #ffffff;
+  --button-secondary-border: var(--outline-blue-soft);
   --button-secondary-text: var(--color-text-primary);
   --button-secondary-hover-bg: color-mix(in srgb, var(--color-text-primary) 6%, #ffffff);
   --button-secondary-active-bg: color-mix(in srgb, var(--color-text-primary) 11%, #ffffff);
@@ -414,18 +403,6 @@
     linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
   --page-grid-size: var(--grid-unit) var(--grid-unit);
-
-  /* Filter/chip UI */
-  --chip-accent-text-inactive: var(--color-text-dark-muted);
-  --chip-accent-hover-bg: var(--color-surface-hover);
-  --chip-accent-hover-text: var(--color-text-dark);
-  --tab-row-border: var(--outline-blue-subtle);
-  --surface-pill-border: var(--outline-blue-subtle);
-  --surface-pill-bg: color-mix(in srgb, var(--color-text-primary) 4.5%, transparent);
-  --surface-pill-active-border: var(--outline-blue-default);
-  --surface-pill-active-bg: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
-  --surface-pill-text: var(--color-text-dark);
-  --surface-pill-text-muted: var(--color-text-dark-muted);
 
   /* Card elevation shadows */
   --card-elev-shadow:
@@ -503,6 +480,7 @@
 
   /* Button system */
   --button-border-radius: 9999px;
+  --button-border-radius-rounded: 0.5rem;
   --button-min-width: 7.5rem;
   --button-max-width: 7.5rem;
   --button-inline-safe-pad: 16px;
@@ -524,7 +502,7 @@
   /* Typography scale tokens */
   --text-title-font: var(--font-heading);
   --text-title-weight: 400;
-  --text-title-size: clamp(2.75rem, 9vw, 5rem);
+  --text-title-size: clamp(3.5rem, 13vw, 6rem);
   --text-title-letter-spacing: 0;
   --text-title-line-height: 1;
 
@@ -604,7 +582,7 @@ html[lang="ko"] {
 
 @media (min-width: 768px) {
   :root {
-    --text-title-size: clamp(4rem, 12vw, 7.5rem);
+    --text-title-size: clamp(5.5rem, 14vw, 7.5rem);
     --table-cell-py: var(--content-gap);
     --table-cell-px: var(--content-gap);
     --table-radius: 0.5rem;
@@ -641,51 +619,52 @@ html[lang="ko"] {
    Add a matching class here when adding a new row to the DB.
    ============================================================ */
 
-.category-chip-md-b { background-color: #ffedd5; color: #9a3412; }
-.category-chip-md-s { background-color: #fed7aa; color: #7c2d12; }
-.category-chip-md-g { background-color: #fdba74; color: #7c2d12; }
-.category-chip-ms-b { background-color: #e0f2fe; color: #0369a1; }
-.category-chip-ms-s { background-color: #bae6fd; color: #075985; }
-.category-chip-ms-g { background-color: #7dd3fc; color: #0c4a6e; }
-.category-chip-xd-b { background-color: #ede9fe; color: #5b21b6; }
-.category-chip-xd-s { background-color: #ddd6fe; color: #5b21b6; }
-.category-chip-xd-g { background-color: #c4b5fd; color: #4c1d95; }
-.category-chip-wd-b { background-color: #fce7f3; color: #9d174d; }
-.category-chip-wd-s { background-color: #fbcfe8; color: #831843; }
-.category-chip-ws-b { background-color: #d1fae5; color: #047857; }
-.category-chip-ws-s { background-color: #a7f3d0; color: #065f46; }
+.category-chip-md-b { background-color: var(--chip-pastel-peach-bg);     color: var(--chip-pastel-peach-fg); }
+.category-chip-md-s { background-color: var(--chip-pastel-peach-mid-bg); color: var(--chip-pastel-peach-mid-fg); }
+.category-chip-md-g { background-color: var(--chip-pastel-peach-deep-bg); color: var(--chip-pastel-peach-mid-fg); }
+.category-chip-ms-b { background-color: var(--chip-pastel-sky-bg);       color: var(--chip-pastel-sky-fg); }
+.category-chip-ms-s { background-color: var(--chip-pastel-sky-mid-bg);   color: var(--chip-pastel-sky-mid-fg); }
+.category-chip-ms-g { background-color: var(--chip-pastel-sky-deep-bg);  color: var(--chip-pastel-sky-deep-fg); }
+.category-chip-xd-b { background-color: var(--chip-pastel-pink-bg);      color: var(--chip-pastel-pink-fg); }
+.category-chip-xd-s { background-color: var(--chip-pastel-violet-bg);    color: var(--chip-pastel-violet-fg); }
+.category-chip-xd-g { background-color: var(--chip-pastel-slate-bg);     color: var(--chip-pastel-slate-fg); }
+.category-chip-wd-b { background-color: var(--chip-pastel-butter-bg);    color: var(--chip-pastel-butter-fg); }
+.category-chip-wd-s { background-color: var(--chip-pastel-lilac-bg);     color: var(--chip-pastel-lilac-fg); }
+.category-chip-ws-b { background-color: var(--chip-pastel-mint-bg);      color: var(--chip-pastel-mint-fg); }
+.category-chip-ws-s { background-color: var(--chip-pastel-sky-bg);       color: var(--chip-pastel-sky-fg); }
 
 /* ============================================================
    CLUB CHIP COLORS — one class per Club.code (lowercase).
    Add a matching class here when adding a new row to the DB.
    ============================================================ */
 
-.club-chip-harang  { background-color: #e0f2fe; color: #0369a1; }
-.club-chip-vktc    { background-color: var(--chip-palette-mint-bg); color: var(--chip-palette-mint-fg); }
-.club-chip-ctc     { background-color: #ede9fe; color: #5b21b6; }
-.club-chip-clayton { background-color: #fef9c3; color: #a16207; }
-.club-chip-sagol   { background-color: #ffedd5; color: #9a3412; }
-.club-chip-machang { background-color: #ccfbf1; color: #0f766e; }
-.club-chip-langley { background-color: #fce7f3; color: #9d174d; }
-.club-chip-na      { background-color: #f1f5f9; color: #475569; }
+.club-chip-harang  { background-color: var(--chip-pastel-sky-bg);    color: var(--chip-pastel-sky-fg); }
+.club-chip-vktc    { background-color: var(--chip-pastel-mint-bg);   color: var(--chip-pastel-mint-fg); }
+.club-chip-ctc     { background-color: var(--chip-pastel-lilac-bg);  color: var(--chip-pastel-lilac-fg); }
+.club-chip-clayton { background-color: var(--chip-pastel-butter-bg); color: var(--chip-pastel-butter-fg); }
+.club-chip-sagol   { background-color: var(--chip-pastel-peach-bg);  color: var(--chip-pastel-peach-fg); }
+.club-chip-machang { background-color: var(--chip-pastel-aqua-bg);   color: var(--chip-pastel-aqua-fg); }
+.club-chip-langley { background-color: var(--chip-pastel-pink-bg);   color: var(--chip-pastel-pink-fg); }
+.club-chip-na      { background-color: var(--chip-pastel-slate-bg);  color: var(--chip-pastel-slate-fg); }
 
 /* ============================================================
-   STATUS CHIP COLORS — shared palette vars where colours match.
+   STATUS CHIP COLORS
    ============================================================ */
 
-.match-status-chip-scheduled        { background-color: var(--chip-palette-scheduled-bg);  color: var(--chip-palette-scheduled-fg); }
-.match-status-chip-completed        { background-color: var(--chip-palette-mint-bg);        color: var(--chip-palette-mint-fg); }
-.match-status-chip-cancelled        { background-color: var(--chip-palette-coral-bg);       color: var(--chip-palette-coral-fg); }
-.match-status-chip-pending          { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
+.match-status-chip-scheduled        { background-color: var(--chip-status-info-bg);    color: var(--chip-status-info-fg); }
+.match-status-chip-completed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); }
+.match-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
+.match-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
 
-.registration-status-chip-pending   { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
-.registration-status-chip-confirmed { background-color: var(--chip-palette-mint-bg);        color: var(--chip-palette-mint-fg); }
-.registration-status-chip-cancelled { background-color: var(--chip-palette-coral-bg);       color: var(--chip-palette-coral-fg); }
-.registration-status-chip-refunded  { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
+.registration-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
+.registration-status-chip-confirmed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); }
+.registration-status-chip-refund-requested { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); }
+.registration-status-chip-refunded         { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
+.registration-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
 
-.category-status-chip-active        { background-color: var(--chip-palette-mint-bg);        color: var(--chip-palette-mint-fg); }
-.category-status-chip-inactive      { background-color: var(--chip-palette-coral-bg);       color: var(--chip-palette-coral-fg); }
-.category-status-chip-pending       { background-color: var(--chip-palette-neutral-bg);     color: var(--chip-palette-neutral-fg); }
+.category-status-chip-active        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); }
+.category-status-chip-inactive      { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
+.category-status-chip-pending       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
 
 /* ============================================================
    BASE ELEMENT STYLES
@@ -1310,7 +1289,8 @@ a:focus-visible .card-elev--interactive {
   background-color: var(--input-bg);
   color: var(--input-text);
 }
-.form-control-input:focus {
+.form-control-input:focus,
+.form-control-input:focus-within {
   border-color: var(--input-focus-border);
   box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
@@ -1333,6 +1313,26 @@ a:focus-visible .card-elev--interactive {
 }
 
 .form-control-button-match:hover {
+  background-color: var(--color-surface-muted);
+}
+
+/* Single-class alternative to form-control-input + form-control-button-match */
+.form-input-match {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--input-border);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+.form-input-match:focus,
+.form-input-match:focus-within {
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
+}
+.form-input-match:hover {
   background-color: var(--color-surface-muted);
 }
 

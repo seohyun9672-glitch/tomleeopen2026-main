@@ -6,20 +6,21 @@ import {
   useDismissOnOutsidePointerDown,
   usePopoverPlacement,
 } from "@/app/components/ui/Popover";
+import { Chip } from "@/app/components/ui/Chip";
 
 const MULTISELECT_DROPDOWN_MAX_PX = 192;
 const listOptionClass =
   "w-full px-4 py-2.5 text-left text-sm [color:var(--input-text)] hover:bg-[var(--color-surface-muted)]";
 const optionSelectedClass = "bg-[var(--color-surface-strong)]";
 
-export type MultiSelectOption = { id: string; label: string };
+export type MultiSelectOption = { id: string; label: string; chipClassName?: string };
 
 export function MultiSelect({
   id,
   selected,
   available,
   onChange,
-  renderChip,
+  renderChip = (o) => <Chip label={o.label} className={o.chipClassName} />,
   placeholder,
   noMatchesText = "No matches",
   onSearchBlur,
@@ -29,7 +30,7 @@ export function MultiSelect({
   selected: readonly MultiSelectOption[];
   available: readonly MultiSelectOption[];
   onChange: (selectedIds: string[]) => void;
-  renderChip: (option: MultiSelectOption) => React.ReactNode;
+  renderChip?: (option: MultiSelectOption) => React.ReactNode;
   placeholder: string;
   noMatchesText?: string;
   onSearchBlur?: () => void;

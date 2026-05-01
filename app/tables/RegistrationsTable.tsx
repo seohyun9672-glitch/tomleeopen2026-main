@@ -180,7 +180,7 @@ type DerivedRow = {
   raw: RegistrationRow;
   displayName: string;
   partnerDisplay: { text: string; hasMultiplePartners: boolean };
-  status: "Pending" | "Confirmed" | "Cancelled" | "Refund Requested" | "Refunded";
+  status: string;
   cats: [string];
 };
 
@@ -188,20 +188,20 @@ type RegistrationsTableProps = {
   initial: SerializedRawReg[];
   categories: CategoryRecord[];
   year: number;
-  totalCount?: number;
   categoryStatusById: Record<string, CategoryYearStatus>;
   categoryFilter: string;
+  onCountChange?: (n: number) => void;
 };
 
-type RegSortKey = "regNumber" | "name" | "partner" | "category" | "status" | "media" | "engraving";
+type RegSortKey = "regNumber" | "name" | "partner" | "category" | "status" | "engraving";
 
 export function RegistrationsTable({
   initial,
   categories,
   year,
-  totalCount,
   categoryStatusById,
   categoryFilter,
+  onCountChange,
 }: RegistrationsTableProps) {
   const { locale, t } = useLocale();
   const adminReg = t.adminRegistrations;
@@ -253,17 +253,15 @@ export function RegistrationsTable({
           [r.category],
           locale
         ),
-        // Registration's own terminal/confirmed statuses take precedence.
-        // Pending registrations fall back to derived status from the category-year state.
-        status: (
-          r.status === "Confirmed" || r.status === "Refund Requested" || r.status === "Cancelled" || r.status === "Refunded"
-            ? r.status
-            : categoryStatusById[r.category] === "Active"
-              ? "Confirmed"
-              : categoryStatusById[r.category] === "Inactive"
-                ? "Cancelled"
-                : "Pending"
-        ) as DerivedRow["status"],
+        // Non-pending statuses set by admin always take precedence.
+        // Pending falls back to category state: Active → Confirmed, Inactive → Refund Requested.
+        status: r.status !== "Pending"
+          ? r.status
+          : categoryStatusById[r.category] === "Active"
+            ? "Confirmed"
+            : categoryStatusById[r.category] === "Inactive"
+              ? "Refund Requested"
+              : "Pending",
         cats: [r.category] as [string],
       })),
     [rows, categories, categoriesById, locale, categoryStatusById]
@@ -288,8 +286,6 @@ export function RegistrationsTable({
           return cmpStr(a.partnerDisplay.text, b.partnerDisplay.text);
         case "status":
           return cmpStr(a.status, b.status);
-        case "media":
-          return cmpNum(a.raw.photoVideoConsent ? 1 : 0, b.raw.photoVideoConsent ? 1 : 0);
         case "engraving":
           return cmpStr((a.raw.engraving ?? "").trim(), (b.raw.engraving ?? "").trim());
         default:
@@ -302,6 +298,10 @@ export function RegistrationsTable({
     () => (categoryFilter ? sortedRows.filter((r) => r.raw.category === categoryFilter) : sortedRows),
     [sortedRows, categoryFilter]
   );
+
+  useEffect(() => {
+    onCountChange?.(filteredSortedRows.length);
+  }, [filteredSortedRows.length, onCountChange]);
 
   const handleRegSort = useCallback((key: string) => {
     const k = key as RegSortKey;
@@ -358,91 +358,59 @@ export function RegistrationsTable({
     [locale]
   );
 
-  if (rows.length === 0) {
-    return (
-      <div className="p-12 text-center text-[var(--color-text-tertiary)]">No registrations yet.</div>
-    );
-  }
-
-  const totalCountResolved = totalCount ?? rows.length;
   const headers = showConsentAndEngraving
-    ? [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status, adminReg.tableMediaConsent, adminReg.tableEngraving]
+    ? [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status, adminReg.tableEngraving]
     : [adminReg.tableRegNumber, t.shared.labels.name, adminReg.tablePartner, t.shared.labels.category, t.shared.labels.status];
   const sortKeys = showConsentAndEngraving
-    ? (["regNumber", "name", "partner", "category", "status", "media", "engraving"] as RegSortKey[])
+    ? (["regNumber", "name", "partner", "category", "status", "engraving"] as RegSortKey[])
     : (["regNumber", "name", "partner", "category", "status"] as RegSortKey[]);
 
   return (
     <>
-      {error && (
-        <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
-          {error}
+      {filteredSortedRows.length > 0 && (
+        <div className="flex flex-col w-full min-w-0">
+          <Table
+            variant="data"
+            headers={headers}
+            sortConfig={{
+              activeKey: sortKey,
+              direction: sortDir,
+              keys: sortKeys,
+              onSort: handleRegSort,
+            }}
+            dataRows={filteredSortedRows.map(({ raw: r, displayName, partnerDisplay, status, cats }) => {
+              const { label: statusLabel, chipClass: statusChipClass } = statusMeta(status);
+
+              const baseCells: (string | ReactNode)[] = [
+                <Table.Cell key={`${r.id}-regnum`} type="technical-id">
+                  {r.registrationNumber != null ? String(r.registrationNumber) : "—"}
+                </Table.Cell>,
+                <span key={`${r.id}-name`} title={r.id}>
+                  {displayName}
+                </span>,
+                <span
+                  key={`${r.id}-partner`}
+                  title={partnerDisplay.hasMultiplePartners ? "Partner per category (multiple doubles)" : undefined}
+                >
+                  <Table.Cell type="players" text={partnerDisplay.text || undefined} splitSemicolons />
+                </span>,
+                <Table.Cell key={`${r.id}-cats`} type="chips" items={cats.map((c) => ({ label: categoryLabelForId(categoriesById, c, locale), className: categoryChipClass(c), title: c }))} />,
+                <Table.Cell key={`${r.id}-status-group`} type="chips" items={[{ className: statusChipClass, label: statusLabel }]} />,
+              ];
+
+              if (showConsentAndEngraving) {
+                baseCells.push(r.engraving?.trim() ? r.engraving : "—");
+              }
+
+              return baseCells;
+            })}
+            onRowClick={(_, rowIndex) => {
+              const row = filteredSortedRows[rowIndex];
+              if (row) setEditing(row.raw);
+            }}
+          />
         </div>
       )}
-
-      <div className="flex flex-col w-full min-w-0">
-        <Table
-          variant="data"
-          headers={headers}
-          sortConfig={{
-            activeKey: sortKey,
-            direction: sortDir,
-            keys: sortKeys,
-            onSort: handleRegSort,
-          }}
-          dataRows={filteredSortedRows.map(({ raw: r, displayName, partnerDisplay, status, cats }) => {
-            const { label: statusLabel, chipClass: statusChipClass } = statusMeta(status);
-
-            const baseCells: (string | ReactNode)[] = [
-              <Table.Cell key={`${r.id}-regnum`} type="technical-id">
-                {r.registrationNumber != null ? String(r.registrationNumber) : "—"}
-              </Table.Cell>,
-              <span key={`${r.id}-name`} title={r.id}>
-                {displayName}
-              </span>,
-              <span
-                key={`${r.id}-partner`}
-                title={partnerDisplay.hasMultiplePartners ? "Partner per category (multiple doubles)" : undefined}
-              >
-                <Table.Cell type="players" text={partnerDisplay.text || undefined} splitSemicolons />
-              </span>,
-              <Table.Cell key={`${r.id}-cats`} type="chips" items={cats.map((c) => ({ label: categoryLabelForId(categoriesById, c, locale), className: categoryChipClass(c), title: c }))} />,
-              <Table.Cell key={`${r.id}-status-group`} type="chips" items={[{ className: statusChipClass, label: statusLabel }]} />,
-            ];
-
-            if (showConsentAndEngraving) {
-              baseCells.push(
-                <Table.Cell key={`${r.id}-media`} type="icon-center">
-                  <span
-                    className="inline-flex"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={r.photoVideoConsent}
-                      readOnly
-                      aria-label={`Media consent for ${r.fullNameEn}`}
-                    />
-                  </span>
-                </Table.Cell>,
-                r.engraving?.trim() ? r.engraving : "—"
-              );
-            }
-
-            return baseCells;
-          })}
-          onRowClick={(_, rowIndex) => {
-            const row = filteredSortedRows[rowIndex];
-            if (row) setEditing(row.raw);
-          }}
-        />
-        <div className="mt-2 flex w-full justify-end">
-          <p className="m-0 text-sm tabular-nums text-[var(--color-text-secondary)]">
-            {adminReg.totalCount(filteredSortedRows.length)}
-          </p>
-        </div>
-      </div>
 
       {editing && (
         <Modal
@@ -489,6 +457,11 @@ export function RegistrationsTable({
             disabled: saving,
           }}
         >
+          {error && (
+            <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
+              {error}
+            </div>
+          )}
           <p className="text-sm leading-snug text-[var(--color-text-secondary)]">{adminReg.deleteModalBody}</p>
         </Modal>
       )}

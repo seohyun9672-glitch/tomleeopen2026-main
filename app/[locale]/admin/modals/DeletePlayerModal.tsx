@@ -9,9 +9,10 @@ type Props = {
   onClose: () => void;
   onConfirm: () => void;
   saving: boolean;
+  error?: string;
 };
 
-export function DeletePlayerModal({ player: _player, onClose, onConfirm, saving }: Props) {
+export function DeletePlayerModal({ player: _player, onClose, onConfirm, saving, error }: Props) {
   const { t } = useLocale();
   const ap = t.adminPlayers;
 
@@ -36,6 +37,11 @@ export function DeletePlayerModal({ player: _player, onClose, onConfirm, saving 
         disabled: saving,
       }}
     >
+      {error && (
+        <div className="mb-4 rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
+          {error}
+        </div>
+      )}
       <p className="text-sm leading-snug text-[var(--color-text-secondary)]">{ap.deleteWarning}</p>
     </Modal>
   );

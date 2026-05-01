@@ -3,7 +3,6 @@
 import type React from "react";
 import { Search } from "lucide-react";
 
-import { formInputMatchClass } from "@/app/components/ui/Field";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -45,7 +44,7 @@ export function SearchBox({
         aria-label={ariaLabel}
         autoComplete="off"
         className={cn(
-          formInputMatchClass,
+          "form-input-match",
           showLeadingIcon ? "form-control-input--with-leading-icon" : "",
           "min-w-0 transition-[border-color,box-shadow] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
         )}

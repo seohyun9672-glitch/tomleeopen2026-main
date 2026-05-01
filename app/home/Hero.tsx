@@ -21,7 +21,7 @@ export function Hero({ hero }: { hero: HeroContent }) {
 
   return (
     <section className="bg-hero-with-grid py-12">
-      <div className="page-shell grid items-center gap-[var(--content-gap)] lg:grid-cols-2">
+      <div className="page-shell grid items-center gap-[var(--content-gap)] md:grid-cols-2">
 
         <div className="flex flex-col gap-[var(--section-gap)]">
           <h1 className="text-title !text-[var(--color-text-on-brand)] uppercase">
@@ -41,8 +41,8 @@ export function Hero({ hero }: { hero: HeroContent }) {
           )}
         </div>
 
-        <div className="flex justify-center">
-          <img src="/tennis-ball.png" alt="Tennis ball" className="w-48 md:w-64 lg:w-80" />
+        <div className="flex h-52 items-center justify-center md:h-auto">
+          <img src="/tennis-ball.png" alt="Tennis ball" className="h-full w-auto md:h-auto md:w-70" />
         </div>
       </div>
     </section>

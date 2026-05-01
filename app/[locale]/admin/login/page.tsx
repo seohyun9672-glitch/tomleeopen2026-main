@@ -1,88 +1,25 @@
-"use client";
-
-import { useState } from "react";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import type { Locale } from "@/lib/content";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { PageContainer } from "@/app/components/PageContainer";
-import { Input } from "@/app/components/ui/Input";
-import { Label } from "@/app/components/ui/Label";
-import { Button } from "@/app/components/ui/Button";
-import { useLocale } from "@/lib/locale-context";
+import { AdminLoginForm } from "./AdminLoginForm";
 
-export const dynamic = "force-dynamic";
+type Props = { params: Promise<{ locale: string }> };
 
-export default function AdminLoginPage() {
-  const { status } = useSession();
-  const router = useRouter();
-  const { t, locale } = useLocale();
-  const al = t.adminLogin;
+export default async function AdminLoginPage({ params }: Props) {
+  const { locale: localeParam } = await params;
+  const locale: Locale = localeParam === "ko" ? "ko" : "en";
   const localePrefix = locale === "ko" ? "/ko" : "";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  if (status === "authenticated") {
-    router.push(`${localePrefix}/admin`);
-    return null;
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) {
-        setError(al.invalidCredentials);
-      } else {
-        router.push(`${localePrefix}/admin`);
-      }
-    } finally {
-      setLoading(false);
-    }
+  const session = await getServerSession(authOptions);
+  if (session?.user?.email) {
+    redirect(`${localePrefix}/admin`);
   }
 
   return (
     <PageContainer>
-      <div className="flex min-h-[60vh] flex-col items-center justify-center py-12">
-        <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-8">
-          <h1 className="text-h1 m-0 text-[var(--color-text-primary)]">{al.title}</h1>
-          {error ? (
-            <div className="rounded-lg bg-[var(--color-status-error-bg-subtle)] p-3 text-sm text-[var(--color-status-error-text-strong)]">
-              {error}
-            </div>
-          ) : null}
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="login-email">{t.shared.form.email}</Label>
-              <Input
-                id="login-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="login-password">{t.shared.form.password}</Label>
-              <Input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button variant="primary" type="submit" disabled={loading} className="w-full">
-            {loading ? t.shared.buttons.signingIn : t.shared.buttons.signIn}
-          </Button>
-        </form>
-      </div>
+      <AdminLoginForm />
     </PageContainer>
   );
 }

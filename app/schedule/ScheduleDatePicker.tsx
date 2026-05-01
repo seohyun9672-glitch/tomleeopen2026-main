@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFilterFieldId } from "@/app/components/Filter";
 import { useLocale } from "@/lib/locale-context";
-import { formInputMatchClass } from "@/app/components/ui/Field";
 
 type Props = {
   value: string;
@@ -112,7 +111,7 @@ export function ScheduleDatePicker({ value, onChange, datesWithMatches, schedule
           }
           setPickerOpen((o) => !o);
         }}
-        className={`${formInputMatchClass} form-control-input--with-leading-icon w-full min-w-0 text-left md:!w-fit`}
+        className="form-input-match form-control-input--with-leading-icon w-full min-w-0 text-left md:!w-fit"
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
         aria-label={t.schedulePage.chooseDateAria}

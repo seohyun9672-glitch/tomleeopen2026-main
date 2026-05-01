@@ -2,22 +2,30 @@ import type { CategoryRecord } from "@/lib/category/categories";
 
 // ─── Status chips ─────────────────────────────────────────────────────────────
 
-export type RegistrationStatus = "Pending" | "Confirmed" | "Cancelled" | "Refund Requested" | "Refunded";
+export type RegistrationStatus = "Pending" | "Confirmed" | "Refund Requested" | "Refunded";
 
-const REGISTRATION_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
-  pending:   { en: "Pending",   ko: "대기" },
-  confirmed: { en: "Confirmed", ko: "확정" },
-  cancelled: { en: "Cancelled", ko: "취소" },
-  refunded:  { en: "Refunded",  ko: "환불" },
+export const REGISTRATION_STATUSES: RegistrationStatus[] = [
+  "Pending",
+  "Confirmed",
+  "Refund Requested",
+  "Refunded",
+];
+
+export type RegistrationStatusKey = "pending" | "confirmed" | "refund-requested" | "refunded";
+
+const REGISTRATION_STATUS_LABELS: Record<RegistrationStatusKey, { en: string; ko: string }> = {
+  pending:            { en: "Pending",          ko: "대기" },
+  confirmed:          { en: "Confirmed",        ko: "확정" },
+  "refund-requested": { en: "Refund Requested", ko: "환불 요청" },
+  refunded:           { en: "Refunded",         ko: "환불 완료" },
 };
-
-export type RegistrationStatusKey = "pending" | "confirmed" | "cancelled" | "refunded";
 
 export function registrationStatusKey(status: string): RegistrationStatusKey {
   const s = status.trim().toLowerCase();
   if (s === "confirmed") return "confirmed";
-  if (s === "cancelled") return "cancelled";
-  if (s === "refunded" || s.includes("refund")) return "refunded";
+  if (s === "refunded") return "refunded";
+  if (s === "cancelled") return "refunded"; // legacy: map old cancelled → refunded
+  if (s.includes("refund")) return "refund-requested";
   return "pending";
 }
 

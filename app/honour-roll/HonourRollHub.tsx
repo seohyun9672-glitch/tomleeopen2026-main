@@ -141,7 +141,6 @@ export function HonourRollHub({
           value={categoryId}
           options={categoryOptions}
           onChange={setCategoryId}
-          control="stretch"
         />
       </FilterGroup>
 

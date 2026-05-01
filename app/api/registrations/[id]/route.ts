@@ -100,7 +100,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       : [];
 
     const nextNotes = body.notes !== undefined ? (body.notes?.trim() || null) : undefined;
-    const VALID_STATUSES = ["Pending", "Confirmed", "Cancelled", "Refund Requested"] as const;
+    const VALID_STATUSES = ["Pending", "Confirmed", "Refund Requested", "Refunded"] as const;
     let statusToSet: string | undefined;
     if (typeof body.status === "string" && VALID_STATUSES.includes(body.status as typeof VALID_STATUSES[number])) {
       statusToSet = body.status;
@@ -201,7 +201,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           ...(body.photoVideoConsent !== undefined && { photoVideoConsent: Boolean(body.photoVideoConsent) }),
           ...(body.engraving !== undefined && { engraving: body.engraving?.trim() || null }),
           ...(nextNotes !== undefined && { notes: nextNotes }),
-          ...(statusToSet !== undefined && { status: statusToSet }),
         },
       });
     }
