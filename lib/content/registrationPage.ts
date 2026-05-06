@@ -10,6 +10,10 @@ export const registrationPage = {
       heroTitle: "Registration",
       ctaSectionTitle: "Ready to register?",
       ctaSubmitLabel: "Register",
+      notYetOpenTitle: "Registration is not yet open",
+      notYetOpenMessage: "Registration opens {date}.",
+      closedTitle: "Registration has closed",
+      closedMessage: "The registration period ({period}) has ended.",
     },
     registrationDetail: {
       title: "Registration detail",
@@ -42,6 +46,10 @@ export const registrationPage = {
       heroTitle: "참가 등록",
       ctaSectionTitle: "등록할 준비가 되셨나요?",
       ctaSubmitLabel: "등록하기",
+      notYetOpenTitle: "아직 등록 기간이 아닙니다",
+      notYetOpenMessage: "등록은 {date}부터 시작됩니다.",
+      closedTitle: "등록이 마감되었습니다",
+      closedMessage: "등록 기간({period})이 종료되었습니다.",
     },
     registrationDetail: {
       title: "등록 안내",

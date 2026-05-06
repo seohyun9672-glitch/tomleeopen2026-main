@@ -138,14 +138,14 @@ export default async function OverviewPage({ params }: Props) {
           </ul>
         </Section>
 
-        <Section title={prizes.title}>
+        {/* <Section title={prizes.title}>
           <Table
             variant="data"
             headers={prizes.tableHeaders}
             dataRows={prizes.tableRows.map((r) => [r.type, r.bracket, r.first, r.second, r.third, r.fourth])}
             rowGroupBreakBefore={(rowIndex) => prizesRowGroupBreak(rowIndex, prizes.tableRows)}
           />
-        </Section>
+        </Section> */}
       </div>
     </PageContainer>
   );

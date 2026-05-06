@@ -1,8 +1,10 @@
 "use client";
 
+import { useRef, useState, useMemo } from "react";
 import { useLocale } from "@/lib/locale-context";
 import { categoriesConfirmedForYear, type CategoryYearListItem } from "@/lib/category/categories";
 import { Filter, type FilterControlKind } from "./Filter";
+import { Popover, usePopoverPlacement, useDismissOnOutsidePointerDown } from "./ui/Popover";
 import type { ReactNode } from "react";
 
 // ─── Filter utilities ─────────────────────────────────────────────────────────
@@ -172,29 +174,79 @@ export function SeedFilter({ id, value, options, onChange, control = "round", al
 
 // ─── Club ─────────────────────────────────────────────────────────────────────
 
+const CLUB_DROPDOWN_MAX_PX = 208;
+const CHEVRON_BG = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2318181b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E\")";
+
 type ClubFilterProps = {
   id: string;
-  value: string;
+  selected: string[];
   options: string[];
-  onChange: (value: string) => void;
-  /** When provided, an "all clubs" option is rendered at the top with this text. */
-  allLabel?: string;
+  onChange: (values: string[]) => void;
+  placeholder?: string;
 };
 
-export function ClubFilter({ id, value, options, onChange, allLabel }: ClubFilterProps) {
+export function ClubFilter({ id, selected, options, onChange, placeholder }: ClubFilterProps) {
   const { t } = useLocale();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const placement = usePopoverPlacement(open, triggerRef, CLUB_DROPDOWN_MAX_PX);
+  useDismissOnOutsidePointerDown(open, containerRef, () => setOpen(false));
+
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+
+  const toggle = (club: string) =>
+    onChange(selectedSet.has(club) ? selected.filter((c) => c !== club) : [...selected, club]);
+
+  const label =
+    selected.length === 0
+      ? (placeholder ?? t.shared.labels.allClubs)
+      : selected.length === 1
+      ? selected[0]!
+      : `${selected.length} ${t.shared.labels.club.toLowerCase()}`;
+
   return (
     <Filter control="club" htmlFor={id} label={t.shared.labels.club}>
-      <Filter.Select
-        id={id}
-        value={value}
-        onChange={(e) => { onChange(e.currentTarget.value); e.currentTarget.blur(); }}
-      >
-        {allLabel !== undefined && <option value="">{allLabel || t.shared.labels.allClubs}</option>}
-        {options.map((club) => (
-          <option key={club} value={club}>{club}</option>
-        ))}
-      </Filter.Select>
+      <div ref={containerRef} className="relative w-fit min-w-0">
+        <button
+          ref={triggerRef}
+          id={id}
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="form-control-input form-control-select form-control-button-match text-left"
+          style={{ backgroundImage: CHEVRON_BG }}
+        >
+          <span className={selected.length === 0 ? "text-[var(--color-text-tertiary)]" : ""}>
+            {label}
+          </span>
+        </button>
+        {open && (
+          <Popover placement={placement} maxHeightClass="max-h-52">
+            <ul role="listbox" aria-multiselectable="true">
+              {options.map((club) => {
+                const checked = selectedSet.has(club);
+                return (
+                  <li key={club} role="option" aria-selected={checked}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => toggle(club)}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-[var(--color-surface-muted)] ${checked ? "bg-[var(--color-surface-strong)]" : ""}`}
+                    >
+                      <span className="inline-flex w-full items-center justify-between gap-2">
+                        <span>{club}</span>
+                        {checked ? <span aria-hidden>✓</span> : null}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </Popover>
+        )}
+      </div>
     </Filter>
   );
 }

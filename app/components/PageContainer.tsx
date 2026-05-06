@@ -29,10 +29,12 @@ export type PageContainerProps = {
   title?: string;
   actions?: ReactNode;
   beforeTitle?: ReactNode;
+  /** Tailwind max-width class (e.g. "max-w-[700px]") applied to both the hero and children. */
+  contentMaxWidth?: string;
 };
 
 /** Max-width container with page padding. Optional page title row via `title` / `actions`. */
-export function PageContainer({ children, title, actions, beforeTitle }: PageContainerProps) {
+export function PageContainer({ children, title, actions, beforeTitle, contentMaxWidth }: PageContainerProps) {
   const { t } = useLocale();
   const pathname = usePathname();
 
@@ -40,13 +42,23 @@ export function PageContainer({ children, title, actions, beforeTitle }: PageCon
   const cleanPath = pathname === "/ko" ? "/" : pathname.startsWith("/ko/") ? pathname.slice(3) : pathname;
   const resolvedTitle = PATH_TITLES[cleanPath]?.(t) ?? title;
 
-  return (
-    <div className={shellClassName}>
+  const inner = (
+    <>
       {beforeTitle != null ? (
         <div className={resolvedTitle != null ? "mb-[var(--content-gap)]" : undefined}>{beforeTitle}</div>
       ) : null}
       {resolvedTitle != null ? <PageHero title={resolvedTitle} actions={actions} /> : null}
       {children}
+    </>
+  );
+
+  return (
+    <div className={shellClassName}>
+      {contentMaxWidth ? (
+        <div className={`mx-auto w-full ${contentMaxWidth}`}>{inner}</div>
+      ) : (
+        inner
+      )}
     </div>
   );
 }

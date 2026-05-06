@@ -48,7 +48,7 @@ export function TableLayout({
   return (
     <div className={cn("flex w-full flex-col gap-[var(--content-gap)]", className)}>
       {hasHeader && (
-        <div className="flex min-w-0 items-end gap-2">
+        <div className="flex min-w-0 w-full items-end justify-end gap-2">
           {(filters != null || searchBar != null) && (
             <div className="flex min-w-0 flex-1 flex-wrap items-end gap-[var(--content-gap)]">
               {filters}

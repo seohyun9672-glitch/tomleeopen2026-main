@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Label } from "./ui/Label";
+import { MultiSelect, type MultiSelectOption } from "./ui/MultiSelect";
 
 const FilterHtmlForContext = createContext<string | undefined>(undefined);
 
@@ -88,6 +89,29 @@ function FilterDate({ className, id, ...props }: Omit<ComponentProps<"input">, "
 }
 FilterDate.displayName = "Filter.Date";
 
+type FilterMultiSelectProps = {
+  id?: string;
+  selected: readonly MultiSelectOption[];
+  available: readonly MultiSelectOption[];
+  onChange: (ids: string[]) => void;
+  placeholder: string;
+};
+
+function FilterMultiSelect({ id, selected, available, onChange, placeholder }: FilterMultiSelectProps) {
+  const htmlFor = useFilterFieldId();
+  return (
+    <MultiSelect
+      id={id ?? htmlFor ?? ""}
+      selected={selected}
+      available={available}
+      onChange={onChange}
+      placeholder={placeholder}
+      searchable={false}
+    />
+  );
+}
+FilterMultiSelect.displayName = "Filter.MultiSelect";
+
 function FilterRoot({ htmlFor, label, children, className, control = "default" }: FilterProps) {
   return (
     <FilterHtmlForContext.Provider value={htmlFor}>
@@ -103,4 +127,5 @@ FilterRoot.displayName = "Filter";
 export const Filter = Object.assign(FilterRoot, {
   Select: FilterSelect,
   Date: FilterDate,
+  MultiSelect: FilterMultiSelect,
 });

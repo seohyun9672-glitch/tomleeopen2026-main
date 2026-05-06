@@ -60,7 +60,7 @@ export function LessonsSection({ title, coachesItems, content }: LessonsSectionP
               image={coach.image ? (coach.image.startsWith("http") || coach.image.startsWith("/") ? coach.image : `/${coach.image}`) : null}
               imageAlt={displayName}
               label={formatRoleLabel(content.shared.labels.coach)}
-              labelClassName="uppercase text-[var(--color-primary-blue)] font-[family-name:var(--font-heading)] text-[length:var(--text-h3-display-size)] leading-tight"
+              labelClassName="uppercase text-[var(--color-primary-blue)] leading-tight"
               cta={
                 telDigits
                   ? { label: content.shared.buttons.contact, href: `tel:${telDigits}` }

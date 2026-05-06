@@ -90,7 +90,7 @@ export function Card({
           {(label || title) && (
             <div className="flex flex-row items-center gap-2 min-w-0">
               {label && (
-                <span className={joinClasses("shrink-0", labelClassName)}>{label}</span>
+                <h3 className={joinClasses("shrink-0", labelClassName)}>{label}</h3>
               )}
               {title && titleTag === "h3" ? (
                 <h3 className={joinClasses("m-0 min-w-0 truncate", titleClassName ?? "text-[var(--foreground-on-light)]")}>

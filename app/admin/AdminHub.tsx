@@ -3,7 +3,7 @@
 import { useMemo, useCallback, useState, useRef, type ComponentProps } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { useTabParam } from "@/lib/hooks/useTabParam";
-import { YearFilter, CategoryFilter, RoundFilter, GroupFilter, StatusFilter, ClubFilter } from "@/app/components/FilterControls";
+import { YearFilter, CategoryFilter, RoundFilter, GroupFilter, StatusFilter } from "@/app/components/FilterControls";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import { TableLayout } from "@/app/components/layout/TableLayout";
 import {
@@ -73,7 +73,7 @@ export function AdminHub({
   ];
   type AdminView = (typeof viewTabs)[number]["value"];
 
-  const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "club", "group"]);
+  const [view, setView] = useTabParam(viewTabs, ["cat", "status", "round", "group"]);
 
   const [yearParamStr, setYearParam] = useUrlParam("year");
   const yearParamNum = Number(yearParamStr);
@@ -91,7 +91,6 @@ export function AdminHub({
   const [rawCatParam, setCatFilter] = useUrlParam("cat");
   const [rawRoundParam, setRoundFilter] = useUrlParam("round");
   const [rawGroupParam, setGroupFilter] = useUrlParam("group");
-  const [rawClubParam, setClubFilter] = useUrlParam("club");
   const [playersSearch, setPlayersSearch] = useState("");
 
   const [rawStatusParam, setStatusParam] = useUrlParam("status");
@@ -177,14 +176,6 @@ export function AdminHub({
   const matchesCategoryFilter = view === "matches" && matchesCategoryOptions.some(o => o.id === rawCatParam) ? rawCatParam : "";
   const matchesRoundFilter = view === "matches" && matchesRoundOptions.some(o => o.value === rawRoundParam) ? rawRoundParam : "";
   const matchesGroupFilter = view === "matches" && matchesRoundFilter && matchesGroupOptions.some(o => o.value === rawGroupParam) ? rawGroupParam : "";
-  const playersClubFilter = view === "players" ? rawClubParam : "";
-
-  const playersClubOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of players) for (const c of p.clubs) set.add(c);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "en"));
-  }, [players]);
-
   const showRegCategoryFilter = registrationCategoryOptions.length > 1;
   const showMatchesCategoryFilter = matchesCategoryOptions.length > 1;
   const showMatchesRoundFilter = matchesRoundOptions.length > 1;
@@ -318,15 +309,6 @@ export function AdminHub({
         {view === "players" && (
           <>
             <TableLayout
-              filters={
-                <ClubFilter
-                  id="admin-players-club"
-                  value={playersClubFilter}
-                  options={playersClubOptions}
-                  onChange={setClubFilter}
-                  allLabel={t.shared.labels.allClubs}
-                />
-              }
               searchBar={
                 <div className="min-w-0 flex-1 basis-0 max-w-xs">
                   <SearchBox
@@ -348,7 +330,6 @@ export function AdminHub({
                 enableAdminEditor
                 emptyNoRowsText="No players in the database yet."
                 emptyNoMatchText={t.adminPlayers.noSearchResults}
-                clubFilter={playersClubFilter}
                 search={playersSearch}
                 onSearchChange={setPlayersSearch}
                 onCountChange={setPlayersCount}

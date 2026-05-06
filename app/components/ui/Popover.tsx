@@ -78,7 +78,7 @@ export function Popover({
 }) {
   return (
     <div
-      className={`absolute left-0 right-0 z-20 w-full overflow-auto rounded-lg border py-1 shadow-lg [border-color:var(--input-border)] [background-color:var(--input-bg)] ${maxHeightClass} ${
+      className={`absolute left-0 right-0 z-[200] w-full overflow-auto rounded-lg border py-1 shadow-lg [border-color:var(--input-border)] [background-color:var(--input-bg)] ${maxHeightClass} ${
         placement === "below" ? "top-full mt-1" : "bottom-full mb-1"
       } ${className}`.trim()}
     >

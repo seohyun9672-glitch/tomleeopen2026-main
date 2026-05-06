@@ -36,7 +36,7 @@ export function ScheduleSection({ hp, todayMatches, scheduleHref }: ScheduleSect
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-col gap-[var(--content-gap)] md:gap-[var(--section-gap)]">
+          <div className="flex min-w-0 w-full flex-1 flex-col gap-[var(--content-gap)]">
             <h2>{hp.sectionTitles.todaysMatches}</h2>
             <div className={INNER_CARD}>
               {todayMatches.length === 0 ? (

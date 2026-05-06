@@ -7,6 +7,7 @@ import { Table } from "@/app/components/ui/table/Table";
 import { useLocale } from "@/lib/locale-context";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import { clubChipClass } from "@/lib/clubs";
+// import { ClubFilter } from "@/app/components/FilterControls";
 import { DeletePlayerModal } from "@/app/[locale]/admin/modals/DeletePlayerModal";
 import { PlayerModal } from "@/app/[locale]/admin/modals/PlayerModal";
 
@@ -27,7 +28,6 @@ export type PlayersTableProps = {
   enableAdminEditor?: boolean;
   emptyNoRowsText: string;
   emptyNoMatchText: string;
-  clubFilter?: string;
   search?: string;
   onSearchChange?: (value: string) => void;
   onCountChange?: (n: number) => void;
@@ -231,7 +231,6 @@ export function PlayersTable({
   enableAdminEditor = false,
   emptyNoRowsText,
   emptyNoMatchText,
-  clubFilter: clubFilterProp,
   search: searchProp,
   onSearchChange,
   onCountChange,
@@ -239,19 +238,31 @@ export function PlayersTable({
   const router = useRouter();
   const { t, locale } = useLocale();
   const [search, setSearch] = useState("");
+  const [clubFilters, setClubFilters] = useState<string[]>([]);
   const [editing, setEditing] = useState<PlayerTableRow | null>(null);
   const [deleting, setDeleting] = useState<PlayerTableRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const adminEditorEnabled = mode === "admin" && enableAdminEditor;
 
+  const availableClubs = useMemo(() => {
+    const seen = new Set<string>();
+    const clubs: string[] = [];
+    for (const row of rows) {
+      for (const c of row.clubs) {
+        if (!seen.has(c)) { seen.add(c); clubs.push(c); }
+      }
+    }
+    return clubs.sort();
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     const q = searchProp ?? search;
     let list = rows.filter((r) => rowMatchesSearch(r, q, mode));
-    if (clubFilterProp)
-      list = list.filter((r) => r.clubs.includes(clubFilterProp));
+    if (clubFilters.length > 0)
+      list = list.filter((r) => clubFilters.some((c) => r.clubs.includes(c)));
     return list;
-  }, [rows, searchProp, search, mode, clubFilterProp]);
+  }, [rows, searchProp, search, mode, clubFilters]);
 
   useEffect(() => {
     onCountChange?.(filteredRows.length);
@@ -282,17 +293,28 @@ export function PlayersTable({
   return (
     <div className="space-y-[var(--content-gap)]">
 
-      {!onSearchChange ? (
-        <div className="min-w-0 max-w-xs">
-          <SearchBox
-            id="players-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            ariaLabel={t.shared.labels.search}
-            className="w-full"
+      <div className="flex min-w-0 flex-wrap items-end gap-[var(--content-gap)]">
+        {/* {availableClubs.length > 0 && (
+          <ClubFilter
+            id="players-club-filter"
+            selected={clubFilters}
+            options={availableClubs}
+            onChange={setClubFilters}
           />
-        </div>
-      ) : null}
+        )} */}
+        {!onSearchChange && (
+          <div className="min-w-0 max-w-xs flex-1">
+            <SearchBox
+              id="players-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              ariaLabel={t.shared.labels.search}
+              className="w-full"
+            />
+          </div>
+        )}
+      </div>
+
 
       {filteredRows.length === 0 ? (
         <div className="text-center text-[var(--color-text-tertiary)]">
