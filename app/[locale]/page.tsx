@@ -39,7 +39,7 @@ export default async function Home({ params }: Props) {
 
   return (
     <>
-      <Hero hero={hp.hero} />
+      <Hero hero={hp.hero} locale={locale} />
       <FadeIn>
         <ScheduleSection hp={hp} todayMatches={todayMatches} scheduleHref={scheduleHref} />
       </FadeIn>

@@ -500,26 +500,14 @@
   --font-korean: "Paperlogy", sans-serif;
 
   /* Typography scale tokens */
-  --text-title-font: var(--font-heading);
-  --text-title-weight: 400;
-  --text-title-size: clamp(3.5rem, 13vw, 6rem);
-  --text-title-letter-spacing: 0;
-  --text-title-line-height: 1;
-
-  --text-subtitle-font: var(--font-heading);
-  --text-subtitle-weight: 400;
-  --text-subtitle-size: clamp(1.625rem, 1.25rem + 2vw, 2.5rem);
-  --text-subtitle-letter-spacing: 0;
-  --text-subtitle-line-height: 1.05;
-
   --text-h1-font: var(--font-heading);
-  --text-h1-weight: 400;
+  --text-h1-weight: 600;
   --text-h1-size: clamp(1.375rem, 1.1rem + 1.4vw, 2rem);
   --text-h1-letter-spacing: 0;
   --text-h1-line-height: 1.05;
 
   --text-h2-font: var(--font-heading);
-  --text-h2-weight: 400;
+  --text-h2-weight: 600;
   --text-h2-size: clamp(1.125rem, 0.95rem + 0.85vw, 1.5rem);
   --text-h2-letter-spacing: 0;
   --text-h2-line-height: 1.1;
@@ -543,7 +531,7 @@
   --radius-heading-accent: 12px;
   --radius-heading-accent-sm: 8px;
   --radius-badge: 6px;
-  --calendar-card-padding: var(--section-gap);
+  --calendar-card-padding: var(--content-gap);
 }
 
 /* ============================================================
@@ -554,11 +542,25 @@
 
 html[lang="ko"] {
   --font-heading: "Paperlogy", sans-serif;
+  --text-title-weight: 600;
+  --text-h1-weight: 800;
+  --text-h2-weight: 800;
+  --text-h3-weight: 400;
 }
 
 /* ============================================================
    TAILWIND THEME MAPPING
    ============================================================ */
+
+@theme {
+  /* Breakpoints — xs is custom; sm/md/lg/xl/2xl mirror Tailwind v4 defaults */
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -582,7 +584,6 @@ html[lang="ko"] {
 
 @media (min-width: 768px) {
   :root {
-    --text-title-size: clamp(5.5rem, 14vw, 7.5rem);
     --table-cell-py: var(--content-gap);
     --table-cell-px: var(--content-gap);
     --table-radius: 0.5rem;
@@ -601,7 +602,6 @@ html[lang="ko"] {
 
 @media (min-width: 1024px) {
   :root {
-    --text-title-size: 7.5rem;
     --calendar-card-padding: var(--section-gap);
     --button-font-size: 1rem;
     --button-height-large: 3rem;
@@ -678,7 +678,7 @@ html[lang="ko"] {
   h3,
   h4 {
     font-family: var(--font-heading), "Paperlogy", sans-serif;
-    font-weight: 400;
+    font-weight: var(--text-h2-weight);
     letter-spacing: 0;
     color: var(--text-heading);
     margin: 0;
@@ -723,31 +723,42 @@ html[lang="ko"] {
   p {
     color: var(--text-default);
   }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  select {
+    box-sizing: border-box;
+    height: var(--button-height-medium);
+  }
 }
 
 /* ============================================================
    SEMANTIC TYPOGRAPHY UTILITY CLASSES
    ============================================================ */
 
-.text-title {
+.hero-title {
   font-family: var(--font-heading), "Paperlogy", sans-serif;
   font-weight: 400;
-  font-size: var(--text-title-size);
+  font-size: clamp(4.5rem, 16vw, 10rem);
   letter-spacing: 0;
   line-height: 1;
+  color: white;
+  white-space: nowrap;
+  text-transform: uppercase;
 }
 
-.text-subtitle {
+.hero-subtitle {
   font-family: var(--font-heading), "Paperlogy", sans-serif;
   font-weight: 400;
-  font-size: var(--text-subtitle-size);
+  font-size: clamp(1.625rem, 1.25rem + 2vw, 2.5rem);
   letter-spacing: 0;
   line-height: 1.05;
+  color: white;
+  white-space: nowrap;
 }
 
 .text-h1 {
   font-family: var(--font-heading), "Paperlogy", sans-serif;
-  font-weight: 400;
+  font-weight: var(--text-h1-weight);
   font-size: var(--text-h1-size);
   letter-spacing: 0;
   line-height: 1.05;
@@ -755,7 +766,7 @@ html[lang="ko"] {
 
 .text-h2 {
   font-family: var(--font-heading), "Paperlogy", sans-serif;
-  font-weight: 400;
+  font-weight: var(--text-h2-weight);
   font-size: var(--text-h2-size);
   letter-spacing: 0;
   line-height: 1.1;
@@ -763,7 +774,7 @@ html[lang="ko"] {
 
 .text-h3 {
   font-family: var(--font-heading), "Paperlogy", sans-serif;
-  font-weight: 400;
+  font-weight: var(--text-h3-weight);
   font-size: var(--text-h3-display-size);
   letter-spacing: 0;
   line-height: 1.1;
@@ -952,6 +963,7 @@ button:disabled {
     animation: none;
   }
 }
+
 
 a:hover .card-elev--interactive,
 a:focus-visible .card-elev--interactive {
@@ -1281,10 +1293,12 @@ a:focus-visible .card-elev--interactive {
 
 .form-control-input {
   width: 100%;
+  height: var(--button-height-medium);
   border-radius: 0.5rem;
   border: 1px solid var(--input-border);
-  padding: 0.75rem 1rem;
+  padding: 0 1rem;
   font-size: 0.875rem;
+  line-height: 1.2;
   outline: none;
   background-color: var(--input-bg);
   color: var(--input-text);
@@ -1319,10 +1333,12 @@ a:focus-visible .card-elev--interactive {
 /* Single-class alternative to form-control-input + form-control-button-match */
 .form-input-match {
   width: 100%;
+  height: var(--button-height-medium);
   border-radius: 0.5rem;
   border: 1px solid var(--input-border);
-  padding: 0.75rem 1rem;
+  padding: .5rem 0.75rem;
   font-size: 0.875rem;
+  line-height: 1.2;
   outline: none;
   background-color: var(--input-bg);
   color: var(--input-text);
