@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { NavDropdown, NavDropdownItem } from "@/app/components/topheader/NavDropdown";
+import { NavDropdown } from "@/app/components/topheader/NavDropdown";
 
 type Props = {
   locale: "en" | "ko";
@@ -23,14 +23,6 @@ function ChevronIcon({ open }: { open: boolean }) {
       aria-hidden
     >
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   );
 }
@@ -67,11 +59,6 @@ export function LocaleSelector({
 
   const currentLabel = locale === "en" ? enLabel : koLabel;
 
-  const options: { value: "en" | "ko"; label: string }[] = [
-    { value: "en", label: enLabel },
-    { value: "ko", label: koLabel },
-  ];
-
   return (
     <div className={`relative shrink-0 ${className}`}>
       <button
@@ -90,25 +77,15 @@ export function LocaleSelector({
       {open && typeof document !== "undefined" &&
         createPortal(
           <NavDropdown
+            items={[
+              { key: "en", label: enLabel, isActive: locale === "en", onClick: () => { onChange("en"); setOpen(false); } },
+              { key: "ko", label: koLabel, isActive: locale === "ko", onClick: () => { onChange("ko"); setOpen(false); } },
+            ]}
             dropdownRef={dropdownRef}
             top={pos.top}
             left={pos.left}
             minWidth={144}
-          >
-            {options.map((opt) => (
-              <NavDropdownItem
-                key={opt.value}
-                isActive={locale === opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-              >
-                <span className="flex-1">{opt.label}</span>
-                {locale === opt.value && <CheckIcon />}
-              </NavDropdownItem>
-            ))}
-          </NavDropdown>,
+          />,
           document.body,
         )}
     </div>

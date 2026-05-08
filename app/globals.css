@@ -470,7 +470,10 @@
   --container-max-w: 1280px;
   --page-inline-padding: var(--content-gap);
 
-  /* Filter bar widths */
+  /* Filter / search box max-width — used by both Filter and SearchBox */
+  --filter-control-max-w: 16rem;
+
+  /* Filter bar widths (legacy — kept for reference) */
   --filter-width-year: 7.5rem;
   --filter-width-round: 10rem;
   --filter-width-category: 16rem;

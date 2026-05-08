@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import type { MediaRecord, PhotoGalleryGroup } from "@/lib/media";
 import type { CategoryRecord } from "@/lib/category/categories";
@@ -339,25 +339,27 @@ export function MediaHub({
           (() => {
             const { sections, orphans } = partitionMediaByYear(displayItems);
             return (
-              <div className="flex flex-col gap-[var(--grid-gap-md)]">
-                {sections.map(({ year, items }) => (
-                  <section
-                    key={year}
-                    aria-labelledby={`media-photos-year-${year}`}
-                    className="h3-card-stack"
-                  >
-                    <h2
-                      id={`media-photos-year-${year}`}
-                      className="text-h2 m-0 text-[var(--color-text-primary)]"
+              <div className="flex flex-col gap-[var(--layout-gap)]">
+                {sections.map(({ year, items }, index) => (
+                  <Fragment key={year}>
+                    {index > 0 && <hr className="border-t border-[color:var(--color-border-ui)] m-0" />}
+                    <section
+                      aria-labelledby={`media-photos-year-${year}`}
+                      className="h3-card-stack"
                     >
-                      {t.mediaPage.finalYearSectionTitle(year)}
-                    </h2>
-                    <ul className={photoGridClass}>
-                      {items.map((item) => (
-                        <li key={item.id}>{renderItemCard(item)}</li>
-                      ))}
-                    </ul>
-                  </section>
+                      <h2
+                        id={`media-photos-year-${year}`}
+                        className="text-h2 m-0 text-[var(--color-text-primary)]"
+                      >
+                        {t.mediaPage.finalYearSectionTitle(year)}
+                      </h2>
+                      <ul className={photoGridClass}>
+                        {items.map((item) => (
+                          <li key={item.id}>{renderItemCard(item)}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  </Fragment>
                 ))}
                 {orphans.length > 0 ? (
                   <ul className={photoGridClass}>
@@ -387,8 +389,8 @@ export function MediaHub({
               highlight != null ? (highlight.tournamentYear ?? 2025) : null;
 
             return (
-              <div className="flex flex-col gap-[var(--grid-gap-md)]">
-                {sections.map(({ year, items }) => {
+              <div className="flex flex-col gap-[var(--layout-gap)]">
+                {sections.map(({ year, items }, index) => {
                   const showFeatured =
                     highlight != null &&
                     highlightEffectiveYear === year &&
@@ -406,63 +408,60 @@ export function MediaHub({
                     : items;
 
                   return (
-                    <div
-                      key={year}
-                      className="flex flex-col gap-[var(--grid-gap)] md:gap-[var(--grid-gap-md)]"
-                    >
-                      {showFeatured ? (
-                        <div className="overflow-hidden rounded-xl border border-[color:var(--color-border-ui)] bg-[var(--color-surface-card)] p-[var(--content-gap)] shadow-md md:p-[var(--section-gap)]">
-                          <div
-                            className={`grid grid-cols-1 gap-[var(--grid-gap)] sm:gap-[var(--grid-gap-md)] ${highlightYoutubeId ? "sm:grid-cols-2 sm:items-center" : ""}`}
-                          >
-                            {highlightYoutubeId ? (
-                              <div className="min-w-0">
-                                <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-[var(--color-surface-strong)]">
-                                  <iframe
-                                    className="absolute inset-0 h-full w-full border-0"
-                                    src={`https://www.youtube.com/embed/${highlightYoutubeId}?rel=0`}
-                                    title={highlightTitle}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowFullScreen
-                                  />
-                                </div>
-                              </div>
-                            ) : null}
+                    <Fragment key={year}>
+                      {index > 0 && <hr className="border-t border-[color:var(--color-border-ui)] m-0" />}
+                      <div className="flex flex-col gap-[var(--grid-gap)] md:gap-[var(--grid-gap-md)]">
+                        {showFeatured ? (
+                          <div className="overflow-hidden rounded-xl border border-[color:var(--color-border-ui)] bg-[var(--color-surface-card)] p-[var(--content-gap)] shadow-md md:p-[var(--section-gap)]">
                             <div
-                              className={`flex min-w-0 flex-col justify-center gap-[var(--element-gap)] ${highlightYoutubeId ? "" : "max-w-2xl"}`}
+                              className={`grid grid-cols-1 gap-[var(--grid-gap)] sm:gap-[var(--grid-gap-md)] ${highlightYoutubeId ? "sm:grid-cols-2 sm:items-center" : ""}`}
                             >
-                        
-
-                              <h2 className="text-h2 m-0 text-[var(--color-text-primary)]">
-                                {highlightTitle}
-                              </h2>
-                              <p className="text-body m-0 text-[var(--text-secondary)]">
-                                {t.mediaPage.featuredVideoDescription}
-                              </p>
+                              {highlightYoutubeId ? (
+                                <div className="min-w-0">
+                                  <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-[var(--color-surface-strong)]">
+                                    <iframe
+                                      className="absolute inset-0 h-full w-full border-0"
+                                      src={`https://www.youtube.com/embed/${highlightYoutubeId}?rel=0`}
+                                      title={highlightTitle}
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                </div>
+                              ) : null}
+                              <div
+                                className={`flex min-w-0 flex-col justify-center gap-[var(--element-gap)] ${highlightYoutubeId ? "" : "max-w-2xl"}`}
+                              >
+                                <h2 className="text-h2 m-0 text-[var(--color-text-primary)]">
+                                  {highlightTitle}
+                                </h2>
+                                <p className="text-body m-0 text-[var(--text-secondary)]">
+                                  {t.mediaPage.featuredVideoDescription}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : null}
-                      {gridItems.length > 0 ? (
-                        <section
-                          aria-labelledby={`media-videos-year-${year}`}
-                          className="h3-card-stack"
-                        >
-                          
-                          <h2
-                            id={`media-videos-year-${year}`}
-                            className="text-h2 m-0 text-[var(--color-text-primary)]"
+                        ) : null}
+                        {gridItems.length > 0 ? (
+                          <section
+                            aria-labelledby={`media-videos-year-${year}`}
+                            className="h3-card-stack"
                           >
-                            {t.mediaPage.finalYearSectionTitle(year)}
-                          </h2>
-                          <ul className={photoGridClass}>
-                            {gridItems.map((item) => (
-                              <li key={item.id}>{renderItemCard(item)}</li>
-                            ))}
-                          </ul>
-                        </section>
-                      ) : null}
-                    </div>
+                            <h2
+                              id={`media-videos-year-${year}`}
+                              className="text-h2 m-0 text-[var(--color-text-primary)]"
+                            >
+                              {t.mediaPage.finalYearSectionTitle(year)}
+                            </h2>
+                            <ul className={photoGridClass}>
+                              {gridItems.map((item) => (
+                                <li key={item.id}>{renderItemCard(item)}</li>
+                              ))}
+                            </ul>
+                          </section>
+                        ) : null}
+                      </div>
+                    </Fragment>
                   );
                 })}
                 {orphans.length > 0 ? (

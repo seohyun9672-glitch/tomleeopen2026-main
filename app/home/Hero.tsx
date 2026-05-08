@@ -19,7 +19,7 @@ function splitHeroTitle(title: string) {
 }
 
 const shadow = "drop-shadow(0 12px 32px color-mix(in srgb, var(--color-primary-blue-900) 65%, transparent))";
-const ballClass = "absolute z-0 pointer-events-none w-[160px] h-[160px] xs:w-[180px] xs:h-[180px] sm:w-[220px] sm:h-[220px] lg:w-[280px] lg:h-[280px] xl:w-[300px] xl:h-[300px]";
+const ballClass = "absolute z-0 pointer-events-none w-[160px] h-[160px] xs:w-[180px] xs:h-[180px] sm:w-[220px] sm:h-[220px] lg:w-[280px] lg:h-[280px] xl:w-[280px] xl:h-[280px]";
 
 export function Hero({ hero, locale }: { hero: HeroContent; locale?: string }) {
   const { title, dateRange, navLinks } = hero;
@@ -27,7 +27,7 @@ export function Hero({ hero, locale }: { hero: HeroContent; locale?: string }) {
   const isKorean = locale === "ko";
 
   return (
-    <section className="bg-hero-with-grid py-16 md:py-20 relative overflow-hidden min-h-[520px] md:min-h-[540px]">
+    <section className="bg-hero-with-grid flex items-center py-16 md:py-20 relative overflow-hidden min-h-[520px] md:min-h-[540px]">
 
       {/* Ball 1 — top-right, clipped at top */}
       <div className={ballClass} style={{ top: "-8%", right: "1%", filter: shadow }}>
@@ -40,13 +40,13 @@ export function Hero({ hero, locale }: { hero: HeroContent; locale?: string }) {
       </div>
 
       {/* Ball 3 — bottom-right, clipped at bottom */}
-      <div className={ballClass} style={{ bottom: "-10%", right: "clamp(30px, 9%, 180px)", filter: shadow }}>
+      <div className={ballClass} style={{ bottom: "-15%", right: "clamp(30px, 9%, 180px)", filter: shadow }}>
         <Image src="/tennis-ball.png" alt="" fill className="object-contain" />
       </div>
 
       {/* Content */}
       <div className="page-shell relative z-10">
-        <div className="flex flex-col gap-[var(--section-gap)] md:max-w-[55%]">
+        <div className="flex flex-col item-center gap-[var(--section-gap)] h-full md:max-w-[55%]">
           <h1 className="hero-title">
             {isKorean ? `${line1} ${line2}` : <>{line1} <br />{line2}</>}
           </h1>

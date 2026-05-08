@@ -1,5 +1,5 @@
 import { Section } from "@/app/components/Section";
-import { Card } from "@/app/components/ui/Card";
+import { Button } from "@/app/components/ui/Button";
 import { coachDisplayName } from "@/lib/coaches";
 
 type Coach = Awaited<ReturnType<typeof import("@/lib/coaches").getCoaches>>[number];
@@ -48,26 +48,35 @@ function formatCoachName(value: string): string {
 export function LessonsSection({ title, coachesItems, content }: LessonsSectionProps) {
   return (
     <Section title={title} zebra={false}>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-[var(--content-gap)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--content-gap)]">
         {coachesItems.map((coach) => {
           const displayName = coachDisplayName(coach);
           const telDigits = (coach.phone ?? "").replace(/\D/g, "");
           return (
-            <Card
+            <article
               key={coach.id}
-              titleTag="h3"
-              title={formatCoachName(displayName)}
-              image={coach.image ? (coach.image.startsWith("http") || coach.image.startsWith("/") ? coach.image : `/${coach.image}`) : null}
-              imageAlt={displayName}
-              label={formatRoleLabel(content.shared.labels.coach)}
-              labelClassName="uppercase text-[var(--color-primary-blue)] leading-tight"
-              cta={
-                telDigits
-                  ? { label: content.shared.buttons.contact, href: `tel:${telDigits}` }
-                  : undefined
-              }
-              ctaAriaLabel={telDigits ? content.shared.aria.contact(displayName) : undefined}
-            />
+              className="flex flex-col gap-4 border border-[color:var(--outline-blue-soft)] bg-white px-6 py-6 transition-colors hover:border-[color:var(--color-primary-blue-300)]"
+            >
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-widest text-[var(--color-primary-blue)]">
+                  {formatRoleLabel(content.shared.labels.coach)}
+                </span>
+                <h3 className="text-xl font-semibold leading-snug text-[var(--foreground-on-light)] m-0">
+                  {formatCoachName(displayName)}
+                </h3>
+              </div>
+              {telDigits && (
+                <Button
+                  href={`tel:${telDigits}`}
+                  variant="secondary"
+                  size="medium"
+                  className="w-full"
+                  aria-label={content.shared.aria.contact(displayName)}
+                >
+                  {content.shared.buttons.contact}
+                </Button>
+              )}
+            </article>
           );
         })}
       </div>

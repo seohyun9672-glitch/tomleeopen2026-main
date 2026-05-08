@@ -207,7 +207,7 @@ export function ClubFilter({ id, selected, options, onChange, placeholder }: Clu
 
   return (
     <Filter control="club" htmlFor={id} label={t.shared.labels.club}>
-      <div ref={containerRef} className="relative w-fit min-w-0">
+      <div ref={containerRef} className="relative w-full min-w-0">
         <button
           ref={triggerRef}
           id={id}
@@ -215,7 +215,7 @@ export function ClubFilter({ id, selected, options, onChange, placeholder }: Clu
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="form-control-input form-control-select form-control-button-match text-left"
+          className="form-control-input form-control-select form-control-button-match w-full text-left"
           style={{ backgroundImage: CHEVRON_BG }}
         >
           <span className={selected.length === 0 ? "text-[var(--color-text-tertiary)]" : ""}>

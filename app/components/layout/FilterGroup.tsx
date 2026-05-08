@@ -14,7 +14,7 @@ export function FilterGroup({ children, className }: FilterGroupProps) {
   return (
     <div
       className={cn(
-        "flex gap-[var(--content-gap)]",
+        "flex flex-row flex-nowrap gap-[var(--content-gap)]",
         className
       )}
     >

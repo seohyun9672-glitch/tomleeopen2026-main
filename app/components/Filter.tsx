@@ -40,28 +40,35 @@ export type FilterProps = {
 /** Force descendant native inputs/selects to fill their wrapper width. */
 const FILL_CHILD = "[&_select]:w-full [&_input]:w-full";
 
+/** Year, round, and group filters always hug their content width. */
+const HUG_CONTROLS = new Set<FilterControlKind>(["year", "round"]);
+
 function shellClass(control: FilterControlKind, className?: string) {
-  if (control === "date") {
-    return cn(
-      "flex w-full flex-1 flex-col gap-0 min-w-0 md:w-fit md:flex-none md:shrink-0",
-      className
-    );
+  if (HUG_CONTROLS.has(control)) {
+    return cn("flex flex-none flex-col gap-0 min-w-0 w-fit", className);
   }
-  if (control === "stretch" || control === "default") {
-    return cn(
-      "flex flex-1 flex-col gap-0 min-w-0",
-      control === "default" && "h-full",
-      className
-    );
+  if (control === "default") {
+    return cn("flex flex-1 flex-col gap-0 min-w-0 h-full w-full", className);
   }
-  return cn("flex flex-none flex-col gap-0 w-fit min-w-0", className);
+  if (control === "stretch") {
+    return cn("flex flex-1 flex-col gap-0 min-w-0 w-full", className);
+  }
+  // Category and date: full width on mobile, capped on sm+
+  if (control === "category" || control === "date") {
+    return cn("flex flex-col gap-0 min-w-0 w-full sm:max-w-[var(--filter-control-max-w)]", className);
+  }
+  // club, status, and any other controls: always capped
+  return cn("flex flex-col gap-0 min-w-0 w-full max-w-[var(--filter-control-max-w)]", className);
 }
 
 function innerClass(control: FilterControlKind) {
-  return cn(
-    control === "stretch" ? "w-full min-w-0" : "w-fit min-w-0",
-    control !== "default" && FILL_CHILD
-  );
+  if (HUG_CONTROLS.has(control)) {
+    return "w-fit min-w-0";
+  }
+  if (control === "default") {
+    return "h-full w-full min-w-0";
+  }
+  return cn("w-full min-w-0", FILL_CHILD);
 }
 
 function FilterSelect({ className, id, ...props }: ComponentProps<"select">) {

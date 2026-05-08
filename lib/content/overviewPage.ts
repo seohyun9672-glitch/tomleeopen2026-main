@@ -33,7 +33,7 @@ export const overviewPage = {
               "The preliminaries will be held in a round-robin group format, with match schedules and locations arranged freely through mutual agreement between teams.",
           },
           { label: "Hosted by", value: "Dr. Tom Lee Sedation Dental Group" },
-          { label: "Organized by", value: "Tomlee Tennis Organizing Committee" },
+          { label: "Organized by", value: "Tomlee Open Organizing Committee" },
         ],
       },
       importantDatesTitle: "Important dates",

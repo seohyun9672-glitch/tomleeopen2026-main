@@ -29,7 +29,7 @@ export function SearchBox({
   placeholder = "Search",
 }: Props) {
   return (
-    <div className={cn("form-control-with-leading-icon w-full", className)}>
+    <div className={cn("form-control-with-leading-icon w-full sm:max-w-[var(--filter-control-max-w)]", className)}>
       {showLeadingIcon ? (
         <span className="form-control-leading-icon" aria-hidden>
           <Search className="size-4 shrink-0" strokeWidth={2} />

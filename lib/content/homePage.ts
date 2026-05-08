@@ -23,6 +23,9 @@ export const homePage = {
         clubs: "Clubs",
         lessons: "Lessons",
       },
+      buttons: {
+        viewAll: "View all",
+      },
       todayMatchesEmpty: {
         beforeLink: "No matches scheduled for today. Check the",
         scheduleLink: "Schedule",
@@ -61,6 +64,9 @@ export const homePage = {
         communityPartners: "커뮤니티 파트너",
         clubs: "클럽",
         lessons: "레슨",
+      },
+      buttons: {
+        viewAll: "전체 보기",
       },
       todayMatchesEmpty: {
         beforeLink: "오늘 예정된 경기가 없습니다.",
