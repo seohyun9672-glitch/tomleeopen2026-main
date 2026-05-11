@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { formatNtrpDisplay } from "@/lib/ntrpFormat";
+
 
 /** GET /api/registrations/lookup?email=...&year=... — public registration lookup by email. */
 export async function GET(request: Request) {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       fullNameKo: player.fullNameKo,
       email: player.email,
       phone: player.phone,
-      ntrp: player.ntrp != null ? formatNtrpDisplay(player.ntrp) : null,
+      ntrp: player.ntrp ?? null,
       clubs: player.clubs.map((c) => c.clubCode),
       year,
       registrations: registrations.map((r) => ({

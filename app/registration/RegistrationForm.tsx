@@ -4,7 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { categoryChipClass, buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
 import type { CategoryRecord } from "@/lib/category/categories";
 import { formatPhoneInput, isValidEmail, isValidNanpPhone, normalizePhone } from "@/lib/validation";
-import { loadRegistrationFormData, formatPrice, totalFromCategories, REGISTRATION_STATUSES, registrationStatusLabel } from "@/lib/registration";
+import { loadRegistrationFormData, formatPrice, totalFromCategories } from "@/lib/registration";
 import { contactData } from "@/lib/contactData";
 import { Field } from "@/app/components/ui/Field";
 import { CheckboxField } from "@/app/components/ui/Checkbox";
@@ -39,8 +39,7 @@ type FormState = {
 };
 
 type Props = {
-  mode?: "public" | "adminEdit" | "publicEdit";
-  registrationId?: string;
+  mode?: "public" | "publicEdit";
   initialFormState?: Partial<FormState>;
   /** publicEdit: categories the player was originally registered in (used for refund detection). */
   originalCategories?: string[];
@@ -48,8 +47,6 @@ type Props = {
   playerEmail?: string;
   /** publicEdit: tournament year. */
   year?: number;
-  /** adminEdit: current registration status shown as editable select. */
-  initialStatus?: string;
   onClose?: () => void;
   onSuccess?: () => void;
   onLoadingChange?: (loading: boolean) => void;
@@ -89,12 +86,10 @@ const emptyFormState: FormState = {
 export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(function RegistrationForm(
   {
     mode = "public",
-    registrationId,
     initialFormState,
     originalCategories,
     playerEmail,
     year,
-    initialStatus,
     onClose,
     onSuccess,
     onLoadingChange,
@@ -106,7 +101,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
   const { locale, t } = useLocale();
   const rf = t.registrationForm;
   const rs = rf.sections;
-  const isAdminEdit = mode === "adminEdit";
   const isPublicEdit = mode === "publicEdit";
 
   const [form, setForm] = useState<FormState>(() => {
@@ -155,9 +149,9 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
   }, []);
 
   // Load clubs + categories on mount. Skipped when data is provided as props (server page path).
-  // registrationFormCache deduplicates across multiple mounted instances (admin table rows).
+  // registrationFormCache deduplicates across multiple mounted instances.
   useEffect(() => {
-    if (initialCategories && initialClubCodes) return;
+    if (initialCategories?.length && initialClubCodes?.length) return;
     let cancelled = false;
     void loadRegistrationFormData().then((data) => {
       if (cancelled) return;
@@ -198,8 +192,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
     () => removedCategories.slice(newlyAddedCategories.length),
     [removedCategories, newlyAddedCategories]
   );
-
-  const [registrationStatus, setRegistrationStatus] = useState<string>(initialStatus ?? "Pending");
 
   const registrantPlayerIdNum = useMemo(() => {
     const n = form.selectedPlayerId ? Number(form.selectedPlayerId) : NaN;
@@ -282,7 +274,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
 
       if (state.engravingWanted && !state.engravingText.trim()) err.engravingText = rf.errors.required;
 
-      if (!isAdminEdit && !isPublicEdit) {
+      if (!isPublicEdit) {
         if (!state.photoVideoConsent) err.photoVideoConsent = rf.errors.mediaConsentRequired;
         if (!state.nameOnEtransfer.trim()) err.nameOnEtransfer = rf.errors.nameOnEtransferRequired;
         if (!state.etransferSent) err.etransferSent = rf.errors.etransferSentRequired;
@@ -295,7 +287,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
 
       return err;
     },
-    [rf, isAdminEdit, isPublicEdit, categoriesById, originalCategories]
+    [rf, isPublicEdit, categoriesById, originalCategories]
   );
 
   // Keep a ref to form so applyBlurValidation doesn't need `form` as a dep,
@@ -457,55 +449,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
     }
   }
 
-  async function handleAdminSave() {
-    if (!validateRegistrationForm()) return;
-
-    const doubles = form.categories.filter((c) => categoriesById.get(c)?.isDoubles ?? false);
-
-    setLoading(true);
-    try {
-      const partnerNameLegacy =
-        doubles.length > 0
-          ? (form.partnerNames[doubles[0]] ?? "").trim() ||
-            (Object.values(form.partnerNames).find((v) => v.trim()) ?? "")
-          : "";
-
-      const url = registrationId ? `/api/registrations/${registrationId}` : "/api/registrations";
-      const method = registrationId ? "PATCH" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullNameEn: form.fullNameEn.trim(),
-          fullNameKo: form.fullNameKo.trim() || "",
-          email: form.email.trim(),
-          phone: normalizePhone(form.phone) || "",
-          ntrp: form.ntrp.trim() || "",
-          clubs: form.clubs,
-          categories: form.categories,
-          nameOnEtransfer: form.nameOnEtransfer.trim() || null,
-          partnerNames: doubles.length > 0 ? form.partnerNames : undefined,
-          partnerName: doubles.length > 0 ? partnerNameLegacy : undefined,
-          photoVideoConsent: form.photoVideoConsent,
-          engraving: form.engravingWanted ? form.engravingText.trim().slice(0, 25) || null : null,
-          notes: form.etransferSent ? "E-transfer sent by registrant." : null,
-          status: registrationStatus,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setFieldErrors({ submit: data.error || rf.errors.registrationFailed });
-        return;
-      }
-
-      onSuccess?.();
-      onClose?.();
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handlePublicEditSave() {
     if (!playerEmail) return;
     let submitCategories: CategoryRecord[] = categories;
@@ -565,9 +508,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
   const handlePublicSubmitRef = useRef(handlePublicSubmit);
   handlePublicSubmitRef.current = handlePublicSubmit;
 
-  const handleAdminSaveRef = useRef(handleAdminSave);
-  handleAdminSaveRef.current = handleAdminSave;
-
   const handlePublicEditSaveRef = useRef(handlePublicEditSave);
   handlePublicEditSaveRef.current = handlePublicEditSave;
 
@@ -575,16 +515,14 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
     ref,
     () => ({
       submit() {
-        if (isAdminEdit) {
-          void handleAdminSaveRef.current();
-        } else if (isPublicEdit) {
+        if (isPublicEdit) {
           void handlePublicEditSaveRef.current();
         } else {
           void handlePublicSubmitRef.current();
         }
       },
     }),
-    [isAdminEdit, isPublicEdit]
+    [isPublicEdit]
   );
 
   const sectionTitleClass = "text-h3 mb-2 [color:var(--section-text)]";
@@ -593,7 +531,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
 
   return (
     <div className={FORM_SURFACE_CLASS}>
-      {!isAdminEdit && showSuccessModal ? (
+      {showSuccessModal ? (
         <RegistrationSuccessModal
           message={successMessage}
           onClose={() => {
@@ -798,7 +736,7 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
           {rs.paymentInformation}
         </h3>
 
-        {!isAdminEdit && (!isPublicEdit || newlyAddedCategories.length > 0) && (
+        {(!isPublicEdit || newlyAddedCategories.length > 0) && (
           <div className="md:col-span-2 flex flex-col gap-2 rounded-lg border border-[color:var(--input-border)] px-3 py-2 text-sm text-[var(--color-text-primary)] md:gap-3 md:px-4 md:py-3">
             {isPublicEdit ? (
               <>
@@ -899,21 +837,6 @@ export const RegistrationForm = forwardRef<RegistrationFormHandle, Props>(functi
             </CheckboxField>
             {fieldErrors.etransferSent && <p className="form-field-error">{fieldErrors.etransferSent}</p>}
           </div>
-        )}
-
-        {isAdminEdit && (
-          <Field
-            label={rf.fields.status}
-            wrapperClassName="md:col-span-2"
-            variant="select"
-            id="registration-admin-status"
-            value={registrationStatus}
-            onChange={(e) => setRegistrationStatus(e.target.value)}
-          >
-            {REGISTRATION_STATUSES.map((s) => (
-              <option key={s} value={s}>{registrationStatusLabel(s, locale)}</option>
-            ))}
-          </Field>
         )}
 
         {fieldErrors.submit && <p className="form-field-error md:col-span-2">{fieldErrors.submit}</p>}

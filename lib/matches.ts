@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 
 import { ROUND_F, ROUND_PRE} from "@/lib/round";
 
-import { categoryDisplayLabelFromDbRow } from "@/lib/category/categories";
+import { categoryLabel } from "@/lib/category/categories";
 import { prisma } from "@/lib/prisma";
 import type { RoundInfo } from "@/lib/round";
 
@@ -224,8 +224,8 @@ function mapMatchRow(match: MatchRow): MatchWithTeamNames {
     set3ScoreTeam2: match.set3ScoreTeam2,
     winner: computeWinner(match),
     comment: match.comment,
-    categoryDisplayLabel: categoryDisplayLabelFromDbRow(match.category, "en") ?? null,
-    categoryDisplayLabelKo: categoryDisplayLabelFromDbRow(match.category, "ko") ?? null,
+    categoryDisplayLabel: categoryLabel(match.category, "en") ?? null,
+    categoryDisplayLabelKo: categoryLabel(match.category, "ko") ?? null,
   };
 }
 
@@ -445,6 +445,10 @@ function matchStatusVariant(status: string): string {
   return "pending";
 }
 
+export function isCancelledMatch(matchStatus: string | null | undefined): boolean {
+  return matchStatusVariant(matchStatus ?? "") === "cancelled";
+}
+
 export function matchStatusLabel(status: string, locale: "en" | "ko"): string {
   return MATCH_STATUS_LABELS[matchStatusVariant(status)]?.[locale] ?? status;
 }
@@ -483,19 +487,9 @@ export function buildMatchId(
   return `${matchIdYearSuffix(tournamentYear)}${cat}${roundSegment}${n}`;
 }
 
-function teamSlotNumberFromId(teamId: string | null | undefined): number | null {
-  if (!teamId) return null;
-  const m = teamId.match(/(\d+)$/);
-  if (!m) return null;
-  const n = parseInt(m[1]!, 10);
-  return Number.isNaN(n) ? null : n;
-}
-
 export function resolveBracketTeamDisplayRank(teamId: string | null | undefined, rankMap: Map<string, number>): number | null {
   if (!teamId) return null;
-  const fromStandings = rankMap.get(teamId);
-  if (fromStandings != null) return fromStandings;
-  return teamSlotNumberFromId(teamId);
+  return rankMap.get(teamId) ?? null;
 }
 
 

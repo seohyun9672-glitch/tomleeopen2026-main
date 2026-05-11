@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { siteContent, type Locale } from "@/lib/content";
 import { getCoaches } from "@/lib/coaches";
-import { getPartnerClubs } from "@/lib/partnerClubsData";
+import { getClubs } from "@/lib/clubs";
 import { getSponsors } from "@/lib/sponsors";
 import { getCommunityPartners } from "@/lib/getCommunityPartners";
 import { Hero } from "./home/Hero";
@@ -29,7 +29,7 @@ export default async function Home() {
   const [sponsorsItems, communityPartners, partnerClubs, coachesItems] = await Promise.all([
     getSponsors().catch(() => []),
     getCommunityPartners().catch(() => []),
-    getPartnerClubs().catch(() => []),
+    getClubs().catch(() => []),
     getCoaches().catch(() => []),
   ]);
 

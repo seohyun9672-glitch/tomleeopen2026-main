@@ -327,7 +327,9 @@ export function MatchCard({
   const { t, locale } = useLocale();
   const mUi = t.matchUi;
 
-  const winner = match.winner;
+  const isCancelled = /^cancell?ed$/i.test(match.matchStatus?.trim() ?? "");
+
+  const winner = isCancelled ? null : match.winner;
   const team1Won = winner === 1;
   const team2Won = winner === 2;
   const team1Loser = winner === 2;
@@ -337,8 +339,8 @@ export function MatchCard({
   const rank2 = showNumber(match.round, team2Loser) ? team2Rank : null;
   const eliminationBracket = rank1 != null || rank2 != null;
 
-  const showSet3 = hasSet3(match);
-  const withdrew = getWithdrew(match);
+  const showSet3 = !isCancelled && hasSet3(match);
+  const withdrew = isCancelled ? { team1: false, team2: false } : getWithdrew(match);
   const matchWithdrawn = withdrew.team1 || withdrew.team2;
 
   const statusLabel = matchStatusLabel(match.matchStatus, locale);
@@ -397,9 +399,9 @@ export function MatchCard({
           withdrewLabel={mUi.withdrew}
           rankAriaLabel={rank1 != null ? mUi.rankAria(rank1) : null}
           eliminationBracket={eliminationBracket}
-          set1={match.set1ScoreTeam1}
-          set2={match.set2ScoreTeam1}
-          set3={match.set3ScoreTeam1}
+          set1={isCancelled ? null : match.set1ScoreTeam1}
+          set2={isCancelled ? null : match.set2ScoreTeam1}
+          set3={isCancelled ? null : match.set3ScoreTeam1}
           showSet3={showSet3}
           fillHeight={fillHeight}
         />
@@ -413,9 +415,9 @@ export function MatchCard({
           withdrewLabel={mUi.withdrew}
           rankAriaLabel={rank2 != null ? mUi.rankAria(rank2) : null}
           eliminationBracket={eliminationBracket}
-          set1={match.set1ScoreTeam2}
-          set2={match.set2ScoreTeam2}
-          set3={match.set3ScoreTeam2}
+          set1={isCancelled ? null : match.set1ScoreTeam2}
+          set2={isCancelled ? null : match.set2ScoreTeam2}
+          set3={isCancelled ? null : match.set3ScoreTeam2}
           showSet3={showSet3}
           fillHeight={fillHeight}
         />

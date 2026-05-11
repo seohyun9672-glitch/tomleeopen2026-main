@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useMemo } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
-import type { CategoryRecord, CategoryYearListItem } from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
 import {
   buildDrawStageData,
   buildPrelimRankMap,
@@ -16,14 +16,14 @@ import {
 } from "@/lib/draws";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import {
-  deriveCategoriesForYear,
+  FilterGroup,
   YearFilter,
   CategoryFilter,
   RoundFilter,
   GroupFilter,
-} from "@/app/components/FilterControls";
+  HubContent,
+} from "@/app/components/FilterGroup";
 import { BracketView } from "@/app/components/tree/BracketView";
 import { StageHeader } from "@/app/components/tree/StageHeader";
 import { PrelimsLeaderboard } from "./PrelimsLeaderboard";
@@ -34,7 +34,6 @@ type Props = {
   categories: CategoryRecord[];
   allYears: number[];
   yearsWithMatches: number[];
-  statusesByYear: Record<number, CategoryYearListItem[]>;
   matchesByYear: Record<number, Record<string, MatchWithTeamNames[]>>;
 };
 
@@ -42,13 +41,7 @@ const VALID_STAGES: DrawStage[] = ["pre", "r16", "qf", "sf", "final"];
 
 // ─── Data derivation ──────────────────────────────────────────────────────────
 
-function useDrawsState({
-  categories,
-  allYears,
-  yearsWithMatches,
-  statusesByYear,
-  matchesByYear,
-}: Props) {
+function useDrawsState({ categories, allYears, yearsWithMatches, matchesByYear }: Props) {
   const { locale } = useLocale();
   const today = isoDateLocal();
 
@@ -63,21 +56,17 @@ function useDrawsState({
     [setYearParam],
   );
 
-  // Category
+  // Category — show all categories that have matches for the selected year
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
   const categoriesToShow = useMemo(() => {
-    const active = deriveCategoriesForYear(categories, statusesByYear, year);
     const matchesForYear = matchesByYear[year] ?? {};
-    return active.filter((c) => (matchesForYear[c.id]?.length ?? 0) > 0);
-  }, [categories, statusesByYear, year, matchesByYear]);
+    return categories.filter((c) => (matchesForYear[c.id]?.length ?? 0) > 0);
+  }, [categories, year, matchesByYear]);
   const [rawCatParam, setCatParam] = useUrlParam("cat");
   const categoryId = categoriesToShow.some((c) => c.id === rawCatParam)
     ? rawCatParam
     : (categoriesToShow[0]?.id ?? "");
-  const setCategoryId = useCallback(
-    (id: string) => setCatParam(id),
-    [setCatParam],
-  );
+  const setCategoryId = useCallback((id: string) => setCatParam(id), [setCatParam]);
   const categoryOptions = useMemo(
     () =>
       categoriesToShow.map((c) => ({
@@ -145,12 +134,11 @@ function useDrawsState({
     }
     return [...seen].sort();
   }, [prelimMatches]);
-  // Default to first group when param is absent or invalid — no "all" state
   const activeGroup = prelimGroupOptions.includes(rawGroupParam ?? "")
     ? (rawGroupParam ?? "")
     : (prelimGroupOptions[0] ?? "");
 
-  // Team rank map — computed from prelim matches, always available regardless of active stage
+  // Team rank map — computed from prelim matches
   const teamRankById = useMemo(() => buildPrelimRankMap(categoryMatches), [categoryMatches]);
 
   // Active bracket column (which knockout round is visible on mobile)
@@ -160,7 +148,7 @@ function useDrawsState({
     return knockoutSubStages[0] ?? "r16";
   }, [drawStage, knockoutSubStages]);
 
-  // Ordered stages for mobile navigator (pre → r16 → qf → sf → final, only those with matches)
+  // Ordered stages for mobile navigator
   const orderedDrawStages = useMemo(
     () => DRAW_STAGE_ORDER.filter((s) => availableStages.includes(s)),
     [availableStages],
@@ -279,6 +267,8 @@ export function DrawsHub(props: Props) {
     return fallbacks[drawStage];
   }, [drawStage, prelimMatches, r16Matches, qfMatches, sfMatches, finalMatches, locale]);
 
+  const isEmpty = categoryOptions.length === 0;
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -300,7 +290,6 @@ export function DrawsHub(props: Props) {
             onChange={setCategoryId}
           />
 
-          {/* Round toggle: desktop only */}
           {showDesktopRoundFilter && (
             <div className="hidden md:contents">
               <RoundFilter
@@ -312,7 +301,6 @@ export function DrawsHub(props: Props) {
             </div>
           )}
 
-          {/* Group filter: prelims only, when groups exist */}
           {showGroupFilter && (
             <GroupFilter
               id="draws-group"
@@ -325,9 +313,8 @@ export function DrawsHub(props: Props) {
       </div>
 
       {/* Content */}
-      <div className="w-full pb-6 md:pb-8">
+      <HubContent isEmpty={isEmpty} emptyText={t.emptyStates.noResults} className="pb-6 md:pb-8">
         <div className="space-y-[var(--content-gap)] text-[var(--section-text)] md:space-y-[var(--section-gap)]">
-          {/* Stage navigator: mobile only */}
           {showMobileStageNav && (
             <div className="md:hidden">
               <StageHeader
@@ -344,7 +331,6 @@ export function DrawsHub(props: Props) {
             </div>
           )}
 
-          {/* Prelim board */}
           {showPreSection && hasPre && (
             <PrelimsLeaderboard
               categoryMatches={categoryMatches}
@@ -352,7 +338,6 @@ export function DrawsHub(props: Props) {
             />
           )}
 
-          {/* Knockout bracket */}
           {showKnockoutSection && (
             knockoutSubStages.length === 0 ? (
               <p className="text-sm text-[var(--color-text-tertiary)]">
@@ -371,7 +356,7 @@ export function DrawsHub(props: Props) {
             )
           )}
         </div>
-      </div>
+      </HubContent>
     </section>
   );
 }

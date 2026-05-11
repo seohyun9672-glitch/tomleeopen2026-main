@@ -16,7 +16,6 @@ import { honourRollPage } from "./honourRollPage";
 import { clubs } from "./clubs";
 import { registrationPage } from "./registrationPage";
 import { registrationForm } from "./registrationForm";
-import { adminPage } from "./adminPage";
 import { rulesPage } from "./rulesPage";
 
 /** Full bilingual site content. Use `siteContent[locale]` in locale-context. */
@@ -35,7 +34,6 @@ export const siteContent = {
     ...clubs.en,
     ...registrationPage.en,
     ...registrationForm.en,
-    ...adminPage.en,
     ...rulesPage.en,
   },
   ko: {
@@ -52,7 +50,6 @@ export const siteContent = {
     ...clubs.ko,
     ...registrationPage.ko,
     ...registrationForm.ko,
-    ...adminPage.ko,
     ...rulesPage.ko,
   },
 } as const;
@@ -65,4 +62,4 @@ export type Messages = SiteContent["en"];
 export const content: Messages = siteContent.en;
 
 // Named exports for direct per-domain imports
-export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, registrationForm, adminPage, rulesPage };
+export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, registrationForm, rulesPage };

@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const SKIP_PREFIXES = ["/admin", "/api", "/_next"];
 const STATIC_EXT = /\.[^/]+$/;
 
 /**
@@ -14,14 +13,6 @@ const STATIC_EXT = /\.[^/]+$/;
  */
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Pass through internals, admin, api, and static assets unchanged
-  if (
-    SKIP_PREFIXES.some((p) => pathname.startsWith(p)) ||
-    STATIC_EXT.test(pathname)
-  ) {
-    return NextResponse.next();
-  }
 
   // Korean prefix — Next.js routes it to app/[locale] with locale="ko" automatically
   if (pathname === "/ko" || pathname.startsWith("/ko/")) {

@@ -3,12 +3,10 @@
 import { useMemo } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import type { MatchWithTeamNames } from "@/lib/matches";
-import { filterByValue } from "@/app/components/FilterControls";
 import { useLocale } from "@/lib/locale-context";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
-import { Filter } from "@/app/components/Filter";
-import { MatchCard } from "@/app/components/MatchCard";
+import { FilterGroup, Filter, filterByValue, HubContent } from "@/app/components/FilterGroup";
 import { ScheduleDatePicker } from "./ScheduleDatePicker";
+import { MatchCard } from "@/app/components/MatchCard";
 
 type Props = {
   allMatches: MatchWithTeamNames[];
@@ -39,21 +37,15 @@ export function ScheduleHub({ allMatches, datesWithMatches, defaultDate, schedul
           />
         </Filter>
       </FilterGroup>
-      <div className="mt-[var(--content-gap)] md:mt-[var(--section-gap)]">
-        {matchesForDate.length > 0 ? (
-          <ul className="space-y-4">
-            {matchesForDate.map((m) => (
-              <li key={m.id}>
-                <MatchCard match={m} />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-center text-[var(--color-text-tertiary)]">
-            {t.emptyStates.noMatches}
-          </div>
-        )}
-      </div>
+      <HubContent isEmpty={matchesForDate.length === 0} emptyText={t.emptyStates.noMatches}>
+        <ul className="space-y-4">
+          {matchesForDate.map((m) => (
+            <li key={m.id}>
+              <MatchCard match={m} />
+            </li>
+          ))}
+        </ul>
+      </HubContent>
     </>
   );
 }

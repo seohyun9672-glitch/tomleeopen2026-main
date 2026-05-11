@@ -1,8 +1,7 @@
 import type { Locale } from "@/lib/content";
 import { PageContainer } from "@/app/components/PageContainer";
-import { getCategories, getCategoryYearStatusList } from "@/lib/category/categories";
-import { getHonourRollByCategoryIds } from "@/lib/matches";
-import { prisma } from "@/lib/prisma";
+import { getCategories } from "@/lib/category/categories";
+import { getAvailableYears, getMatchesByYearBatch } from "@/lib/matches";
 import { siteContent } from "@/lib/content";
 import { HonourRollHub } from "@/app/honour-roll/HonourRollHub";
 
@@ -13,32 +12,18 @@ export default async function HonourRollPage({ params }: Props) {
   const locale: Locale = localeParam === "ko" ? "ko" : "en";
   const content = siteContent[locale];
 
-  const [categories, yearRows] = await Promise.all([
-    getCategories(),
-    prisma.match.findMany({
-      select: { tournamentYear: true },
-      distinct: ["tournamentYear"],
-      orderBy: { tournamentYear: "desc" },
-    }),
-  ]);
+  const [categories, yearsData] = await Promise.all([getCategories(), getAvailableYears()]);
+  const { allYears } = yearsData;
 
   const categoryIds = categories.map((c) => c.id);
-  const allYears = [...new Set(yearRows.map((r) => r.tournamentYear))].sort((a, b) => b - a);
-
-  const [honourRollByCategory, statusesByYear] = await Promise.all([
-    getHonourRollByCategoryIds(categoryIds),
-    Promise.all(
-      allYears.map(async (y) => [y, await getCategoryYearStatusList(y, categories)] as const)
-    ).then((entries) => Object.fromEntries(entries)),
-  ]);
+  const matchesByYear = await getMatchesByYearBatch(allYears, categoryIds);
 
   return (
     <PageContainer title={content.heroTitle}>
       <HonourRollHub
         categories={categories}
         allYears={allYears}
-        honourRollByCategory={honourRollByCategory}
-        statusesByYear={statusesByYear}
+        matchesByYear={matchesByYear}
       />
     </PageContainer>
   );

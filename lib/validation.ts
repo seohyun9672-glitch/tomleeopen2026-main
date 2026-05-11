@@ -1,5 +1,3 @@
-import { NTRP_LEVELS } from "@/lib/ntrp";
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/;
 
@@ -40,15 +38,4 @@ export function normalizePhone(value: string): string {
   const mid = digits.slice(3, 6);
   const last = digits.slice(6, 10);
   return `${area}-${mid}-${last}`;
-}
-
-export function isValidNtrp(value: string | null | undefined): boolean {
-  if (value == null || value === "") return true;
-  return (NTRP_LEVELS as readonly string[]).includes(value.trim());
-}
-
-export function getValidNtrpOrNull(value: string | null | undefined): string | null {
-  if (value == null || value === "") return null;
-  const v = value.trim();
-  return (NTRP_LEVELS as readonly string[]).includes(v) ? v : null;
 }

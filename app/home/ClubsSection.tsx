@@ -1,12 +1,12 @@
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
 import type { Locale } from "@/lib/content";
-import type { PartnerClub } from "@/lib/partnerClubsData";
+import type { ClubInfo } from "@/lib/clubs";
 
 type ClubsSectionProps = {
   title: string;
   note?: string;
-  partnerClubs: PartnerClub[];
+  partnerClubs: ClubInfo[];
   locale: Locale;
   content: { shared: { aria: { viewDetail: (name: string) => string } } };
 };

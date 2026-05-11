@@ -38,7 +38,6 @@ export default async function PlayersPage({ params }: Props) {
     <PageContainer title={content.playersPage.heroTitle}>
       <PlayersTable
         rows={players}
-        mode="public"
         emptyNoRowsText={content.playersPage.emptyStateNoPlayers}
         emptyNoMatchText={content.playersPage.emptyStateNoMatch}
       />

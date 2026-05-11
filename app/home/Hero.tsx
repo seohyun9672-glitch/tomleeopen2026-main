@@ -31,17 +31,17 @@ export function Hero({ hero, locale }: { hero: HeroContent; locale?: string }) {
 
       {/* Ball 1 — top-right, clipped at top */}
       <div className={ballClass} style={{ top: "-8%", right: "1%", filter: shadow }}>
-        <Image src="/tennis-ball.png" alt="" fill className="object-contain" />
+        <Image src="/tennis-ball.png" alt="" fill sizes="(max-width: 640px) 180px, (max-width: 1024px) 220px, 280px" className="object-contain" />
       </div>
 
       {/* Ball 2 — hidden <320px, clipped right at xs, positioned at sm+ */}
       <div className={`${ballClass} hidden xs:block xs:-right-[15%] sm:right-[20%] lg:right-[25%] xl:right-[25%]`} style={{ top: "50%", transform: "translateY(-50%)", filter: shadow }}>
-        <Image src="/tennis-ball.png" alt="" fill className="object-contain" />
+        <Image src="/tennis-ball.png" alt="" fill sizes="(max-width: 640px) 180px, (max-width: 1024px) 220px, 280px" className="object-contain" />
       </div>
 
       {/* Ball 3 — bottom-right, clipped at bottom */}
       <div className={ballClass} style={{ bottom: "-15%", right: "clamp(30px, 9%, 180px)", filter: shadow }}>
-        <Image src="/tennis-ball.png" alt="" fill className="object-contain" />
+        <Image src="/tennis-ball.png" alt="" fill sizes="(max-width: 640px) 180px, (max-width: 1024px) 220px, 280px" className="object-contain" />
       </div>
 
       {/* Content */}

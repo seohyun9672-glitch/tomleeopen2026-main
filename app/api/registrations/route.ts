@@ -3,16 +3,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { RegistrationStatus } from "@/lib/registration";
 import { parseClubCodesFromBody } from "@/lib/clubs";
-import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
-import { getCategoryYearStatusDelegate } from "@/lib/category/categories";
-import {
-  buildPlayerIdByPartnerNameMap,
-  resolvePartnerIdFromPartnerName,
-} from "@/lib/partnerLinking";
 
 const NEW_REGISTRATION_STATUS: RegistrationStatus = "Pending";
 
 const DEFAULT_YEAR = new Date().getFullYear();
+
 
 async function setPlayerClubs(playerId: number, clubCodes: string[]) {
   // Replace existing clubs with the submitted list.
@@ -97,7 +92,7 @@ export async function POST(request: Request) {
           fullNameKo: body.fullNameKo?.trim() || existing.fullNameKo,
           email: email || existing.email,
           phone: (body.phone?.trim() || existing.phone) ?? undefined,
-          ntrp: (normalizeNtrpForStorage(body.ntrp) || existing.ntrp) ?? undefined,
+          ntrp: (body.ntrp?.trim() || null || existing.ntrp) ?? undefined,
         },
       });
       await setPlayerClubs(playerId, clubCodes);
@@ -111,7 +106,7 @@ export async function POST(request: Request) {
             fullNameEn: fullNameEn || existingByEmail.fullNameEn,
             fullNameKo: body.fullNameKo?.trim() || existingByEmail.fullNameKo,
             phone: (body.phone?.trim() || existingByEmail.phone) ?? undefined,
-            ntrp: (normalizeNtrpForStorage(body.ntrp) || existingByEmail.ntrp) ?? undefined,
+            ntrp: (body.ntrp?.trim() || null || existingByEmail.ntrp) ?? undefined,
           },
         });
         await setPlayerClubs(playerId, clubCodes);
@@ -121,7 +116,7 @@ export async function POST(request: Request) {
           fullNameEn,
           fullNameKo: body.fullNameKo?.trim() || null,
           phone: body.phone?.trim() || null,
-          ntrp: normalizeNtrpForStorage(body.ntrp),
+          ntrp: body.ntrp?.trim() || null,
         });
         playerId = player.id;
         await setPlayerClubs(playerId, clubCodes);
@@ -129,31 +124,29 @@ export async function POST(request: Request) {
     }
 
     const partnerNames = typeof body.partnerNames === "object" && body.partnerNames !== null ? body.partnerNames : {};
-    const hasDoublesSelection = categoryRows.some((c) => c.isDoubles);
-    const partnerIdByName = hasDoublesSelection
-      ? buildPlayerIdByPartnerNameMap(
-          await prisma.player.findMany({
-            select: { id: true, fullNameEn: true, fullNameKo: true },
-          })
-        )
-      : new Map<string, number>();
 
-    /** Resolve partner by name, creating a stub player if not found. Best-effort: returns null on any failure. */
     async function resolveOrCreatePartnerId(
       partnerName: string | null,
       excludePlayerId: number
     ): Promise<{ id: number | null; stubError?: string }> {
-      if (!partnerName?.trim()) return { id: null };
-      const existing = resolvePartnerIdFromPartnerName(partnerName, partnerIdByName);
-      if (existing != null && existing !== excludePlayerId) return { id: existing };
-      // Partner not in DB — create a stub player so they can complete their profile later.
+      const name = partnerName?.trim();
+      if (!name) return { id: null };
+      const existing = await prisma.player.findFirst({
+        where: {
+          id: { not: excludePlayerId },
+          OR: [
+            { fullNameEn: { equals: name, mode: "insensitive" } },
+            { fullNameKo: { equals: name, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (existing) return { id: existing.id };
       try {
-        const name = partnerName.trim();
         const stub = await createPlayerRow({
           fullNameEn: name,
           email: `partner-stub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@placeholder.tomlee-open`,
         });
-        partnerIdByName.set(name.toLowerCase(), stub.id);
         return { id: stub.id };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -167,8 +160,7 @@ export async function POST(request: Request) {
       // 2026+ registrations should start as Pending at category level.
       if (tournamentYear >= 2026) {
         try {
-          const cy = getCategoryYearStatusDelegate();
-          await cy.upsert({
+          await prisma.categoryYearStatus.upsert({
             where: { tournamentYear_categoryId: { tournamentYear, categoryId } },
             create: { tournamentYear, categoryId, status: "Pending" },
             update: {},

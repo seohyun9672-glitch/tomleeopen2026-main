@@ -16,21 +16,7 @@ const nextConfig: NextConfig = {
       ];
     }
     return config;
-  },
-  async redirects() {
-    return [
-      { source: "/tournament/overview", destination: "/overview", permanent: true },
-      { source: "/tournament/rules", destination: "/rules", permanent: true },
-      { source: "/tournament/honour-roll", destination: "/honour-roll", permanent: true },
-      
-    ];
-  },
-  async rewrites() {
-    return [
-      { source: "/admin", destination: "/en/admin" },
-      { source: "/admin/login", destination: "/en/admin/login" },
-    ];
-  },
+  }
 };
 
 export default nextConfig;

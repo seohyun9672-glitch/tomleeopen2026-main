@@ -11,7 +11,7 @@ export const REGISTRATION_STATUSES: RegistrationStatus[] = [
   "Refunded",
 ];
 
-export type RegistrationStatusKey = "pending" | "confirmed" | "refund-requested" | "refunded";
+type RegistrationStatusKey = "pending" | "confirmed" | "refund-requested" | "refunded";
 
 const REGISTRATION_STATUS_LABELS: Record<RegistrationStatusKey, { en: string; ko: string }> = {
   pending:            { en: "Pending",          ko: "대기" },
@@ -20,7 +20,7 @@ const REGISTRATION_STATUS_LABELS: Record<RegistrationStatusKey, { en: string; ko
   refunded:           { en: "Refunded",         ko: "환불 완료" },
 };
 
-export function registrationStatusKey(status: string): RegistrationStatusKey {
+function registrationStatusKey(status: string): RegistrationStatusKey {
   const s = status.trim().toLowerCase();
   if (s === "confirmed") return "confirmed";
   if (s === "refunded") return "refunded";
@@ -33,13 +33,9 @@ export function registrationStatusLabel(status: string, locale: "en" | "ko"): st
   return REGISTRATION_STATUS_LABELS[registrationStatusKey(status)]?.[locale] ?? status;
 }
 
-export function registrationStatusChipClass(status: string): string {
-  return `registration-status-chip-${registrationStatusKey(status)}`;
-}
-
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-export const pricePerCategoryCad = process.env.NEXT_PUBLIC_REGISTRATION_PRICE
+const pricePerCategoryCad = process.env.NEXT_PUBLIC_REGISTRATION_PRICE
   ? Number(process.env.NEXT_PUBLIC_REGISTRATION_PRICE)
   : 50;
 
@@ -74,7 +70,9 @@ export async function loadRegistrationFormData(): Promise<FormStaticData> {
         categories: categories as CategoryRecord[],
         clubCodes: (clubs as { code: string }[]).map((c) => c.code),
       };
-      cached = data;
+      if (data.categories.length > 0) {
+        cached = data;
+      }
       inflight = null;
       return data;
     })
@@ -86,6 +84,3 @@ export async function loadRegistrationFormData(): Promise<FormStaticData> {
   return inflight;
 }
 
-export function prefetchRegistrationFormData(): void {
-  void loadRegistrationFormData();
-}

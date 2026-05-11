@@ -21,20 +21,18 @@ const PATH_TITLES: Partial<Record<string, (t: Messages) => string>> = {
   "/honour-roll":  (t) => t.heroTitle,
   "/rules":        (t) => t.rulesPage.heroTitle,
   "/overview":     (t) => t.overviewPage.heroTitle,
-  "/admin":        (t) => t.adminPage.heroTitle,
 };
 
 export type PageContainerProps = {
   children: ReactNode;
   title?: string;
-  actions?: ReactNode;
   beforeTitle?: ReactNode;
   /** Tailwind max-width class (e.g. "max-w-[700px]") applied to both the hero and children. */
   contentMaxWidth?: string;
 };
 
-/** Max-width container with page padding. Optional page title row via `title` / `actions`. */
-export function PageContainer({ children, title, actions, beforeTitle, contentMaxWidth }: PageContainerProps) {
+/** Max-width container with page padding. Optional page title row via `title`. */
+export function PageContainer({ children, title, beforeTitle, contentMaxWidth }: PageContainerProps) {
   const { t } = useLocale();
   const pathname = usePathname();
 
@@ -47,7 +45,7 @@ export function PageContainer({ children, title, actions, beforeTitle, contentMa
       {beforeTitle != null ? (
         <div className={resolvedTitle != null ? "mb-[var(--content-gap)]" : undefined}>{beforeTitle}</div>
       ) : null}
-      {resolvedTitle != null ? <PageHero title={resolvedTitle} actions={actions} /> : null}
+      {resolvedTitle != null ? <PageHero title={resolvedTitle} /> : null}
       {children}
     </>
   );

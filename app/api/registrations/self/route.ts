@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseClubCodesFromBody } from "@/lib/clubs";
-import { normalizeNtrpForStorage } from "@/lib/ntrpFormat";
-import {
-  buildPlayerIdByPartnerNameMap,
-  resolvePartnerIdFromPartnerName,
-} from "@/lib/partnerLinking";
 
 async function setPlayerClubs(playerId: number, clubCodes: string[]) {
   await prisma.playerClub.deleteMany({ where: { playerId } });
@@ -17,13 +12,21 @@ async function setPlayerClubs(playerId: number, clubCodes: string[]) {
 
 async function resolveOrCreatePartnerId(
   text: string | null,
-  partnerIdByName: Map<string, number>,
   excludePlayerId: number
 ): Promise<number | null> {
-  if (!text?.trim()) return null;
-  const name = text.trim();
-  const existing = resolvePartnerIdFromPartnerName(name, partnerIdByName);
-  if (existing != null && existing !== excludePlayerId) return existing;
+  const name = text?.trim();
+  if (!name) return null;
+  const existing = await prisma.player.findFirst({
+    where: {
+      id: { not: excludePlayerId },
+      OR: [
+        { fullNameEn: { equals: name, mode: "insensitive" } },
+        { fullNameKo: { equals: name, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
   try {
     const stub = await prisma.player.create({
       data: {
@@ -31,7 +34,6 @@ async function resolveOrCreatePartnerId(
         email: `partner-stub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@placeholder.tomlee-open`,
       },
     });
-    partnerIdByName.set(name.toLowerCase(), stub.id);
     return stub.id;
   } catch (err) {
     console.error("resolveOrCreatePartnerId (self): stub creation failed:", err);
@@ -74,7 +76,7 @@ export async function PATCH(request: Request) {
         }),
         ...(body.fullNameKo !== undefined && { fullNameKo: body.fullNameKo?.trim() || null }),
         ...(typeof body.phone === "string" && { phone: body.phone.trim() || null }),
-        ...(body.ntrp !== undefined && { ntrp: normalizeNtrpForStorage(body.ntrp) }),
+        ...(body.ntrp !== undefined && { ntrp: body.ntrp?.trim() || null }),
       },
     });
 
@@ -149,15 +151,6 @@ export async function PATCH(request: Request) {
     const partnerNames: Record<string, string> =
       typeof body.partnerNames === "object" && body.partnerNames !== null ? body.partnerNames : {};
 
-    const hasDoublesChanges = allCategoryIds.some((id) => categoryIsDoubles.get(id) ?? false);
-    const partnerIdByName = hasDoublesChanges
-      ? buildPlayerIdByPartnerNameMap(
-          await prisma.player.findMany({
-            select: { id: true, fullNameEn: true, fullNameKo: true },
-          })
-        )
-      : new Map<string, number>();
-
     const sharedUpdateFields = {
       ...(body.nameOnEtransfer !== undefined && {
         nameOnEtransfer: body.nameOnEtransfer?.trim() || null,
@@ -174,7 +167,6 @@ export async function PATCH(request: Request) {
       if ((categoryIsDoubles.get(categoryId) ?? false) && categoryId in partnerNames) {
         partnerId = await resolveOrCreatePartnerId(
           partnerNames[categoryId] || null,
-          partnerIdByName,
           player.id
         );
       }
@@ -193,7 +185,7 @@ export async function PATCH(request: Request) {
       const isDoubles = categoryIsDoubles.get(categoryId) ?? false;
       const partnerId =
         isDoubles && partnerNames[categoryId]
-          ? await resolveOrCreatePartnerId(partnerNames[categoryId], partnerIdByName, player.id)
+          ? await resolveOrCreatePartnerId(partnerNames[categoryId], player.id)
           : null;
 
       await prisma.tournamentRegistration.upsert({

@@ -221,13 +221,6 @@
   --color-status-error-bg-subtle: color-mix(in srgb, var(--color-status-error) 12%, var(--color-surface-card));
   --color-status-error-text-strong: color-mix(in srgb, var(--color-status-error) 58%, black);
 
-  /* Admin */
-  --admin-inverse-bg: var(--color-primary-blue-700);
-  --admin-inverse-bg-hover: var(--color-primary-blue-600);
-  --admin-inverse-text: var(--color-text-on-brand);
-  --admin-muted-surface: var(--color-surface-strong);
-  --admin-panel-border: var(--color-border-ui);
-
   /* Destructive actions */
   --destructive-action-fill: color-mix(in srgb, var(--color-status-error) 72%, black);
   --destructive-action-fill-hover: color-mix(in srgb, var(--color-status-error) 62%, black);
@@ -1359,6 +1352,7 @@ a:focus-visible .card-elev--interactive {
   position: relative;
   width: 100%;
 }
+
 .form-control-leading-icon {
   pointer-events: none;
   position: absolute;

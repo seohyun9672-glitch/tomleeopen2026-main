@@ -3,14 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Locale } from "@/lib/content";
 import { siteContent } from "@/lib/content";
-import { getPartnerClubs, getPartnerClubSlugs } from "@/lib/partnerClubsData";
+import { getClubs, getClubSlugs } from "@/lib/clubs";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 
 export async function generateStaticParams() {
-  const slugs = await getPartnerClubSlugs();
+  const slugs = await getClubSlugs();
   return ["en", "ko"].flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
 }
 
@@ -19,7 +19,7 @@ export default async function ClubDetailPage({ params }: Props) {
   const locale: Locale = localeParam === "ko" ? "ko" : "en";
   const content = siteContent[locale];
 
-  const allClubs = await getPartnerClubs();
+  const allClubs = await getClubs();
   const club = allClubs.find((c) => c.slug === slug);
   if (!club) notFound();
   const excludeFromOtherClubs = new Set(["sagol", "na", "machang"]);

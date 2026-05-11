@@ -14,6 +14,11 @@ export const shared = {
       form: {
         email: "Email",
         password: "Password",
+        fullNameEn: "Full name (English)",
+        fullNameKo: "Full name (Korean)",
+        phone: "Phone number",
+        ntrp: "NTRP level",
+        clubs: "Club(s)",
       },
       labels: {
         coach: "Coach",
@@ -68,6 +73,11 @@ export const shared = {
       form: {
         email: "이메일",
         password: "비밀번호",
+        fullNameEn: "영문 이름",
+        fullNameKo: "한글 이름",
+        phone: "휴대폰 번호",
+        ntrp: "NTRP 레벨",
+        clubs: "클럽",
       },
       labels: {
         coach: "코치",

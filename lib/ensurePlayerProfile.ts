@@ -1,25 +1,18 @@
-/**
- * Create a Player row from a display name when no matching profile exists, or
- * return an existing player matched by normalized English/Korean name (same
- * rules as partner linking). Email defaults to a deterministic placeholder.
- */
 import { prisma } from "@/lib/prisma";
-import {
-  buildPlayerIdByPartnerNameMap,
-  normPartnerName,
-  resolvePartnerIdFromPartnerName,
-  type PlayerNameRow,
-} from "@/lib/partnerLinking";
 
-const PLACEHOLDER_DOMAIN = "";
+const PLACEHOLDER_DOMAIN = "placeholder.tomlee-open";
+
+function normName(s: string): string {
+  return s.trim().replace(/\s+/g, " ");
+}
 
 /** ASCII slug for placeholder emails: "Justin Song" → "justin.song" */
 export function emailSlugFromDisplayName(name: string): string {
-  const n = normPartnerName(name);
+  const n = normName(name);
   const slug = n
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.+|\.+$/g, "")
     .slice(0, 80);
@@ -27,10 +20,9 @@ export function emailSlugFromDisplayName(name: string): string {
 }
 
 function hasHangul(s: string): boolean {
-  return /[\uAC00-\uD7AF]/.test(s);
+  return /[가-힯]/.test(s);
 }
 
-/** `draw.{slug}.n@placeholder.local` — increments n if email already taken. */
 export async function allocatePlaceholderEmailForName(displayName: string): Promise<string> {
   const slug = emailSlugFromDisplayName(displayName);
   for (let n = 0; n < 50; n++) {
@@ -42,13 +34,9 @@ export async function allocatePlaceholderEmailForName(displayName: string): Prom
 }
 
 export type EnsurePlayerProfileInput = {
-  /** Partner / roster name (English, Korean, or mixed). */
   displayName: string;
-  /** Optional explicit English name (overrides parsing). */
   fullNameEn?: string | null;
-  /** Optional Korean name. */
   fullNameKo?: string | null;
-  /** If set, used instead of a placeholder (must be unique). */
   email?: string | null;
 };
 
@@ -58,57 +46,44 @@ export type EnsurePlayerProfileResult = {
   email: string;
 };
 
-/**
- * Load all players for name matching. For hot paths, pass a preloaded `cache`.
- */
 export async function ensurePlayerProfile(
-  input: EnsurePlayerProfileInput,
-  cache?: PlayerNameRow[]
+  input: EnsurePlayerProfileInput
 ): Promise<EnsurePlayerProfileResult> {
-  const raw = normPartnerName(input.displayName);
-  if (!raw) {
-    throw new Error("displayName is required");
-  }
+  const raw = normName(input.displayName);
+  if (!raw) throw new Error("displayName is required");
 
-  const players =
-    cache ??
-    (await prisma.player.findMany({
-      select: { id: true, fullNameEn: true, fullNameKo: true },
-    }));
-
-  const map = buildPlayerIdByPartnerNameMap(players);
-  const hit = resolvePartnerIdFromPartnerName(raw, map);
-  if (hit != null) {
-    const p = await prisma.player.findUnique({ where: { id: hit }, select: { email: true } });
-    return { playerId: hit, created: false, email: p?.email ?? "" };
-  }
+  const existing = await prisma.player.findFirst({
+    where: {
+      OR: [
+        { fullNameEn: { equals: raw, mode: "insensitive" } },
+        { fullNameKo: { equals: raw, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, email: true },
+  });
+  if (existing) return { playerId: existing.id, created: false, email: existing.email };
 
   const hangul = hasHangul(raw);
   let fullNameEn: string;
   let fullNameKo: string | null;
   if (input.fullNameEn?.trim()) {
-    fullNameEn = normPartnerName(input.fullNameEn);
-    fullNameKo = input.fullNameKo?.trim() ? normPartnerName(input.fullNameKo) : null;
+    fullNameEn = normName(input.fullNameEn);
+    fullNameKo = input.fullNameKo?.trim() ? normName(input.fullNameKo) : null;
   } else if (hangul) {
-    fullNameKo = normPartnerName(raw);
+    fullNameKo = normName(raw);
     fullNameEn = raw;
   } else {
     fullNameEn = raw;
-    fullNameKo = input.fullNameKo?.trim() ? normPartnerName(input.fullNameKo) : null;
+    fullNameKo = input.fullNameKo?.trim() ? normName(input.fullNameKo) : null;
   }
 
   const emailIn =
     input.email?.trim().toLowerCase() || (await allocatePlaceholderEmailForName(fullNameEn));
-
   const emailTaken = await prisma.player.findFirst({ where: { email: emailIn }, select: { id: true } });
   const email = emailTaken ? await allocatePlaceholderEmailForName(fullNameEn) : emailIn;
 
   const created = await prisma.player.create({
-    data: {
-      email,
-      fullNameEn,
-      fullNameKo,
-    },
+    data: { email, fullNameEn, fullNameKo },
     select: { id: true, email: true },
   });
 

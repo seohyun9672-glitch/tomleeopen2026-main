@@ -1,8 +1,7 @@
 import type { Locale } from "@/lib/content";
-import { getAvailableYears } from "@/lib/matches";
+import { getAvailableYears, getMatchesByYearBatch } from "@/lib/matches";
 import { siteContent } from "@/lib/content";
-import { getCategories, getCategoryYearStatusList } from "@/lib/category/categories";
-import { getMatchesByYearBatch } from "@/lib/matches";
+import { getCategories } from "@/lib/category/categories";
 import { PageContainer } from "@/app/components/PageContainer";
 import { DrawsHub } from "@/app/draws/DrawsHub";
 
@@ -17,13 +16,7 @@ export default async function DrawsPage({ params }: Props) {
   const { allYears, yearsWithMatches } = yearsData;
 
   const categoryIds = categories.map((c) => c.id);
-
-  const [statusesByYearEntries, matchesByYear] = await Promise.all([
-    Promise.all(allYears.map(async (y) => [y, await getCategoryYearStatusList(y, categories)] as const)),
-    getMatchesByYearBatch(allYears, categoryIds),
-  ]);
-
-  const statusesByYear = Object.fromEntries(statusesByYearEntries);
+  const matchesByYear = await getMatchesByYearBatch(allYears, categoryIds);
 
   return (
     <PageContainer title={content.drawsPage.heroTitle}>
@@ -31,7 +24,6 @@ export default async function DrawsPage({ params }: Props) {
         categories={categories}
         allYears={allYears}
         yearsWithMatches={yearsWithMatches}
-        statusesByYear={statusesByYear}
         matchesByYear={matchesByYear}
       />
     </PageContainer>

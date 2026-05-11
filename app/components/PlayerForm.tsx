@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Field } from "@/app/components/ui/Field";
 import { useLocale } from "@/lib/locale-context";
 import { clubChipClass } from "@/lib/clubs";
-import { NTRP_LEVELS } from "@/lib/ntrp";
+
 import type { ClubRecord } from "@/lib/clubs";
 
 export type PlayerFormValues = {
@@ -54,10 +54,18 @@ export function PlayerForm<TNameOption = never>({
   phoneInputProps,
 }: Props<TNameOption>) {
   const { t } = useLocale();
-  const p = t.adminPlayers;
   const rf = t.registrationForm;
+  const f = t.shared.form;
 
+  const [ntrpLevels, setNtrpLevels] = useState<string[]>([]);
   const [fetchedClubOptions, setFetchedClubOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/ntrp")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((levels: string[]) => setNtrpLevels(levels))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (clubOptionsProp != null) return;
@@ -87,7 +95,7 @@ export function PlayerForm<TNameOption = never>({
     <div className="space-y-4">
       {nc ? (
         <Field<TNameOption>
-          label={fieldLabel("fullNameEn", p.nameEn)}
+          label={fieldLabel("fullNameEn", f.fullNameEn)}
           variant="combobox"
           id={`${idPrefix}-name-en`}
           value={values.fullNameEn}
@@ -102,7 +110,7 @@ export function PlayerForm<TNameOption = never>({
         />
       ) : (
         <Field
-          label={fieldLabel("fullNameEn", p.nameEn)}
+          label={fieldLabel("fullNameEn", f.fullNameEn)}
           variant="text"
           id={`${idPrefix}-name-en`}
           value={values.fullNameEn}
@@ -115,7 +123,7 @@ export function PlayerForm<TNameOption = never>({
 
       {nc ? (
         <Field<TNameOption>
-          label={fieldLabel("fullNameKo", p.nameKo)}
+          label={fieldLabel("fullNameKo", f.fullNameKo)}
           variant="combobox"
           id={`${idPrefix}-name-ko`}
           value={values.fullNameKo}
@@ -128,7 +136,7 @@ export function PlayerForm<TNameOption = never>({
         />
       ) : (
         <Field
-          label={fieldLabel("fullNameKo", p.nameKo)}
+          label={fieldLabel("fullNameKo", f.fullNameKo)}
           variant="text"
           id={`${idPrefix}-name-ko`}
           value={values.fullNameKo}
@@ -138,7 +146,7 @@ export function PlayerForm<TNameOption = never>({
       )}
 
       <Field
-        label={fieldLabel("email", p.email)}
+        label={fieldLabel("email", f.email)}
         variant="email"
         id={`${idPrefix}-email`}
         value={values.email}
@@ -149,7 +157,7 @@ export function PlayerForm<TNameOption = never>({
       />
 
       <Field
-        label={fieldLabel("phone", p.phone)}
+        label={fieldLabel("phone", f.phone)}
         variant="tel"
         id={`${idPrefix}-phone`}
         value={values.phone}
@@ -161,7 +169,7 @@ export function PlayerForm<TNameOption = never>({
       />
 
       <Field
-        label={fieldLabel("ntrp", p.ntrp)}
+        label={fieldLabel("ntrp", f.ntrp)}
         variant="select"
         id={`${idPrefix}-ntrp`}
         value={values.ntrp}
@@ -169,13 +177,13 @@ export function PlayerForm<TNameOption = never>({
         error={fieldError("ntrp")}
       >
         <option value="">{rf.options.selectLevel}</option>
-        {NTRP_LEVELS.map((l) => (
+        {ntrpLevels.map((l) => (
           <option key={l} value={l}>{l}</option>
         ))}
       </Field>
 
       <Field
-        label={p.clubs}
+        label={f.clubs}
         variant="multiselect"
         id={`${idPrefix}-clubs`}
         selected={clubSelectedOptions}

@@ -2,31 +2,22 @@
 
 import { useEffect, useMemo } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
-import {
-  buildCategoryByIdMap,
-  categoryLabelForId,
-  isCategoryConfirmedForYear,
-} from "@/lib/category/categories";
-import type { CategoryRecord, CategoryYearListItem } from "@/lib/category/categories";
-import type { HonourRollEntry } from "@/lib/matches";
-import {
-  YearFilter,
-  CategoryFilter,
-} from "@/app/components/FilterControls";
+import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/category/categories";
+import type { MatchWithTeamNames } from "@/lib/matches";
+import { FilterGroup, YearFilter, CategoryFilter, HubContent } from "@/app/components/FilterGroup";
 import { useLocale } from "@/lib/locale-context";
-import { FilterGroup } from "@/app/components/layout/FilterGroup";
 import { MatchCard } from "@/app/components/MatchCard";
+
+type HonourEntry = {
+  year: number;
+  match: MatchWithTeamNames;
+};
 
 type Props = {
   categories: CategoryRecord[];
   allYears: number[];
-  honourRollByCategory: Record<string, HonourRollEntry[]>;
-  statusesByYear: Record<number, CategoryYearListItem[]>;
-};
-
-type CategoryOption = {
-  id: string;
-  label: string;
+  matchesByYear: Record<number, Record<string, MatchWithTeamNames[]>>;
 };
 
 function parseYearFilter(value: string): number | null {
@@ -35,37 +26,7 @@ function parseYearFilter(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function hasConfirmedEntries(
-  categoryId: string,
-  entries: HonourRollEntry[],
-  statusesByYear: Record<number, CategoryYearListItem[]>,
-  year: number | null
-): boolean {
-  if (year === null) {
-    return entries.some((entry) =>
-      isCategoryConfirmedForYear(categoryId, statusesByYear[entry.year] ?? [])
-    );
-  }
-
-  return (
-    entries.some((entry) => entry.year === year) &&
-    isCategoryConfirmedForYear(categoryId, statusesByYear[year] ?? [])
-  );
-}
-
-function getValidCategoryId(rawCategoryId: string, options: CategoryOption[]): string {
-  if (options.some((option) => option.id === rawCategoryId)) {
-    return rawCategoryId;
-  }
-  return options[0]?.id ?? "";
-}
-
-export function HonourRollHub({
-  categories,
-  allYears,
-  honourRollByCategory,
-  statusesByYear,
-}: Props) {
+export function HonourRollHub({ categories, allYears, matchesByYear }: Props) {
   const { t, locale } = useLocale();
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
@@ -74,57 +35,52 @@ export function HonourRollHub({
 
   const selectedYear = useMemo(() => parseYearFilter(rawYearFilter), [rawYearFilter]);
 
-  const categoriesWithHonour = useMemo(() => {
-    return categories.filter(
-      (category) => (honourRollByCategory[category.id]?.length ?? 0) > 0
-    );
-  }, [categories, honourRollByCategory]);
+  // Derive champion entries (Final round match) per category per year from raw match data
+  const entriesByCategory = useMemo(() => {
+    const result: Record<string, HonourEntry[]> = {};
+    for (const [yearStr, matchesByCat] of Object.entries(matchesByYear)) {
+      const year = Number(yearStr);
+      for (const [categoryId, matches] of Object.entries(matchesByCat)) {
+        const finalMatch = matches.find((m) => m.round?.code === "F");
+        if (!finalMatch) continue;
+        if (!result[categoryId]) result[categoryId] = [];
+        result[categoryId].push({ year, match: finalMatch });
+      }
+    }
+    for (const entries of Object.values(result)) {
+      entries.sort((a, b) => b.year - a.year);
+    }
+    return result;
+  }, [matchesByYear]);
 
-  const categoryOptions = useMemo<CategoryOption[]>(() => {
-    return categoriesWithHonour
-      .filter((category) =>
-        hasConfirmedEntries(
-          category.id,
-          honourRollByCategory[category.id] ?? [],
-          statusesByYear,
-          selectedYear
-        )
-      )
-      .map((category) => ({
-        id: category.id,
-        label: categoryLabelForId(categoriesById, category.id, locale),
+  const categoryOptions = useMemo(() => {
+    return categories
+      .filter((c) => {
+        const entries = entriesByCategory[c.id] ?? [];
+        if (selectedYear === null) return entries.length > 0;
+        return entries.some((e) => e.year === selectedYear);
+      })
+      .map((c) => ({
+        id: c.id,
+        label: categoryLabelForId(categoriesById, c.id, locale),
       }))
-      .sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
-      );
-  }, [
-    categoriesWithHonour,
-    honourRollByCategory,
-    statusesByYear,
-    selectedYear,
-    categoriesById,
-    locale,
-  ]);
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+  }, [categories, entriesByCategory, selectedYear, categoriesById, locale]);
 
   const categoryId = useMemo(() => {
-    return getValidCategoryId(rawCategoryId, categoryOptions);
+    if (categoryOptions.some((o) => o.id === rawCategoryId)) return rawCategoryId;
+    return categoryOptions[0]?.id ?? "";
   }, [rawCategoryId, categoryOptions]);
 
   useEffect(() => {
-    if (rawCategoryId !== categoryId) {
-      setCategoryId(categoryId);
-    }
+    if (rawCategoryId !== categoryId) setCategoryId(categoryId);
   }, [rawCategoryId, categoryId, setCategoryId]);
 
   const entries = useMemo(() => {
-    const base = honourRollByCategory[categoryId] ?? [];
-
-    if (selectedYear === null) {
-      return base;
-    }
-
-    return base.filter((entry) => entry.year === selectedYear);
-  }, [honourRollByCategory, categoryId, selectedYear]);
+    const base = entriesByCategory[categoryId] ?? [];
+    if (selectedYear === null) return base;
+    return base.filter((e) => e.year === selectedYear);
+  }, [entriesByCategory, categoryId, selectedYear]);
 
   return (
     <>
@@ -144,25 +100,16 @@ export function HonourRollHub({
         />
       </FilterGroup>
 
-      <div className="mt-[var(--content-gap)] text-[var(--section-text)] md:mt-[var(--section-gap)]">
-        {entries.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[color:var(--color-border-ui-strong)] p-8 text-center text-sm text-[var(--color-text-tertiary)]">
-            {t.empty}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-[var(--section-gap)]">
-            {entries.map(({ year, match }) => (
-              <div
-                key={`${match.id}-${year}`}
-                className="flex min-w-0 flex-col gap-[var(--element-gap)]"
-              >
-                <h3>{year}</h3>
-                <MatchCard match={match} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <HubContent isEmpty={entries.length === 0} emptyText={t.emptyStates.noResults}>
+        <div className="flex flex-col gap-[var(--section-gap)] text-[var(--section-text)]">
+          {entries.map(({ year, match }) => (
+            <div key={`${match.id}-${year}`} className="flex min-w-0 flex-col gap-[var(--element-gap)]">
+              <h3>{year}</h3>
+              <MatchCard match={match} />
+            </div>
+          ))}
+        </div>
+      </HubContent>
     </>
   );
 }

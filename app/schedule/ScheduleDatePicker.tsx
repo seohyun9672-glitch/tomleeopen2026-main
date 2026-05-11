@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFilterFieldId } from "@/app/components/Filter";
+import { useFilterFieldId } from "@/app/components/FilterGroup";
 import { useLocale } from "@/lib/locale-context";
 
 type Props = {

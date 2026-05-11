@@ -38,7 +38,6 @@ model Category {
   categoryYearStatuses CategoryYearStatus[]
 }
 
-/// Per tournament year + category: whether that category ran (Confirmed) or was pending/cancelled (admin).
 /// SQLite table kept as `TournamentCategoryYear` for existing DBs; Prisma model name is clearer in code.
 model CategoryYearStatus {
   tournamentYear Int
@@ -237,4 +236,11 @@ model AdminUser {
   active       Boolean  @default(true) // false = cannot log in
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// NTRP skill levels available as dropdown options in registration.
+// Seeded values: "2.5", "3.0", "3.5", "4.0", "4.5", "5.0", "5.0+"
+model Ntrp {
+  level     String @id // e.g. "2.5", "5.0+"
+  sortOrder Int    @default(0)
 }

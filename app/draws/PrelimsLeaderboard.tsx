@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useLocale } from "@/lib/locale-context";
 import type { MatchWithTeamNames } from "@/lib/matches";
 import { ROUND_PRE } from "@/lib/round";
+import { computePrelimStats } from "@/lib/draws";
 import { MatchCard } from "@/app/components/MatchCard";
 import { Table } from "@/app/components/ui/table/Table";
 
@@ -23,70 +24,56 @@ type LeaderboardRow = {
   teamId: string;
 };
 
-function parseSetValues(m: MatchWithTeamNames): Array<[number, number]> {
-  const sets: Array<[string | null, string | null]> = [
-    [m.set1ScoreTeam1, m.set1ScoreTeam2],
-    [m.set2ScoreTeam1, m.set2ScoreTeam2],
-    [m.set3ScoreTeam1, m.set3ScoreTeam2],
-  ];
-  const out: Array<[number, number]> = [];
-  for (const [a, b] of sets) {
-    const n1 = a != null ? parseInt(a, 10) : NaN;
-    const n2 = b != null ? parseInt(b, 10) : NaN;
-    if (Number.isNaN(n1) || Number.isNaN(n2)) continue;
-    out.push([n1, n2]);
+type DisplayInfo = {
+  seed: string;
+  player1: string;
+  player2?: string;
+  player1Ko?: string;
+  player2Ko?: string;
+};
+
+function buildDisplayMap(prelims: MatchWithTeamNames[]): Map<string, DisplayInfo> {
+  const map = new Map<string, DisplayInfo>();
+  for (const m of prelims) {
+    const teams: Array<[string | null, string | null, string | null, string | null]> = [
+      [m.team1Id, m.team1Seed, m.team1DisplayName, m.team1DisplayNameKo],
+      [m.team2Id, m.team2Seed, m.team2DisplayName, m.team2DisplayNameKo],
+    ];
+    for (const [teamId, seed, name, nameKo] of teams) {
+      if (!teamId) continue;
+      const names = (name ?? "—").trim().split(/\s*\/\s*/).filter(Boolean);
+      const namesKo = (nameKo ?? "").trim() ? (nameKo ?? "").split(/\s*\/\s*/).filter(Boolean) : [];
+      if (!map.has(teamId)) {
+        map.set(teamId, {
+          seed: (seed ?? "—").trim() || "—",
+          player1: names[0] ?? "—",
+          player2: names[1],
+          player1Ko: namesKo[0],
+          player2Ko: namesKo[1],
+        });
+      } else {
+        const info = map.get(teamId)!;
+        if (!info.player1Ko && namesKo[0]) info.player1Ko = namesKo[0];
+        if (!info.player2Ko && namesKo[1]) info.player2Ko = namesKo[1];
+      }
+    }
   }
-  return out;
+  return map;
 }
 
 function buildLeaderboard(categoryMatches: MatchWithTeamNames[]): LeaderboardRow[] | null {
   const prelims = categoryMatches.filter((m) => m.round?.code === ROUND_PRE);
   if (prelims.length === 0) return null;
 
-  const stats = new Map<
-    string,
-    {
-      teamId: string; seed: string; player1: string; player2?: string;
-      player1Ko?: string; player2Ko?: string;
-      w: number; l: number; sd: number; gd: number;
-    }
-  >();
+  const statsMap = computePrelimStats(categoryMatches);
+  if (statsMap.size < 2) return null;
 
-  function ensure(teamId: string | null, seed: string | null, player: string | null, playerKo: string | null) {
-    if (!teamId) return;
-    const name = (player ?? "—").trim() || "—";
-    const names = name.split(/\s*\/\s*/).map((x) => x.trim()).filter(Boolean);
-    const koRaw = (playerKo ?? "").trim();
-    const namesKo = koRaw ? koRaw.split(/\s*\/\s*/).map((x) => x.trim()).filter(Boolean) : [];
-    if (!stats.has(teamId)) {
-      stats.set(teamId, {
-        teamId, seed: (seed ?? "—").trim() || "—",
-        player1: names[0] ?? "—", player2: names[1],
-        player1Ko: namesKo[0], player2Ko: namesKo[1],
-        w: 0, l: 0, sd: 0, gd: 0,
-      });
-    } else {
-      const row = stats.get(teamId)!;
-      if (!row.player1Ko && namesKo[0]) row.player1Ko = namesKo[0];
-      if (!row.player2Ko && namesKo[1]) row.player2Ko = namesKo[1];
-    }
-  }
+  const displayMap = buildDisplayMap(prelims);
 
-  for (const m of prelims) {
-    ensure(m.team1Id, m.team1Seed, m.team1DisplayName, m.team1DisplayNameKo);
-    ensure(m.team2Id, m.team2Seed, m.team2DisplayName, m.team2DisplayNameKo);
-    if (m.winner == null || !m.team1Id || !m.team2Id) continue;
-    const t1 = stats.get(m.team1Id);
-    const t2 = stats.get(m.team2Id);
-    if (!t1 || !t2) continue;
-    if (m.winner === 1) { t1.w += 1; t2.l += 1; } else { t2.w += 1; t1.l += 1; }
-    for (const [g1, g2] of parseSetValues(m)) {
-      t1.gd += g1 - g2; t2.gd += g2 - g1;
-      if (g1 > g2) { t1.sd += 1; t2.sd -= 1; } else if (g2 > g1) { t2.sd += 1; t1.sd -= 1; }
-    }
-  }
+  const allRows = [...statsMap.keys()]
+    .filter((id) => displayMap.has(id))
+    .map((teamId) => ({ teamId, rank: 0, ...displayMap.get(teamId)!, ...statsMap.get(teamId)! }));
 
-  const allRows = [...stats.values()];
   if (allRows.length < 2) return null;
 
   const sorted = [...allRows].sort((a, b) => {
@@ -114,9 +101,9 @@ function seedTuple(seed: string | null | undefined): [string, number] {
   const alphaNumeric = /^([A-Za-z])(\d+)$/.exec(value);
   if (alphaNumeric) return [alphaNumeric[1]!.toUpperCase(), parseInt(alphaNumeric[2]!, 10)];
   const numeric = /^(\d+)$/.exec(value);
-  if (numeric) return ["\uFFFF", parseInt(numeric[1]!, 10)];
+  if (numeric) return ["￿", parseInt(numeric[1]!, 10)];
   const alpha = /^([A-Za-z])/.exec(value);
-  return [alpha ? alpha[1]!.toUpperCase() : "\uFFFF", 9999];
+  return [alpha ? alpha[1]!.toUpperCase() : "￿", 9999];
 }
 
 function cmpSeeds(a: [string, number], b: [string, number]): number {
@@ -156,7 +143,6 @@ export function PrelimsLeaderboard({ categoryMatches, selectedGroup }: Props) {
     return map;
   }, [allRows]);
 
-  // Leaderboard rows filtered to the selected group and re-ranked within it.
   const rows = useMemo(() => {
     if (!allRows) return null;
     const filtered = selectedGroup
