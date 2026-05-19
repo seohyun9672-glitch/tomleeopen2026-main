@@ -8,7 +8,7 @@ import { Section } from "@/app/components/Section";
 
 type Props = { params: Promise<{ slug: string }> };
 
-const HIDDEN_CLUB_SLUGS = new Set(["sagol", "na", "machang"]);
+const HIDDEN_CLUB_SLUGS = new Set(["sagol", "na", "n/a", "machang"]);
 
 export async function generateStaticParams() {
   const slugs = await getClubSlugs();
@@ -35,16 +35,6 @@ export default async function ClubDetailPage({ params }: Props) {
   return (
     <PageContainer
       title={heroTitle}
-      beforeTitle={
-        <nav aria-label="Breadcrumb">
-          <Link href={locale === "ko" ? "/ko#clubs" : "/#clubs"} className="link-default text-sm font-medium">
-            <span aria-hidden className="mr-1">
-              ←
-            </span>
-            {content.clubPage.backToClubs}
-          </Link>
-        </nav>
-      }
     >
       <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
         <Section
