@@ -2,11 +2,17 @@ import { importantDates } from "@/lib/importantDatesData";
 import { contactData } from "@/lib/contactData";
 
 const regEntry = importantDates.find((e) => e.label === "Registration");
+
+function localDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 const regStartEn = regEntry && regEntry.type === "range"
-  ? new Date(regEntry.startDate).toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })
+  ? localDate(regEntry.startDate).toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })
   : "";
 const regStartKo = regEntry && regEntry.type === "range"
-  ? new Date(regEntry.startDate).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
+  ? localDate(regEntry.startDate).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
   : "";
 const regPeriodEn = regEntry && regEntry.type === "range" ? regEntry.valueDisplay : "";
 const regPeriodKo = regEntry && regEntry.type === "range" ? (regEntry.valueDisplayKo ?? regEntry.valueDisplay) : "";
