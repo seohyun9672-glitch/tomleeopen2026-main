@@ -158,7 +158,6 @@ export async function PATCH(request: Request) {
       ...(body.photoVideoConsent !== undefined && {
         photoVideoConsent: Boolean(body.photoVideoConsent),
       }),
-      ...(body.engraving !== undefined && { engraving: body.engraving?.trim() || null }),
     };
 
     // Update kept registrations
@@ -204,7 +203,6 @@ export async function PATCH(request: Request) {
           nameOnEtransfer: body.nameOnEtransfer?.trim() || null,
           partnerId,
           photoVideoConsent: Boolean(body.photoVideoConsent),
-          engraving: body.engraving?.trim() || null,
         },
         update: {
           status: "Pending",

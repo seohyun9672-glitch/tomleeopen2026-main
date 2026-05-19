@@ -1,20 +1,13 @@
-
 import { unstable_cache } from "next/cache";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Round } from "@prisma/client";
 
-import { ROUND_F, ROUND_PRE} from "@/lib/round";
-
-import { categoryLabel } from "@/lib/category/categories";
 import { prisma } from "@/lib/prisma";
-import type { RoundInfo } from "@/lib/round";
 
-export type { RoundInfo };
-
-export type MatchWithTeamNames = {
+export type Match = {
   id: string;
   tournamentYear: number;
   categoryId: string;
-  round: RoundInfo | null;
+  round: Round | null;
   matchNumber: number | null;
   team1Id: string | null;
   team2Id: string | null;
@@ -40,15 +33,12 @@ export type MatchWithTeamNames = {
   categoryDisplayLabelKo: string | null;
 };
 
-export type HonourRollEntry = {
-  year: number;
-  match: MatchWithTeamNames;
-};
-
-export type ScheduleCalendarIndex = {
+export type MatchCalendarIndex = {
   yearsWithMatches: number[];
   datesByYear: Record<number, string[]>;
 };
+
+// ─── DB row mapping ───────────────────────────────────────────────────────────
 
 type TeamMember = {
   id: number;
@@ -106,44 +96,32 @@ function formatTeamSeed(team: TeamShape): string | null {
 
 function formatTeamName(team: TeamShape, locale: "en" | "ko"): string | null {
   if (!team) return null;
-
   const first =
     locale === "ko" ? getPreferredNameKo(team.member1) : getPreferredNameEn(team.member1);
-
   const second = team.member2
     ? locale === "ko"
       ? getPreferredNameKo(team.member2)
       : getPreferredNameEn(team.member2)
     : null;
-
   return second ? `${first} / ${second}` : first;
 }
 
 function normalizeMatchDate(dateStr: string | null, tournamentYear: number): string | null {
   const value = dateStr?.trim();
   if (!value) return null;
-
   if (ISO_DATE_ONLY.test(value)) return value;
-
   const isoPrefix = value.slice(0, 10);
   if (ISO_DATE_ONLY.test(isoPrefix)) return isoPrefix;
-
   const parsed = new Date(`${value}, ${tournamentYear}`);
   if (Number.isNaN(parsed.getTime())) return null;
-
   const month = String(parsed.getMonth() + 1).padStart(2, "0");
   const day = String(parsed.getDate()).padStart(2, "0");
-
   return `${tournamentYear}-${month}-${day}`;
 }
 
 function computeWinner(match: {
-  set1ScoreTeam1: string | null;
-  set2ScoreTeam1: string | null;
-  set3ScoreTeam1: string | null;
-  set1ScoreTeam2: string | null;
-  set2ScoreTeam2: string | null;
-  set3ScoreTeam2: string | null;
+  set1ScoreTeam1: string | null; set2ScoreTeam1: string | null; set3ScoreTeam1: string | null;
+  set1ScoreTeam2: string | null; set2ScoreTeam2: string | null; set3ScoreTeam2: string | null;
 }): 1 | 2 | null {
   const sets = [
     [match.set1ScoreTeam1, match.set1ScoreTeam2],
@@ -151,53 +129,38 @@ function computeWinner(match: {
     [match.set3ScoreTeam1, match.set3ScoreTeam2],
   ] as const;
 
-  let wins1 = 0;
-  let wins2 = 0;
-  let completedSets = 0;
+  let wins1 = 0; let wins2 = 0; let completedSets = 0;
 
   for (const [raw1, raw2] of sets) {
     const score1 = raw1 ? parseInt(raw1, 10) : NaN;
     const score2 = raw2 ? parseInt(raw2, 10) : NaN;
-
     if (Number.isNaN(score1) || Number.isNaN(score2)) continue;
-
     completedSets += 1;
-
     if (score1 > score2) wins1 += 1;
     if (score2 > score1) wins2 += 1;
   }
 
   if (wins1 >= 2) return 1;
   if (wins2 >= 2) return 2;
-
   if (completedSets === 1) {
     if (wins1 === 1) return 1;
     if (wins2 === 1) return 2;
   }
-
   return null;
 }
 
 function comparePublicMatchOrder(
-  a: Pick<MatchWithTeamNames, "round" | "matchNumber" | "id">,
-  b: Pick<MatchWithTeamNames, "round" | "matchNumber" | "id">
+  a: Pick<Match, "round" | "matchNumber" | "id">,
+  b: Pick<Match, "round" | "matchNumber" | "id">
 ): number {
   const roundDiff = (a.round?.sortOrder ?? -1) - (b.round?.sortOrder ?? -1);
   if (roundDiff !== 0) return roundDiff;
-
   const matchNumberDiff = (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
   if (matchNumberDiff !== 0) return matchNumberDiff;
-
   return a.id.localeCompare(b.id, undefined, { sensitivity: "base" });
 }
 
-function sortDbMatchesForPublicOrder<
-  T extends { round: RoundInfo | null; matchNumber: number | null; id: string },
->(rows: readonly T[]): T[] {
-  return [...rows].sort(comparePublicMatchOrder);
-}
-
-function mapMatchRow(match: MatchRow): MatchWithTeamNames {
+function mapMatchRow(match: MatchRow): Match {
   return {
     id: match.id,
     tournamentYear: match.tournamentYear,
@@ -224,213 +187,64 @@ function mapMatchRow(match: MatchRow): MatchWithTeamNames {
     set3ScoreTeam2: match.set3ScoreTeam2,
     winner: computeWinner(match),
     comment: match.comment,
-    categoryDisplayLabel: categoryLabel(match.category, "en") ?? null,
-    categoryDisplayLabelKo: categoryLabel(match.category, "ko") ?? null,
+    categoryDisplayLabel: match.category.label.trim() || null,
+    categoryDisplayLabelKo: match.category.labelKo?.trim() || match.category.label.trim() || null,
   };
 }
 
-function mapMatchRows(matches: readonly MatchRow[]): MatchWithTeamNames[] {
-  return matches.map(mapMatchRow);
+// ─── Data fetcher ─────────────────────────────────────────────────────────────
+
+export const getAllMatches = unstable_cache(
+  async (): Promise<Match[]> => {
+    const rows = await prisma.match.findMany({ include: matchInclude });
+    return [...rows]
+      .sort(comparePublicMatchOrder)
+      .map(mapMatchRow);
+  },
+  ["all-matches"],
+  { revalidate: 60 }
+);
+
+export function isoDateLocal(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-async function fetchRawMatches(args: {
-  where: Prisma.MatchWhereInput;
-  orderBy?: Prisma.MatchOrderByWithRelationInput[];
-}): Promise<MatchRow[]> {
-  return prisma.match.findMany({
-    where: args.where,
-    include: matchInclude,
-    orderBy: args.orderBy,
-  });
-}
+// ─── Pure data utilities ──────────────────────────────────────────────────────
 
-async function fetchMappedMatches(args: {
-  where: Prisma.MatchWhereInput;
-  orderBy?: Prisma.MatchOrderByWithRelationInput[];
-  needsPublicSort?: boolean;
-}): Promise<MatchWithTeamNames[]> {
-  const raw = await fetchRawMatches(args);
-  const sorted = args.needsPublicSort ? sortDbMatchesForPublicOrder(raw) : raw;
-  return mapMatchRows(sorted);
-}
-
-function groupMappedMatchesByCategory(
-  matches: readonly MatchWithTeamNames[],
-  categoryIds?: readonly string[]
-): Record<string, MatchWithTeamNames[]> {
-  const out: Record<string, MatchWithTeamNames[]> = {};
-
-  for (const categoryId of categoryIds ?? []) {
-    out[categoryId] = [];
-  }
-
-  for (const match of matches) {
-    (out[match.categoryId] ??= []).push(match);
-  }
-
-  return out;
-}
-
-function groupMappedMatchesByYearAndCategory(
-  matches: readonly MatchWithTeamNames[],
-  years: readonly number[],
-  categoryIds: readonly string[]
-): Record<number, Record<string, MatchWithTeamNames[]>> {
-  const out: Record<number, Record<string, MatchWithTeamNames[]>> = {};
-
-  for (const year of years) {
-    out[year] = {};
-    for (const categoryId of categoryIds) {
-      out[year][categoryId] = [];
-    }
-  }
-
+export function groupMatchesByYearAndCategory(
+  matches: Match[]
+): Record<number, Record<string, Match[]>> {
+  const out: Record<number, Record<string, Match[]>> = {};
   for (const match of matches) {
     out[match.tournamentYear] ??= {};
     out[match.tournamentYear][match.categoryId] ??= [];
     out[match.tournamentYear][match.categoryId].push(match);
   }
-
   return out;
 }
 
-function resolveChampionshipMatch(
-  matches: readonly MatchWithTeamNames[]
-): MatchWithTeamNames | undefined {
-  const finalRound = matches.find((match) => match.round?.code === ROUND_F);
-  if (finalRound) return finalRound;
-
-  const championshipRows = matches.filter((match) =>
-    /championship/i.test(match.comment ?? "")
-  );
-
-  if (championshipRows.length === 0) return undefined;
-
-  return championshipRows.sort((a, b) => (b.matchNumber ?? -1) - (a.matchNumber ?? -1))[0];
-}
-
-export async function getHonourRollByCategoryIds(
-  categoryIds: string[]
-): Promise<Record<string, HonourRollEntry[]>> {
-  const uniqueCategoryIds = [...new Set(categoryIds)];
-  const out: Record<string, HonourRollEntry[]> = {};
-
-  for (const categoryId of uniqueCategoryIds) {
-    out[categoryId] = [];
-  }
-
-  if (uniqueCategoryIds.length === 0) return out;
-
-  const mapped = await fetchMappedMatches({
-    where: { categoryId: { in: uniqueCategoryIds } },
-    orderBy: [{ categoryId: "asc" }, { tournamentYear: "desc" }, { id: "asc" }],
-    needsPublicSort: true,
-  });
-
-  const byCategory = groupMappedMatchesByCategory(mapped, uniqueCategoryIds);
-
-  for (const categoryId of uniqueCategoryIds) {
-    const list = byCategory[categoryId] ?? [];
-    const byYear = new Map<number, MatchWithTeamNames[]>();
-
-    for (const match of list) {
-      const existing = byYear.get(match.tournamentYear);
-      if (existing) existing.push(match);
-      else byYear.set(match.tournamentYear, [match]);
-    }
-
-    const years = [...byYear.keys()].sort((a, b) => b - a);
-
-    out[categoryId] = years.flatMap((year) => {
-      const championship = resolveChampionshipMatch(byYear.get(year) ?? []);
-      if (!championship || championship.winner == null) return [];
-      return [{ year, match: championship }];
-    });
-  }
-
-  return out;
-}
-
-export async function getScheduleCalendarIndex(): Promise<ScheduleCalendarIndex> {
-  const rows = await prisma.match.findMany({
-    where: { date: { not: null } },
-    select: { tournamentYear: true, date: true },
-    distinct: ["tournamentYear", "date"],
-  });
-
-  const yearSet = new Set<number>();
+export function getMatchCalendarIndex(matches: Match[]): MatchCalendarIndex {
   const datesByYearMap = new Map<number, Set<string>>();
-
-  for (const row of rows) {
-    yearSet.add(row.tournamentYear);
-
-    const iso = normalizeMatchDate(row.date, row.tournamentYear);
-    if (!iso) continue;
-
-    const existing = datesByYearMap.get(row.tournamentYear);
-    if (existing) existing.add(iso);
-    else datesByYearMap.set(row.tournamentYear, new Set([iso]));
+  for (const m of matches) {
+    if (!m.date) continue;
+    const existing = datesByYearMap.get(m.tournamentYear);
+    if (existing) existing.add(m.date);
+    else datesByYearMap.set(m.tournamentYear, new Set([m.date]));
   }
-
-  const yearsWithMatches = [...yearSet].sort((a, b) => b - a);
+  const yearsWithMatches = [...datesByYearMap.keys()].sort((a, b) => b - a);
   const datesByYear: Record<number, string[]> = {};
-
   for (const [year, dates] of datesByYearMap) {
     datesByYear[year] = [...dates].sort();
   }
-
   return { yearsWithMatches, datesByYear };
 }
 
-const getAllMatchesForScheduleCached = unstable_cache(
-  async (tournamentYear: number): Promise<MatchWithTeamNames[]> =>
-    fetchMappedMatches({
-      where: { tournamentYear },
-      orderBy: [{ date: "asc" }, { time: "asc" }, { id: "asc" }],
-      needsPublicSort: false,
-    }),
-  ["all-matches-for-schedule"],
-  { revalidate: 60 }
-);
+// ─── Match status ─────────────────────────────────────────────────────────────
 
-export async function getAllMatchesForSchedule(
-  tournamentYear: number
-): Promise<MatchWithTeamNames[]> {
-  return getAllMatchesForScheduleCached(tournamentYear);
-}
-
-export async function getMatchesByYearBatch(
-  years: number[],
-  categoryIds: string[]
-): Promise<Record<number, Record<string, MatchWithTeamNames[]>>> {
-  const uniqueYears = [...new Set(years)];
-  const uniqueCategoryIds = [...new Set(categoryIds)];
-  const out: Record<number, Record<string, MatchWithTeamNames[]>> = {};
-
-  for (const year of uniqueYears) {
-    out[year] = {};
-    for (const categoryId of uniqueCategoryIds) {
-      out[year][categoryId] = [];
-    }
-  }
-
-  if (uniqueYears.length === 0 || uniqueCategoryIds.length === 0) return out;
-
-  const mapped = await fetchMappedMatches({
-    where: {
-      tournamentYear: { in: uniqueYears },
-      categoryId: { in: uniqueCategoryIds },
-    },
-    orderBy: [{ tournamentYear: "asc" }, { categoryId: "asc" }, { id: "asc" }],
-    needsPublicSort: true,
-  });
-
-  return groupMappedMatchesByYearAndCategory(mapped, uniqueYears, uniqueCategoryIds);
-}
-
-// ─── Match status chips ───────────────────────────────────────────────────────
-
-const MATCH_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
+export const MATCH_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
   scheduled: { en: "Scheduled", ko: "예정" },
   completed:  { en: "Completed", ko: "종료" },
   cancelled:  { en: "Cancelled", ko: "취소" },
@@ -457,61 +271,18 @@ export function matchStatusChipClass(status: string): string {
   return `match-status-chip-${matchStatusVariant(status)}`;
 }
 
-// ─── Match ID helpers ─────────────────────────────────────────────────────────
-
-export function matchIdUsesPrelimsSeedLetter(code: string | null | undefined): boolean {
-  return (code ?? "").trim() === ROUND_PRE;
+/** Format an ISO date string (YYYY-MM-DD) as a short locale-aware date, e.g. "Aug 23" / "8월 23일". */
+export function formatDateDisplay(dateStr: string | null | undefined, locale: "en" | "ko" = "en"): string {
+  if (!dateStr?.trim()) return "—";
+  const value = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const date = new Date(`${value}T12:00:00`);
+    if (!Number.isNaN(date.getTime())) {
+      return locale === "ko"
+        ? date.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
+        : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+  }
+  return value;
 }
-
-export function matchIdYearSuffix(tournamentYear: number): string {
-  const yy = ((Math.trunc(tournamentYear) % 100) + 100) % 100;
-  return String(yy).padStart(2, "0");
-}
-
-export function buildMatchId(
-  tournamentYear: number,
-  categoryId: string,
-  roundCode: string | null | undefined,
-  matchNumber: number,
-  options?: { prelimsSeedLetter?: string | null }
-): string {
-  const cat = categoryId.trim();
-  if (!cat) throw new Error("categoryId is required");
-  const n = Math.trunc(matchNumber);
-  if (!Number.isFinite(n) || n < 1) throw new Error("matchNumber must be a positive integer");
-
-  const code = (roundCode ?? "").trim().toUpperCase();
-  const seedLetter = (options?.prelimsSeedLetter ?? "").trim().toUpperCase();
-  const roundSegment = code === ROUND_PRE ? `PRE${seedLetter}` : code;
-
-  return `${matchIdYearSuffix(tournamentYear)}${cat}${roundSegment}${n}`;
-}
-
-export function resolveBracketTeamDisplayRank(teamId: string | null | undefined, rankMap: Map<string, number>): number | null {
-  if (!teamId) return null;
-  return rankMap.get(teamId) ?? null;
-}
-
-
-export const getAvailableYears = unstable_cache(
-  async () => {
-    const [regRows, teamRows, matchRows] = await Promise.all([
-      prisma.tournamentRegistration.findMany({ select: { tournamentYear: true }, distinct: ["tournamentYear"] }),
-      prisma.team.findMany({ select: { tournamentYear: true }, distinct: ["tournamentYear"] }),
-      prisma.match.findMany({ select: { tournamentYear: true }, distinct: ["tournamentYear"] }),
-    ]);
-
-    const allYears = [...new Set([...regRows, ...teamRows, ...matchRows].map((r) => r.tournamentYear))]
-      .filter((year): year is number => typeof year === "number")
-      .sort((a, b) => b - a);
-
-    const yearsWithMatches = [...new Set(matchRows.map((r) => r.tournamentYear))]
-      .filter((year): year is number => typeof year === "number")
-      .sort((a, b) => b - a);
-
-    return { allYears, yearsWithMatches };
-  },
-  ["available-years"],
-  { revalidate: 300 }
-);
 

@@ -1,3 +1,4 @@
+import { setRequestLocale } from "@/lib/request-locale";
 import { AppScrollLayout } from "../components/AppScrollLayout";
 import { TopHeader } from "../components/topheader/TopHeader";
 
@@ -6,7 +7,9 @@ type Props = {
   params: Promise<{ locale: string }>;
 };
 
-export default async function LocaleLayout({ children, params: _ }: Props) {
+export default async function LocaleLayout({ children, params }: Props) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   return (
     <>
       <header

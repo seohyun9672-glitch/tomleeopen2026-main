@@ -1,51 +1,36 @@
 "use client";
 
-import { useMemo } from "react";
-import { useUrlParam } from "@/lib/hooks/useUrlParam";
-import type { MatchWithTeamNames } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
-import { FilterGroup, Filter, filterByValue, HubContent } from "@/app/components/FilterGroup";
-import { ScheduleDatePicker } from "./ScheduleDatePicker";
+import { DatabaseLayout } from "@/app/components/database";
 import { MatchCard } from "@/app/components/MatchCard";
+import type { Match } from "@/lib/matches";
 
-type Props = {
-  allMatches: MatchWithTeamNames[];
-  datesWithMatches: string[];
-  defaultDate: string;
-  scheduleYear: number;
-};
+type Props = { allMatches: Match[] };
 
-export function ScheduleHub({ allMatches, datesWithMatches, defaultDate, scheduleYear }: Props) {
+const today = () => new Date().toISOString().slice(0, 10);
+
+export function ScheduleHub({ allMatches }: Props) {
   const { t } = useLocale();
-  const [dateParam, setSelectedDate] = useUrlParam("date");
-  const selectedDate = dateParam || defaultDate;
-
-  const matchesForDate = useMemo(
-    () => filterByValue(allMatches, (m) => m.date, selectedDate),
-    [allMatches, selectedDate]
-  );
 
   return (
-    <>
-      <FilterGroup>
-        <Filter control="date" htmlFor="schedule-date" label={t.shared.labels.date}>
-          <ScheduleDatePicker
-            value={selectedDate}
-            onChange={setSelectedDate}
-            datesWithMatches={datesWithMatches}
-            scheduleYear={scheduleYear}
-          />
-        </Filter>
-      </FilterGroup>
-      <HubContent isEmpty={matchesForDate.length === 0} emptyText={t.emptyStates.noMatches}>
-        <ul className="space-y-4">
-          {matchesForDate.map((m) => (
-            <li key={m.id}>
-              <MatchCard match={m} />
-            </li>
-          ))}
-        </ul>
-      </HubContent>
-    </>
+    <DatabaseLayout<Match>
+      data={allMatches}
+      managedFilters={[
+        {
+          type: "date" as const,
+          param: "date",
+          matches: allMatches,
+          defaultValue: (matches: Match[]) =>
+            matches.map((m) => m.date).filter(Boolean).sort().at(-1) ?? today(),
+          apply: (items: Match[], date: string) => items.filter((m) => m.date === date),
+        },
+      ]}
+      view={{
+        getKey: (m) => m.id,
+        renderItem: (m) => <MatchCard match={m} />,
+        gap: "gap-4",
+      }}
+      emptyText={t.emptyStates.noMatches}
+    />
   );
 }

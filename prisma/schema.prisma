@@ -25,6 +25,10 @@ model Category {
   id            String                 @id // e.g. "MD-B", "MS-S"
   label         String                 // full display e.g. "Men's Doubles – Bronze"
   labelKo       String?                // full display e.g. "남자 복식 – 동배"
+  category      String?                // e.g. "Men's Doubles", "Men's Singles"
+  categoryKo    String?                // e.g. "남자 복식", "남자 단식"
+  tier          String?                // e.g. "Bronze", "Silver", "Gold", "Open"
+  tierKo        String?                // e.g. "동배", "은배", "금배", "오픈"
   isDoubles     Boolean                @default(false) // true for MD, WD, XD doubles categories
   ntrp          String?                // e.g. "7.5–8.0", "6.5–7.0"
   sortOrder     Int                    @default(0)
@@ -91,7 +95,6 @@ model TournamentRegistration {
   partnerId          Int?
   partner            Player?   @relation("RegistrationPartner", fields: [partnerId], references: [id], onDelete: SetNull)
   photoVideoConsent  Boolean   @default(false)
-  engraving          String?
   notes              String?
   /// Confirmed | Cancelled (see lib/registrationStatus.ts)
   status             String    @default("Confirmed")
@@ -216,6 +219,9 @@ model Media {
   imagePlaceholderKo String?
   media           String?   // URL or path to the media / article link (for photos: image URL)
   outlet          String?   // source name e.g. "The Joong Ang", "Vanchosun"
+  outletKo        String?   // Korean name of the outlet
+  titleKo         String?   // Korean title override
+  subtitleKo      String?   // Korean subtitle override
   sortOrder       Int       @default(0)
   categoryId      String?
   category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)

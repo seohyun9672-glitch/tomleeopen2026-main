@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFilterFieldId } from "@/app/components/FilterGroup";
+import { useFilterFieldId } from "@/app/components/database";
 import { useLocale } from "@/lib/locale-context";
+import { getMatchCalendarIndex, type Match } from "@/lib/matches";
 
 type Props = {
   value: string;
   onChange: (date: string) => void;
-  datesWithMatches: string[];
-  scheduleYear: number;
+  matches: Match[];
 };
 
 function CalendarInputIcon({ className = "" }: { className?: string }) {
@@ -50,9 +50,19 @@ function formatScheduleFilterDate(iso: string): string {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function ScheduleDatePicker({ value, onChange, datesWithMatches, scheduleYear }: Props) {
+export function ScheduleDatePicker({ value, onChange, matches }: Props) {
   const htmlFor = useFilterFieldId() ?? "";
   const { t } = useLocale();
+
+  const { yearsWithMatches, datesByYear } = useMemo(
+    () => getMatchCalendarIndex(matches),
+    [matches],
+  );
+  const thisYear = new Date().getFullYear();
+  const scheduleYear = yearsWithMatches.includes(thisYear)
+    ? thisYear
+    : (yearsWithMatches[0] ?? thisYear);
+  const datesWithMatches = datesByYear[scheduleYear] ?? [];
 
   const dateSet = useMemo(() => new Set(datesWithMatches), [datesWithMatches]);
 
@@ -122,13 +132,13 @@ export function ScheduleDatePicker({ value, onChange, datesWithMatches, schedule
         <div
           role="dialog"
           aria-label={t.schedulePage.calendarDialogAria}
-          className="absolute top-full left-0 z-50 mt-1 min-w-[280px] rounded-xl border border-[color:var(--color-filter-outline)] bg-[var(--color-surface-card)] p-3 shadow-lg"
+          className="absolute top-full left-0 z-50 mt-1 min-w-[280px] rounded-xl border border-[color:var(--outline-blue-default)] bg-[var(--color-surface-card)] p-3 shadow-lg"
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => { setViewMonth(prevMonth); setViewYear(prevYear); }}
-              className="flex h-10 max-h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--color-filter-outline)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-strong)]"
+              className="flex h-10 max-h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--outline-blue-soft)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-strong)]"
               aria-label={t.schedulePage.previousMonth}
             >
               ←
@@ -137,7 +147,7 @@ export function ScheduleDatePicker({ value, onChange, datesWithMatches, schedule
             <button
               type="button"
               onClick={() => { setViewMonth(nextMonth); setViewYear(nextYear); }}
-              className="flex h-10 max-h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--color-filter-outline)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-strong)]"
+              className="flex h-10 max-h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--outline-blue-soft)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-strong)]"
               aria-label={t.schedulePage.nextMonth}
             >
               →
@@ -167,7 +177,7 @@ export function ScheduleDatePicker({ value, onChange, datesWithMatches, schedule
                     !hasMatches
                       ? "cursor-not-allowed text-[color-mix(in_srgb,var(--color-text-tertiary)_72%,var(--color-background))] hover:bg-transparent"
                       : isSelected
-                        ? "bg-[color-mix(in_srgb,var(--color-surface-strong)_90%,transparent)] text-[var(--color-text-primary)] ring-1 ring-inset ring-[color:var(--outline-blue-default)] hover:bg-[var(--color-surface-strong)]"
+                        ? "bg-[color-mix(in_srgb,var(--color-surface-strong)_100%,transparent)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-strong)]"
                         : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-strong)]/80"
                   }`}
                   title={hasMatches ? iso : "No matches on this date"}

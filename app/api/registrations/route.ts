@@ -53,6 +53,52 @@ async function createPlayerRow(data: Prisma.PlayerCreateInput) {
   }
 }
 
+/** GET /api/registrations?year=&categoryId= — list all registrations (admin). */
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const year = url.searchParams.get("year");
+    const categoryId = url.searchParams.get("categoryId");
+
+    const rows = await prisma.tournamentRegistration.findMany({
+      where: {
+        ...(year ? { tournamentYear: parseInt(year, 10) } : {}),
+        ...(categoryId ? { categoryId } : {}),
+      },
+      include: {
+        player: { select: { id: true, fullNameEn: true, fullNameKo: true } },
+        partner: { select: { id: true, fullNameEn: true, fullNameKo: true } },
+        category: { select: { label: true, labelKo: true, isDoubles: true } },
+      },
+      orderBy: [{ tournamentYear: "desc" }, { createdAt: "desc" }],
+    });
+
+    return NextResponse.json(
+      rows.map((r) => ({
+        id: r.id,
+        tournamentYear: r.tournamentYear,
+        categoryId: r.categoryId,
+        categoryLabel: r.category.label,
+        categoryLabelKo: r.category.labelKo,
+        isDoubles: r.category.isDoubles,
+        status: r.status,
+        playerId: r.player.id,
+        playerNameEn: r.player.fullNameEn,
+        playerNameKo: r.player.fullNameKo,
+        partnerId: r.partner?.id ?? null,
+        partnerNameEn: r.partner?.fullNameEn ?? null,
+        partnerNameKo: r.partner?.fullNameKo ?? null,
+        notes: r.notes,
+        photoVideoConsent: r.photoVideoConsent,
+        createdAt: r.createdAt.toISOString(),
+      }))
+    );
+  } catch (e) {
+    console.error("GET /api/registrations", e);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
 /** POST /api/registrations — create registration(s) from public form. One per category. */
 export async function POST(request: Request) {
   try {
@@ -186,7 +232,6 @@ export async function POST(request: Request) {
       const registrationUpdateFields = {
         nameOnEtransfer: body.nameOnEtransfer?.trim() || undefined,
         photoVideoConsent: Boolean(body.photoVideoConsent),
-        engraving: body.engraving?.trim() ?? undefined,
         notes: body.notes?.trim() ?? undefined,
       };
 
@@ -237,7 +282,6 @@ export async function POST(request: Request) {
           nameOnEtransfer: body.nameOnEtransfer?.trim() || null,
           partnerId: resolvedPartnerId,
           photoVideoConsent: Boolean(body.photoVideoConsent),
-          engraving: body.engraving?.trim() || null,
           notes: body.notes?.trim() || null,
         },
         update: {

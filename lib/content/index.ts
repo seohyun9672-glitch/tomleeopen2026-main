@@ -15,8 +15,8 @@ import { drawsPage } from "./drawsPage";
 import { honourRollPage } from "./honourRollPage";
 import { clubs } from "./clubs";
 import { registrationPage } from "./registrationPage";
-import { registrationForm } from "./registrationForm";
 import { rulesPage } from "./rulesPage";
+import { adminPage } from "./adminPage";
 
 /** Full bilingual site content. Use `siteContent[locale]` in locale-context. */
 export const siteContent = {
@@ -33,8 +33,8 @@ export const siteContent = {
     ...honourRollPage.en,
     ...clubs.en,
     ...registrationPage.en,
-    ...registrationForm.en,
     ...rulesPage.en,
+    ...adminPage.en,
   },
   ko: {
     ...header.ko,
@@ -49,8 +49,8 @@ export const siteContent = {
     ...honourRollPage.ko,
     ...clubs.ko,
     ...registrationPage.ko,
-    ...registrationForm.ko,
     ...rulesPage.ko,
+    ...adminPage.ko,
   },
 } as const;
 
@@ -61,5 +61,12 @@ export type Messages = SiteContent["en"];
 /** English-only shorthand for server components (no locale switching needed). */
 export const content: Messages = siteContent.en;
 
+/** Resolve a raw URL locale param to a supported Locale, falling back to the first defined locale. */
+export function resolveLocale(localeParam: string): Locale {
+  return (localeParam as Locale) in siteContent
+    ? (localeParam as Locale)
+    : (Object.keys(siteContent)[0] as Locale);
+}
+
 // Named exports for direct per-domain imports
-export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, registrationForm, rulesPage };
+export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, rulesPage, adminPage };

@@ -1,38 +1,32 @@
 "use client";
 
-import { Badge } from "@/app/components/ui/Badge";
+import { Chip } from "@/app/components/ui/Chip";
 import { useLocale } from "@/lib/locale-context";
-import type { MatchWithTeamNames } from "@/lib/matches";
+import type { Match } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
+import { ROUND_PRE } from "@/lib/round";
 import { cn } from "@/lib/utils";
-import { ROUND_F, ROUND_QF, ROUND_R16, ROUND_SF } from "@/lib/round";
-import { RoundInfo } from "@/lib/matches";
 
-function showNumber(round: RoundInfo | null, isLoser?: boolean): boolean {
-  const code = round?.code;
-  if (isLoser === undefined) return code !== ROUND_F;
-  return code === ROUND_R16 || code === ROUND_QF || code === ROUND_SF || code === ROUND_F;
-}
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
 
-function formatDateDisplay(dateStr: string | null, locale: "en" | "ko" = "en"): string {
+function formatDateDisplay(
+  dateStr: string | null,
+  locale: "en" | "ko" = "en",
+): string {
   if (!dateStr?.trim()) return "—";
-
   const value = dateStr.trim();
-
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const date = new Date(`${value}T12:00:00`);
-
     if (!Number.isNaN(date.getTime())) {
       return locale === "ko"
         ? date.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
         : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     }
   }
-
   return value;
 }
 
-function hasSet3(match: MatchWithTeamNames): boolean {
+function hasSet3(match: Match): boolean {
   return (
     (match.set3ScoreTeam1 != null && match.set3ScoreTeam1 !== "") ||
     (match.set3ScoreTeam2 != null && match.set3ScoreTeam2 !== "")
@@ -41,70 +35,95 @@ function hasSet3(match: MatchWithTeamNames): boolean {
 
 function parseScore(score: string | null): number | null {
   if (score == null || score === "") return null;
-
   const value = parseInt(score, 10);
   return Number.isNaN(value) ? null : value;
 }
 
-function getWithdrew(match: MatchWithTeamNames): { team1: boolean; team2: boolean } {
-  const noSchedule = !match.location?.trim() && !match.date?.trim() && !match.time?.trim();
+function getWithdrew(match: Match): { team1: boolean; team2: boolean } {
+  const noSchedule =
+    !match.location?.trim() && !match.date?.trim() && !match.time?.trim();
   if (!noSchedule) return { team1: false, team2: false };
-
   const s1t1 = parseScore(match.set1ScoreTeam1);
   const s1t2 = parseScore(match.set1ScoreTeam2);
   const s2t1 = parseScore(match.set2ScoreTeam1);
   const s2t2 = parseScore(match.set2ScoreTeam2);
-
   if (s1t1 == null || s1t2 == null || s2t1 == null || s2t2 == null) {
     return { team1: false, team2: false };
   }
-
   return {
     team1: s1t1 === 0 && s2t1 === 0 && s1t2 === 6 && s2t2 === 6,
     team2: s1t2 === 0 && s2t2 === 0 && s1t1 === 6 && s2t1 === 6,
   };
 }
 
-const LOSER_NAME = "text-[var(--match-text-loser)]";
-const WINNER_NAME = "text-[var(--match-text-winner)]";
+function getLocalizedTeamName(
+  match: Match,
+  team: 1 | 2,
+  locale: "en" | "ko",
+): string | null {
+  if (team === 1) {
+    return locale === "ko"
+      ? (match.team1DisplayNameKo ?? match.team1DisplayName)
+      : match.team1DisplayName;
+  }
+  return locale === "ko"
+    ? (match.team2DisplayNameKo ?? match.team2DisplayName)
+    : match.team2DisplayName;
+}
 
-const LOSER_RANK_BADGE =
-  "shrink-0 border border-[var(--match-rank-loser-border)] bg-[var(--match-rank-loser-bg)] text-[var(--match-rank-loser-text)] tabular-nums";
-const WINNER_RANK_BADGE =
-  "shrink-0 border border-[var(--match-rank-win-border)] bg-[var(--match-rank-win-bg)] text-[var(--match-rank-win-text)] tabular-nums";
+// ─── Rank badge ───────────────────────────────────────────────────────────────
+// Badges appear only on knockout-stage matches. The round code "Pre" means
+// preliminary group play — ranks aren't shown there (they're the source of the
+// ranking, not the result). Every other stage (R16 → Final) shows the
+// seeding badge so viewers can see how each team entered the bracket.
 
-const BRACKET_WINNER_RANK_BADGE =
-  "shrink-0 border border-[var(--match-rank-bracket-win-border)] bg-[var(--match-rank-bracket-win-bg)] text-[var(--match-rank-bracket-win-text)] tabular-nums";
-const BRACKET_LOSER_RANK_BADGE =
-  "shrink-0 border border-[var(--match-rank-bracket-lose-border)] bg-[var(--match-rank-bracket-lose-bg)] text-[var(--match-rank-bracket-lose-text)] tabular-nums";
+function rankBadgeClass(isLoser: boolean): string {
+  return isLoser
+    ? "shrink-0 border tabular-nums border-[color-mix(in_srgb,var(--color-secondary-blue-400)_40%,var(--color-surface-card))] bg-[color-mix(in_srgb,var(--color-secondary-blue-300)_18%,var(--color-surface-card))] text-[var(--color-primary-blue-700)]"
+    : "shrink-0 border tabular-nums border-[color-mix(in_srgb,var(--color-secondary-blue-500)_28%,var(--color-surface-card))] bg-[color-mix(in_srgb,var(--color-secondary-blue-500)_22%,var(--color-surface-card))] text-[var(--color-primary-blue-800)]";
+}
 
-const SCORE_WINNER = "text-[var(--match-text-winner)]";
-const SCORE_LOSER = "text-[var(--match-text-loser)]";
+// ─── Style constants ──────────────────────────────────────────────────────────
+
+const LOSER_TEXT = "text-[var(--color-text-tertiary)]";
+const WINNER_TEXT = "text-[var(--color-text-primary)]";
 
 const CARD_CLASS =
   "w-full min-w-0 overflow-hidden rounded-lg bg-[var(--color-surface-card)] shadow-sm";
 const HEADER_CLASS =
-  "match-stage-header flex w-full min-w-0 shrink-0 items-center justify-between gap-2 overflow-hidden rounded-t-lg border-b border-[var(--color-accent)] bg-[var(--match-stage-header-bg)] px-2.5 py-2 max-[380px]:px-2 max-[380px]:py-1.5";
+  "flex w-full min-w-0 shrink-0 items-center justify-between gap-2 overflow-hidden rounded-t-lg border-b border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-secondary-blue-500)_18%,var(--color-surface-card))] px-2.5 py-2 text-[var(--color-primary-blue-900)] font-medium max-[380px]:px-2 max-[380px]:py-1.5 min-h-10";
 const BODY_CLASS =
   "w-full min-w-0 divide-y divide-[color:var(--color-border-ui)] px-2.5 py-0 max-[380px]:px-2";
 const TEAM_ROW_CLASS =
-  "flex w-full min-w-0 flex-wrap items-center gap-3 py-2 max-[380px]:gap-2 max-[380px]:py-1.5 md:flex-nowrap";
-const META_CLASS =
-  "flex w-full min-w-0 shrink-0 flex-wrap items-center gap-x-3 gap-y-0.5 bg-[var(--match-card-meta-bg)] px-2.5 py-1.5 text-[var(--match-card-meta-text)] max-[380px]:px-2 max-[380px]:py-1.5";
+  "flex w-full min-w-0 flex-wrap items-center gap-3 py-2 max-[380px]:gap-2 max-[380px]:py-1.5 md:flex-nowrap min-h-10";
+const FOOTER_CLASS =
+  "flex w-full min-w-0 shrink-0 flex-wrap items-center gap-x-3 gap-y-0.5 bg-[var(--color-surface-strong)] px-2.5 py-1.5 text-[var(--color-text-secondary)] max-[380px]:px-2 max-[380px]:py-1.5 min-h-10";
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ResultIndicator({ won }: { won: boolean }) {
-  const iconClass = "h-3.5 w-3.5 shrink-0 text-[var(--color-text-primary)]";
-
   if (won) {
     return (
-      <span className="inline-flex shrink-0 items-center justify-center" aria-hidden>
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      <span
+        className="inline-flex shrink-0 items-center justify-center"
+        aria-hidden
+      >
+        <svg
+          className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-primary)]"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 13l4 4L19 7"
+          />
         </svg>
       </span>
     );
   }
-
   return <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden />;
 }
 
@@ -115,7 +134,6 @@ function TeamNameBlock({
   isLoser = false,
   withdrewLabel,
   rankAriaLabel,
-  eliminationBracket = false,
 }: {
   displayName: string | null;
   withdrew: boolean;
@@ -123,40 +141,33 @@ function TeamNameBlock({
   isLoser?: boolean;
   withdrewLabel: string;
   rankAriaLabel?: string | null;
-  eliminationBracket?: boolean;
 }) {
   const names = (displayName ?? "—").split(/\s*\/\s*/).filter(Boolean);
   if (names.length === 0) names.push("—");
 
-  const nameClass = isLoser ? LOSER_NAME : WINNER_NAME;
-  const rankBadgeClass = eliminationBracket
-    ? isLoser
-      ? BRACKET_LOSER_RANK_BADGE
-      : BRACKET_WINNER_RANK_BADGE
-    : isLoser
-      ? LOSER_RANK_BADGE
-      : WINNER_RANK_BADGE;
-
   return (
     <div className="flex min-w-0 shrink flex-wrap items-center gap-1.5 md:flex-nowrap md:gap-2">
       {rank != null ? (
-        <Badge
-          variant="outline"
+        <Chip
+          label={String(rank)}
+          size="sm"
+          shape="rounded"
           aria-label={rankAriaLabel ?? undefined}
           className={cn(
-            "min-w-0 shrink-0 rounded-[var(--radius-badge)] px-1 py-px text-xs font-bold leading-none",
-            rankBadgeClass
+            "min-w-[1rem] px-1 justify-center",
+            rankBadgeClass(isLoser),
           )}
-        >
-          {rank}
-        </Badge>
+        />
       ) : null}
 
       <div className="flex min-w-0 flex-col gap-1">
         {names.map((name, index) => (
           <span
             key={`${name}-${index}`}
-            className={cn("truncate font-medium leading-tight md:whitespace-nowrap", nameClass)}
+            className={cn(
+              "truncate font-medium leading-tight md:whitespace-nowrap",
+              isLoser ? LOSER_TEXT : WINNER_TEXT,
+            )}
           >
             {name.trim()}
           </span>
@@ -164,12 +175,12 @@ function TeamNameBlock({
       </div>
 
       {withdrew ? (
-        <Badge
-          variant="outline"
-          className="shrink-0 rounded-[var(--radius-badge)] border-[var(--match-withdrew-border)] bg-[var(--match-withdrew-bg)] px-3 py-1 text-xs font-semibold text-[var(--match-withdrew-text)]"
-        >
-          {withdrewLabel}
-        </Badge>
+        <Chip
+          label={withdrewLabel}
+          size="sm"
+          shape="rounded"
+          className="shrink-0 player-status-withdrew"
+        />
       ) : null}
     </div>
   );
@@ -190,23 +201,27 @@ function ScoreRowGrid({
   showSet3: boolean;
   isLoser?: boolean;
 }) {
-  const toneClass = isLoser ? SCORE_LOSER : SCORE_WINNER;
-
   return (
     <div
       className={cn(
         "grid shrink-0 items-center justify-items-center gap-x-2 tabular-nums leading-tight max-[380px]:gap-x-1.5 sm:gap-x-2.5",
         showSet3 ? "grid-cols-4" : "grid-cols-3",
-        toneClass
+        isLoser ? LOSER_TEXT : WINNER_TEXT,
       )}
     >
       <div className="flex items-center justify-center">
         <ResultIndicator won={won} />
       </div>
-      <div className="flex min-w-[1.25rem] items-center justify-center">{(set1)}</div>
-      <div className="flex min-w-[1.25rem] items-center justify-center">{(set2)}</div>
+      <div className="flex min-w-[1.25rem] items-center justify-center">
+        {set1}
+      </div>
+      <div className="flex min-w-[1.25rem] items-center justify-center">
+        {set2}
+      </div>
       {showSet3 ? (
-        <div className="flex min-w-[1.25rem] items-center justify-center">{(set3)}</div>
+        <div className="flex min-w-[1.25rem] items-center justify-center">
+          {set3}
+        </div>
       ) : null}
     </div>
   );
@@ -220,7 +235,6 @@ function TeamRow({
   won,
   withdrewLabel,
   rankAriaLabel,
-  eliminationBracket,
   set1,
   set2,
   set3,
@@ -234,7 +248,6 @@ function TeamRow({
   won: boolean;
   withdrewLabel: string;
   rankAriaLabel?: string | null;
-  eliminationBracket: boolean;
   set1: string | null;
   set2: string | null;
   set3: string | null;
@@ -251,10 +264,8 @@ function TeamRow({
           isLoser={isLoser}
           withdrewLabel={withdrewLabel}
           rankAriaLabel={rankAriaLabel}
-          eliminationBracket={eliminationBracket}
         />
       </div>
-
       <div className="ml-auto shrink-0">
         <ScoreRowGrid
           won={won}
@@ -271,21 +282,38 @@ function TeamRow({
 
 function LocationIcon() {
   return (
-    <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <svg
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
         d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
       />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+      />
     </svg>
   );
 }
 
 function DateIcon() {
   return (
-    <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <svg
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -298,7 +326,13 @@ function DateIcon() {
 
 function TimeIcon() {
   return (
-    <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <svg
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -309,8 +343,10 @@ function TimeIcon() {
   );
 }
 
+// ─── MatchCard ────────────────────────────────────────────────────────────────
+
 type Props = {
-  match: MatchWithTeamNames;
+  match: Match;
   team1Rank?: number | null;
   team2Rank?: number | null;
   fillHeight?: boolean;
@@ -329,113 +365,130 @@ export function MatchCard({
 
   const isCancelled = /^cancell?ed$/i.test(match.matchStatus?.trim() ?? "");
 
-  const winner = isCancelled ? null : match.winner;
+  const winner = match.winner;
   const team1Won = winner === 1;
   const team2Won = winner === 2;
   const team1Loser = winner === 2;
   const team2Loser = winner === 1;
 
-  const rank1 = showNumber(match.round, team1Loser) ? team1Rank : null;
-  const rank2 = showNumber(match.round, team2Loser) ? team2Rank : null;
-  const eliminationBracket = rank1 != null || rank2 != null;
+  // Rank badges appear only in knockout stages. Prelim round code is "Pre" —
+  // those matches generate the rankings that feed the bracket; they don't display them.
+  const isKnockout = match.round?.code !== ROUND_PRE;
+  const rank1 = isKnockout ? (team1Rank ?? null) : null;
+  const rank2 = isKnockout ? (team2Rank ?? null) : null;
 
   const showSet3 = !isCancelled && hasSet3(match);
-  const withdrew = isCancelled ? { team1: false, team2: false } : getWithdrew(match);
+  const withdrew = isCancelled
+    ? { team1: false, team2: false }
+    : getWithdrew(match);
   const matchWithdrawn = withdrew.team1 || withdrew.team2;
 
   const statusLabel = matchStatusLabel(match.matchStatus, locale);
   const statusClassName = matchStatusChipClass(match.matchStatus);
 
-  const team1Name =
-    locale === "ko" ? (match.team1DisplayNameKo ?? match.team1DisplayName) : match.team1DisplayName;
-  const team2Name =
-    locale === "ko" ? (match.team2DisplayNameKo ?? match.team2DisplayName) : match.team2DisplayName;
+  const team1Name = getLocalizedTeamName(match, 1, locale);
+  const team2Name = getLocalizedTeamName(match, 2, locale);
 
-  const categoryPart =
-    (locale === "ko" ? match.categoryDisplayLabelKo ?? match.categoryDisplayLabel : match.categoryDisplayLabel) ??
-    "—";
-
+  const categoryPart = match.categoryId;
   const roundPart =
-    locale === "ko" ? (match.round?.labelKo ?? match.round?.labelEn ?? "—") : (match.round?.labelEn ?? "—");
-
+    locale === "ko"
+      ? (match.round?.labelKo ?? match.round?.labelEn ?? "—")
+      : (match.round?.labelEn ?? "—");
+  // Match number shown for all rounds except Final
   const matchNumberPart =
-    showNumber(match.round) && match.matchNumber != null ? `#${match.matchNumber}` : null;
+    match.round?.code !== "F" && match.matchNumber != null
+      ? `#${match.matchNumber}`
+      : null;
 
   const headerLine = omitCategoryInHeader
     ? [roundPart, matchNumberPart].filter(Boolean).join(" ")
-    : [categoryPart, roundPart, matchNumberPart].filter(Boolean).join(" · ").replace(" · #", " #");
+    : [categoryPart, roundPart, matchNumberPart]
+        .filter(Boolean)
+        .join(" · ")
+        .replace(" · #", " #");
 
   const displayLocation = match.location?.trim() || "—";
   const displayDate = formatDateDisplay(match.date ?? null, locale);
   const displayTime = match.time?.trim() || "—";
+
+  const teams = [
+    {
+      key: "team-1",
+      displayName: team1Name,
+      withdrew: withdrew.team1,
+      rank: rank1,
+      isLoser: team1Loser,
+      won: team1Won,
+      set1: match.set1ScoreTeam1,
+      set2: match.set2ScoreTeam1,
+      set3: match.set3ScoreTeam1,
+    },
+    {
+      key: "team-2",
+      displayName: team2Name,
+      withdrew: withdrew.team2,
+      rank: rank2,
+      isLoser: team2Loser,
+      won: team2Won,
+      set1: match.set1ScoreTeam2,
+      set2: match.set2ScoreTeam2,
+      set3: match.set3ScoreTeam2,
+    },
+  ];
 
   return (
     <article
       className={cn(
         CARD_CLASS,
         "md:min-w-[var(--match-card-min-width)]",
-        fillHeight && "flex h-full min-h-0 flex-col"
+        fillHeight && "flex h-full min-h-0 flex-col",
       )}
     >
       <div className={HEADER_CLASS}>
-        <span className="min-w-0 flex-1 truncate" title={headerLine}>
+        <span className="min-w-0 flex-1 font-semibold" title={headerLine}>
           {headerLine}
         </span>
-        <Badge
-          variant="outline"
-          className={cn("min-w-0 shrink-0 px-3 py-1 text-xs font-semibold", statusClassName)}
-        >
-          {statusLabel}
-        </Badge>
+        <Chip
+          label={statusLabel}
+          size="sm"
+          shape="rounded"
+          className={cn("min-w-0 shrink-0", statusClassName)}
+        />
       </div>
 
-      <div className={cn(BODY_CLASS, fillHeight && "flex min-h-0 flex-1 flex-col")}>
-        <TeamRow
-          displayName={team1Name}
-          withdrew={withdrew.team1}
-          rank={rank1}
-          isLoser={team1Loser}
-          won={team1Won}
-          withdrewLabel={mUi.withdrew}
-          rankAriaLabel={rank1 != null ? mUi.rankAria(rank1) : null}
-          eliminationBracket={eliminationBracket}
-          set1={isCancelled ? null : match.set1ScoreTeam1}
-          set2={isCancelled ? null : match.set2ScoreTeam1}
-          set3={isCancelled ? null : match.set3ScoreTeam1}
-          showSet3={showSet3}
-          fillHeight={fillHeight}
-        />
-
-        <TeamRow
-          displayName={team2Name}
-          withdrew={withdrew.team2}
-          rank={rank2}
-          isLoser={team2Loser}
-          won={team2Won}
-          withdrewLabel={mUi.withdrew}
-          rankAriaLabel={rank2 != null ? mUi.rankAria(rank2) : null}
-          eliminationBracket={eliminationBracket}
-          set1={isCancelled ? null : match.set1ScoreTeam2}
-          set2={isCancelled ? null : match.set2ScoreTeam2}
-          set3={isCancelled ? null : match.set3ScoreTeam2}
-          showSet3={showSet3}
-          fillHeight={fillHeight}
-        />
+      <div
+        className={cn(BODY_CLASS, fillHeight && "flex min-h-0 flex-1 flex-col")}
+      >
+        {teams.map((team) => (
+          <TeamRow
+            key={team.key}
+            displayName={team.displayName}
+            withdrew={team.withdrew}
+            rank={team.rank}
+            isLoser={team.isLoser}
+            won={team.won}
+            withdrewLabel={mUi.withdrew}
+            rankAriaLabel={team.rank != null ? mUi.rankAria(team.rank) : null}
+            set1={team.set1}
+            set2={team.set2}
+            set3={team.set3}
+            showSet3={showSet3}
+            fillHeight={fillHeight}
+          />
+        ))}
       </div>
 
       {!matchWithdrawn ? (
-        <div className={META_CLASS}>
-          <span className="flex min-w-0 items-center gap-1.5 truncate">
+        <div className={FOOTER_CLASS}>
+          <span className="flex min-w-0 items-center gap-1">
             <LocationIcon />
-            <span className="truncate">{displayLocation}</span>
+            <span>{displayLocation}</span>
           </span>
-
-          <span className="flex shrink-0 items-center gap-1.5">
+          <span className="flex shrink-0 items-center gap-1">
             <DateIcon />
             {displayDate}
           </span>
-
-          <span className="flex shrink-0 items-center gap-1.5">
+          <span className="flex shrink-0 items-center gap-1">
             <TimeIcon />
             {displayTime}
           </span>

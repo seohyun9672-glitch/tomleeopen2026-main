@@ -1,21 +1,23 @@
+"use client";
+
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
-import type { Locale } from "@/lib/content";
+import { useLocale } from "@/lib/locale-context";
 import type { ClubInfo } from "@/lib/clubs";
 
 type ClubsSectionProps = {
-  title: string;
-  note?: string;
   partnerClubs: ClubInfo[];
-  locale: Locale;
-  content: { shared: { aria: { viewDetail: (name: string) => string } } };
 };
 
-export function ClubsSection({ title, partnerClubs, locale, content }: ClubsSectionProps) {
+export function ClubsSection({ partnerClubs }: ClubsSectionProps) {
+  const { t, locale } = useLocale();
+  const title = t.homePage.sectionTitles.clubs;
+  const viewDetail = t.shared.aria.viewDetail;
+
   return (
     <Section title={title} zebra>
       <div className="grid grid-cols-2 gap-[var(--element-gap)] md:gap-[var(--content-gap)] lg:flex lg:flex-row lg:gap-[var(--content-gap)]">
-        {partnerClubs.map((club) => {
+        {partnerClubs.filter((club) => club.logo).map((club) => {
           const clubTitle =
             locale === "ko" && club.nameKo?.trim() ? club.nameKo.trim() : club.name;
           return (
@@ -26,7 +28,7 @@ export function ClubsSection({ title, partnerClubs, locale, content }: ClubsSect
               image={club.logo}
               imageAlt={clubTitle}
               href={`/clubs/${club.slug}`}
-              hrefAriaLabel={content.shared.aria.viewDetail(clubTitle)}
+              hrefAriaLabel={viewDetail(clubTitle)}
             />
           );
         })}

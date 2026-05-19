@@ -1,4 +1,4 @@
-import type { CategoryRecord } from "@/lib/category/categories";
+import type { CategoryRecord } from "@/lib/categories";
 
 // ─── Status chips ─────────────────────────────────────────────────────────────
 
@@ -24,13 +24,16 @@ function registrationStatusKey(status: string): RegistrationStatusKey {
   const s = status.trim().toLowerCase();
   if (s === "confirmed") return "confirmed";
   if (s === "refunded") return "refunded";
-  if (s === "cancelled") return "refunded"; // legacy: map old cancelled → refunded
   if (s.includes("refund")) return "refund-requested";
   return "pending";
 }
 
 export function registrationStatusLabel(status: string, locale: "en" | "ko"): string {
   return REGISTRATION_STATUS_LABELS[registrationStatusKey(status)]?.[locale] ?? status;
+}
+
+export function registrationStatusChipClass(status: string): string {
+  return `registration-status-chip-${registrationStatusKey(status)}`;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────

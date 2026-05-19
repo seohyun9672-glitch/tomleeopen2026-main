@@ -2,8 +2,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const STATIC_EXT = /\.[^/]+$/;
-
 /**
  * Locale routing via app/[locale]/:
  *  /ko/...  → serves app/[locale] with locale="ko" (no rewrite needed)
@@ -13,6 +11,11 @@ const STATIC_EXT = /\.[^/]+$/;
  */
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // API routes — skip locale rewrite
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
 
   // Korean prefix — Next.js routes it to app/[locale] with locale="ko" automatically
   if (pathname === "/ko" || pathname.startsWith("/ko/")) {
@@ -26,5 +29,5 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.(?:svg|SVG|png|PNG|jpg|JPG|jpeg|JPEG|gif|GIF|webp|WEBP|ico|ICO)$).*)"],
 };

@@ -1,5 +1,9 @@
 export const contactData = {
-  email: "tomleeopen@gmail.com",
+  email:  {
+    key: "email",
+    link: "tomleeopen@gmail.com",
+    label: "Email",
+  },
   website: "https://tomleeopen.com",
   instagram: {
     key: "instagram",
@@ -15,7 +19,7 @@ export const contactData = {
   },
   kakao: {
     key: "kakao",
-    href: "https://open.kakao.com/o/tomleeopen2026",
+    href: "https://open.kakao.com/o/gPumRHui",
     label: "KakaoTalk Open Chat",
     src: "/social/kakaotalk.svg",
   },

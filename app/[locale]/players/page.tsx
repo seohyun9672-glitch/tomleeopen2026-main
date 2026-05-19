@@ -1,32 +1,30 @@
-import type { Locale } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
-import { siteContent } from "@/lib/content";
-import { PlayersTable } from "@/app/tables/PlayersTable";
+import { PlayersHub } from "@/app/players/PlayersHub";
 import { PageContainer } from "@/app/components/PageContainer";
 
-type Props = { params: Promise<{ locale: string }> };
-
-export default async function PlayersPage({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
-
-  const playersFromDb = await prisma.player.findMany({
+export default async function PlayersPage() {
+  const rows = await prisma.player.findMany({
     select: {
       id: true,
       fullNameEn: true,
       fullNameKo: true,
-      clubs: { select: { clubCode: true } },
+      clubs: { select: { clubCode: true, club: { select: { name: true, nameKo: true } } } },
     },
     orderBy: { fullNameEn: "asc" },
   });
 
-  const players = playersFromDb
+  const players = rows
     .map((p) => ({
       id: p.id,
       fullNameEn: p.fullNameEn,
       fullNameKo: p.fullNameKo,
-      clubs: p.clubs.map((c) => c.clubCode).sort(),
+      clubs: p.clubs
+        .map((c) => ({
+          code: c.clubCode,
+          name: c.club.name?.trim() || c.clubCode,
+          nameKo: c.club.nameKo?.trim() || null,
+        }))
+        .sort((a, b) => a.code.localeCompare(b.code)),
     }))
     .sort((a, b) => {
       const en = a.fullNameEn.localeCompare(b.fullNameEn, "en");
@@ -35,12 +33,8 @@ export default async function PlayersPage({ params }: Props) {
     });
 
   return (
-    <PageContainer title={content.playersPage.heroTitle}>
-      <PlayersTable
-        rows={players}
-        emptyNoRowsText={content.playersPage.emptyStateNoPlayers}
-        emptyNoMatchText={content.playersPage.emptyStateNoMatch}
-      />
+    <PageContainer>
+      <PlayersHub rows={players} />
     </PageContainer>
   );
 }

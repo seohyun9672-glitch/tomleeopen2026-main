@@ -2,6 +2,32 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { IconButton } from "@/app/components/ui/Button";
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <line x1={18} y1={6} x2={6} y2={18} />
+      <line x1={6} y1={6} x2={18} y2={18} />
+    </svg>
+  );
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
 
 type Props = {
   urls: string[];
@@ -85,49 +111,49 @@ export function PhotoGalleryLightbox({
       onClick={onClose}
       role="presentation"
     >
+      {/* Counter — pinned top-left, non-interactive */}
+      <p className="pointer-events-none absolute left-4 top-4 z-10 m-0 text-sm tabular-nums text-white opacity-90">
+        {index + 1} / {urls.length}
+      </p>
+
+      {/* Close button — pinned top-right, always visible */}
+      <IconButton
+        aria-label={closeLabel}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="absolute right-4 top-4 z-10 text-white hover:bg-white/15 focus-visible:ring-offset-transparent"
+      >
+        <XIcon />
+      </IconButton>
+
       <div
-        className="relative flex max-h-[100dvh] w-full max-w-6xl flex-col items-center gap-3"
+        className="relative flex max-h-[100dvh] w-full max-w-6xl flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex w-full items-center justify-between gap-2 text-[var(--color-text-on-brand)]">
-          <p className="m-0 text-sm tabular-nums opacity-90">
-            {index + 1} / {urls.length}
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[color:var(--color-border-on-brand)] bg-[var(--overlay-control-bg)] px-3 py-1.5 text-sm font-medium text-[var(--color-text-on-brand)] hover:bg-[var(--overlay-control-bg-hover)]"
-          >
-            {closeLabel}
-          </button>
-        </div>
         <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
-          {showNav ? (
-            <button
-              type="button"
-              onClick={goPrev}
-              className="absolute left-0 z-10 rounded-r-lg border border-[color:var(--color-border-on-brand)] bg-[var(--overlay-control-bg)] px-2 py-6 text-[var(--color-text-on-brand)] hover:bg-[var(--overlay-control-bg-hover)] sm:px-3"
+          {showNav && (
+            <IconButton
               aria-label={prevLabel}
+              onClick={goPrev}
+              className="absolute left-0 z-10 text-white hover:bg-white/15 focus-visible:ring-offset-transparent"
             >
-              ‹
-            </button>
-          ) : null}
+              <ChevronLeftIcon />
+            </IconButton>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt=""
             className="max-h-[min(85dvh,900px)] max-w-full object-contain"
           />
-          {showNav ? (
-            <button
-              type="button"
-              onClick={goNext}
-              className="absolute right-0 z-10 rounded-l-lg border border-[color:var(--color-border-on-brand)] bg-[var(--overlay-control-bg)] px-2 py-6 text-[var(--color-text-on-brand)] hover:bg-[var(--overlay-control-bg-hover)] sm:px-3"
+          {showNav && (
+            <IconButton
               aria-label={nextLabel}
+              onClick={goNext}
+              className="absolute right-0 z-10 text-white hover:bg-white/15 focus-visible:ring-offset-transparent"
             >
-              ›
-            </button>
-          ) : null}
+              <ChevronRightIcon />
+            </IconButton>
+          )}
         </div>
       </div>
     </div>,

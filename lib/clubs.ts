@@ -47,6 +47,12 @@ export type ClubInfo = {
   logo: string | null;
 };
 
+function nonEmpty(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const t = value.trim();
+  return t && t.toUpperCase() !== "N/A" ? t : null;
+}
+
 export const getClubs = cache(async function getClubs(): Promise<ClubInfo[]> {
   const rows = await prisma.club.findMany({
     orderBy: { sortOrder: "asc" },
@@ -54,17 +60,12 @@ export const getClubs = cache(async function getClubs(): Promise<ClubInfo[]> {
   });
   return rows.map((c) => ({
     slug: c.code.toLowerCase(),
-    name: c.name ?? c.code,
-    nameKo: c.nameKo ?? null,
-    description: c.description ?? null,
-    logo: c.logo ?? null,
+    name: nonEmpty(c.name) ?? c.code,
+    nameKo: nonEmpty(c.nameKo),
+    description: nonEmpty(c.description),
+    logo: nonEmpty(c.logo),
   }));
 });
-
-export async function getClubBySlug(slug: string): Promise<ClubInfo | undefined> {
-  const clubs = await getClubs();
-  return clubs.find((c) => c.slug === slug);
-}
 
 export async function getClubSlugs(): Promise<string[]> {
   const clubs = await getClubs();

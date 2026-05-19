@@ -1,5 +1,3 @@
-import { cookies } from "next/headers";
-import { siteContent, type Locale } from "@/lib/content";
 import { getCoaches } from "@/lib/coaches";
 import { getClubs } from "@/lib/clubs";
 import { getSponsors } from "@/lib/sponsors";
@@ -12,11 +10,6 @@ import { ClubsSection } from "./home/ClubsSection";
 import { LessonsSection } from "./home/LessonsSection";
 
 export default async function Home() {
-  const cookieStore = await cookies();
-  const locale: Locale = cookieStore.get("locale")?.value === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
-  const hp = content.homePage;
-
   const todayMatches: {
     id: string;
     category: string;
@@ -35,30 +28,12 @@ export default async function Home() {
 
   return (
     <>
-      <Hero hero={hp.hero} />
-      <ScheduleSection hp={hp} todayMatches={todayMatches} scheduleHref={hp.hero.navLinks.find((l) => /\/schedule$/.test(l.href))?.href ?? "/schedule"} />
-      <SponsorsSection
-        title={hp.sectionTitles.sponsors}
-        sponsors={sponsorsItems}
-        tierLabels={hp.sponsorTierLabels}
-        content={content}
-      />
-      <CommunityPartnersSection
-        title={hp.sectionTitles.communityPartners}
-        communityPartners={communityPartners}
-        content={content}
-      />
-      <ClubsSection
-        title={hp.sectionTitles.clubs}
-        partnerClubs={partnerClubs}
-        locale={locale}
-        content={content}
-      />
-      <LessonsSection
-        title={hp.sectionTitles.lessons}
-        coachesItems={coachesItems}
-        content={content}
-      />
+      <Hero />
+      <ScheduleSection todayMatches={todayMatches} />
+      <SponsorsSection sponsors={sponsorsItems} />
+      <CommunityPartnersSection communityPartners={communityPartners} />
+      <ClubsSection partnerClubs={partnerClubs} />
+      <LessonsSection coachesItems={coachesItems} />
     </>
   );
 }

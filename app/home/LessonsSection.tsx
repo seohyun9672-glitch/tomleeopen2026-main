@@ -1,19 +1,14 @@
+"use client";
+
 import { Section } from "@/app/components/Section";
 import { Button } from "@/app/components/ui/Button";
+import { useLocale } from "@/lib/locale-context";
 import { coachDisplayName } from "@/lib/coaches";
 
 type Coach = Awaited<ReturnType<typeof import("@/lib/coaches").getCoaches>>[number];
 
 type LessonsSectionProps = {
-  title: string;
   coachesItems: Coach[];
-  content: {
-    shared: {
-      labels: { coach: string };
-      buttons: { contact: string };
-      aria: { contact: (name: string) => string };
-    };
-  };
 };
 
 function titleCaseLatinLabel(value: string): string {
@@ -34,7 +29,7 @@ function formatRoleLabel(value: string): string {
 function formatCoachName(value: string): string {
   const t = value.trim();
   if (!t) return value;
-  if (/[\uAC00-\uD7A3\u3131-\u318E]/.test(t)) return t;
+  if (/[가-힣ㄱ-ㆎ]/.test(t)) return t;
   return t
     .split(/(\s+)/)
     .map((part) =>
@@ -45,7 +40,13 @@ function formatCoachName(value: string): string {
     .join("");
 }
 
-export function LessonsSection({ title, coachesItems, content }: LessonsSectionProps) {
+export function LessonsSection({ coachesItems }: LessonsSectionProps) {
+  const { t } = useLocale();
+  const title = t.homePage.sectionTitles.lessons;
+  const coachLabel = t.shared.labels.coach;
+  const contactButton = t.shared.buttons.contact;
+  const contactAria = t.shared.aria.contact;
+
   return (
     <Section title={title} zebra={false}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--content-gap)]">
@@ -59,7 +60,7 @@ export function LessonsSection({ title, coachesItems, content }: LessonsSectionP
             >
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold uppercase tracking-widest text-[var(--color-primary-blue)]">
-                  {formatRoleLabel(content.shared.labels.coach)}
+                  {formatRoleLabel(coachLabel)}
                 </span>
                 <h3 className="text-xl font-semibold leading-snug text-[var(--foreground-on-light)] m-0">
                   {formatCoachName(displayName)}
@@ -71,9 +72,9 @@ export function LessonsSection({ title, coachesItems, content }: LessonsSectionP
                   variant="secondary"
                   size="medium"
                   className="w-full"
-                  aria-label={content.shared.aria.contact(displayName)}
+                  aria-label={contactAria(displayName)}
                 >
-                  {content.shared.buttons.contact}
+                  {contactButton}
                 </Button>
               )}
             </article>

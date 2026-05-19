@@ -1,13 +1,9 @@
 import { readFileSync } from "fs";
 import path from "path";
-import type { Locale } from "@/lib/content";
-import { getCategories } from "@/lib/category/categories";
+import { getCategories } from "@/lib/categories";
 import { getMedia } from "@/lib/media";
-import { siteContent } from "@/lib/content";
 import { PageContainer } from "@/app/components/PageContainer";
 import { MediaHub } from "@/app/media/MediaHub";
-
-type Props = { params: Promise<{ locale: string }> };
 
 function loadGalleryManifest(year: number): Record<string, string[]> {
   try {
@@ -18,11 +14,7 @@ function loadGalleryManifest(year: number): Record<string, string[]> {
   }
 }
 
-export default async function MediaPage({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
-
+export default async function MediaPage() {
   const [categories, items] = await Promise.all([getCategories(), getMedia()]);
 
   const photoManifests: Record<number, Record<string, string[]>> = {
@@ -31,7 +23,7 @@ export default async function MediaPage({ params }: Props) {
   };
 
   return (
-    <PageContainer title={content.mediaPage.heroTitle}>
+    <PageContainer>
       <MediaHub
         items={items}
         categories={categories}

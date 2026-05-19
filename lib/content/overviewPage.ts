@@ -1,22 +1,8 @@
-import { OVERVIEW_PRIZE_TABLE_ROWS } from "@/lib/prizes";
 import { importantDates } from "@/lib/importantDatesData";
 
-const importantDatesRowsEn = importantDates
-  .filter((entry) => entry.label !== "Tournament")
-  .map((entry) => ({
-    label: entry.label,
-    value: entry.type === "text" ? entry.value : entry.valueDisplay,
-  })) as readonly { label: string; value: string }[];
-
-const importantDatesRowsKo = importantDates
-  .filter((entry) => entry.label !== "Tournament")
-  .map((entry) => ({
-    label: entry.labelKo ?? entry.label,
-    value:
-      entry.type === "text"
-        ? (entry.valueKo ?? entry.value)
-        : (entry.valueDisplayKo ?? entry.valueDisplay),
-  })) as readonly { label: string; value: string }[];
+const regEntry = importantDates.find((e) => e.label === "Registration");
+const regPeriodEn = regEntry && regEntry.type !== "text" ? regEntry.valueDisplay : "";
+const regPeriodKo = regEntry && regEntry.type !== "text" ? (regEntry.valueDisplayKo ?? regEntry.valueDisplay) : "";
 
 export const overviewPage = {
   en: {
@@ -37,7 +23,6 @@ export const overviewPage = {
         ],
       },
       importantDatesTitle: "Important dates",
-      importantDatesRows: importantDatesRowsEn,
       categories: {
         title: "Categories",
         footerNotes: [
@@ -47,12 +32,25 @@ export const overviewPage = {
         ],
       },
       categoriesTableHeaderCategory: "Category",
+      categoriesTableHeaderTier: "Tier",
       categoriesTableHeaderNtrp: "NTRP",
       prizes: {
         title: "Prizes",
         tableHeaders: ["Match type", "Bracket", "1st", "2nd", "3rd", "4th"],
-        tableRows: OVERVIEW_PRIZE_TABLE_ROWS.en,
       },
+    },
+    registrationDetail: {
+      title: "Registration detail",
+      registrationPeriodLabel: "Registration period",
+      registrationPeriodValue: regPeriodEn,
+      eligibilityLabel: "Eligibility",
+      eligibilityValue: "Open to Koreans or teams with one Korean player available",
+      feeLabel: "Fee",
+      feeValue: "$50 per player (non-refundable)",
+      paymentDetailsLabel: "Payment details",
+      inquiryLabel: "Inquiry",
+      inquiryKakaoPrefix: "KakaoTalk open chat",
+      inquiryEmailPrefix: "Email",
     },
   },
   ko: {
@@ -73,7 +71,6 @@ export const overviewPage = {
         ],
       },
       importantDatesTitle: "중요 일정",
-      importantDatesRows: importantDatesRowsKo,
       categories: {
         title: "대회 종목",
         footerNotes: [
@@ -83,12 +80,25 @@ export const overviewPage = {
         ],
       },
       categoriesTableHeaderCategory: "종목",
+      categoriesTableHeaderTier: "등급",
       categoriesTableHeaderNtrp: "NTRP",
       prizes: {
         title: "상금",
         tableHeaders: ["경기 부문", "참가 규모", "1위", "2위", "3위", "4위"],
-        tableRows: OVERVIEW_PRIZE_TABLE_ROWS.ko,
       },
+    },
+    registrationDetail: {
+      title: "등록 안내",
+      registrationPeriodLabel: "등록 기간",
+      registrationPeriodValue: regPeriodKo,
+      eligibilityLabel: "참가 자격",
+      eligibilityValue: "한국인 또는 한 명 이상의 한국인 선수가 포함된 팀",
+      feeLabel: "참가비",
+      feeValue: "1인 $50 (환불 불가)",
+      paymentDetailsLabel: "결제 방법",
+      inquiryLabel: "문의",
+      inquiryKakaoPrefix: "카카오톡 오픈채팅",
+      inquiryEmailPrefix: "이메일",
     },
   },
 } as const;

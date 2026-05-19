@@ -1,5 +1,3 @@
-import type { Locale } from "@/lib/content";
-import { siteContent } from "@/lib/content";
 import { getCoaches } from "@/lib/coaches";
 import { getClubs } from "@/lib/clubs";
 import { getSponsors } from "@/lib/sponsors";
@@ -12,15 +10,7 @@ import { CommunityPartnersSection } from "@/app/home/CommunityPartnersSection";
 import { ClubsSection } from "@/app/home/ClubsSection";
 import { LessonsSection } from "@/app/home/LessonsSection";
 
-type Props = { params: Promise<{ locale: string }> };
-
-export default async function Home({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
-  const hp = content.homePage;
-  const scheduleHref = hp.hero.navLinks.find((l) => /\/schedule$/.test(l.href))?.href ?? hp.hero.navLinks[0].href;
-
+export default async function Home() {
   const todayMatches: {
     id: string;
     category: string;
@@ -39,42 +29,21 @@ export default async function Home({ params }: Props) {
 
   return (
     <>
-      <Hero hero={hp.hero} locale={locale} />
+      <Hero />
       <FadeIn>
-        <ScheduleSection hp={hp} todayMatches={todayMatches} scheduleHref={scheduleHref} />
+        <ScheduleSection todayMatches={todayMatches} />
       </FadeIn>
       <FadeIn>
-        <SponsorsSection
-          title={hp.sectionTitles.sponsors}
-          note={hp.sectionNotes.sponsors}
-          sponsors={sponsorsItems}
-          tierLabels={hp.sponsorTierLabels}
-          content={content}
-        />
+        <SponsorsSection sponsors={sponsorsItems} />
       </FadeIn>
       <FadeIn>
-        <CommunityPartnersSection
-          title={hp.sectionTitles.communityPartners}
-          note={hp.sectionNotes.communityPartners}
-          communityPartners={communityPartners}
-          content={content}
-        />
+        <CommunityPartnersSection communityPartners={communityPartners} />
       </FadeIn>
       <FadeIn>
-        <ClubsSection
-          title={hp.sectionTitles.clubs}
-          note={hp.sectionNotes.clubs}
-          partnerClubs={partnerClubs}
-          locale={locale}
-          content={content}
-        />
+        <ClubsSection partnerClubs={partnerClubs} />
       </FadeIn>
       <FadeIn>
-        <LessonsSection
-          title={hp.sectionTitles.lessons}
-          coachesItems={coachesItems}
-          content={content}
-        />
+        <LessonsSection coachesItems={coachesItems} />
       </FadeIn>
     </>
   );

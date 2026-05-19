@@ -1,18 +1,11 @@
 import { getMenuData } from "@/lib/content/menu";
-import { importantDates } from "@/lib/importantDatesData";
-
-const tournamentEntry = importantDates.find((e) => e.label === "Tournament");
-const heroDateRangeEn = tournamentEntry && tournamentEntry.type !== "text" ? tournamentEntry.valueDisplay : "June 1 – August 26, 2026";
-const heroDateRangeKo = tournamentEntry && tournamentEntry.type !== "text" ? (tournamentEntry.valueDisplayKo ?? tournamentEntry.valueDisplay) : "2026년 6월 1일 – 8월 26일";
 
 export const homePage = {
   en: {
     homePage: {
       heroTitle: "Tomlee Open",
-      heroDateRange: heroDateRangeEn,
       hero: {
         title: "Tomlee Open",
-        dateRange: heroDateRangeEn,
         navLinks: [getMenuData("en").overview, getMenuData("en").schedule, getMenuData("en").draws],
       },
       sectionTitles: {
@@ -51,10 +44,8 @@ export const homePage = {
   ko: {
     homePage: {
       heroTitle: "탐리 오픈",
-      heroDateRange: heroDateRangeKo,
       hero: {
         title: "탐리 오픈",
-        dateRange: heroDateRangeKo,
         navLinks: [getMenuData("ko").overview, getMenuData("ko").schedule, getMenuData("ko").draws],
       },
       sectionTitles: {

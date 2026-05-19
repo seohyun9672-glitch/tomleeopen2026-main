@@ -1,58 +1,33 @@
-import type { Locale } from "@/lib/content";
-import { siteContent } from "@/lib/content";
-import { getCategories } from "@/lib/category/categories";
-import { prisma } from "@/lib/prisma";
-import { PageContainer } from "@/app/components/PageContainer";
-import { RegistrationPageClient } from "@/app/registration/RegisterModal";
+import { getCategories } from "@/lib/categories";
 import { importantDates } from "@/lib/importantDatesData";
+import { RegistrationHub } from "@/app/registration/RegistrationHub";
 
-type Props = { params: Promise<{ locale: string }> };
+export type RegStatus = "not-open" | "open" | "closed";
 
-function getRegistrationState(locale: Locale): {
-  state: "before" | "open" | "closed";
-  startDateDisplay: string;
-  periodDisplay: string;
-} {
-  const regEntry = importantDates.find((e) => e.label === "Registration" && e.type === "range");
-  if (!regEntry || regEntry.type !== "range") {
-    return { state: "open", startDateDisplay: "", periodDisplay: "" };
+function getRegistrationStatus(): { status: RegStatus; openDate: string; period: string } {
+  const today = new Date().toISOString().slice(0, 10);
+  const entry = importantDates.find((e) => e.label === "Registration" && e.type === "range");
+  if (!entry || entry.type !== "range") {
+    return { status: "not-open", openDate: "", period: "" };
   }
-
-  const todayStr = new Date().toISOString().split("T")[0];
-  const startDateDisplay = locale === "ko" ? (regEntry.valueDisplayKo ?? regEntry.valueDisplay).split(" – ")[0] : regEntry.valueDisplay.split(" – ")[0];
-  const periodDisplay = locale === "ko" ? (regEntry.valueDisplayKo ?? regEntry.valueDisplay) : regEntry.valueDisplay;
-
-  if (todayStr < regEntry.startDate) {
-    return { state: "before", startDateDisplay, periodDisplay };
+  if (today < entry.startDate) {
+    return { status: "not-open", openDate: entry.startDate, period: entry.valueDisplay };
   }
-  if (todayStr > regEntry.endDate) {
-    return { state: "closed", startDateDisplay, periodDisplay };
+  if (today > entry.endDate) {
+    return { status: "closed", openDate: entry.startDate, period: entry.valueDisplay };
   }
-  return { state: "open", startDateDisplay, periodDisplay };
+  return { status: "open", openDate: entry.startDate, period: entry.valueDisplay };
 }
 
-export default async function RegistrationPage({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
-  const { state: registrationState, startDateDisplay, periodDisplay } = getRegistrationState(locale);
+export default async function RegistrationPage() {
+  const reg = getRegistrationStatus();
 
-  const [categories, clubCodes] = registrationState === "open"
-    ? await Promise.all([
-        getCategories().catch(() => []),
-        prisma.club.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }], select: { code: true } }).then((rows) => rows.map((r) => r.code)).catch(() => []),
-      ])
-    : [[], []];
+  const categories = await getCategories();
 
   return (
-    <PageContainer title={content.registrationPage.heroTitle} contentMaxWidth="max-w-[700px]">
-      <RegistrationPageClient
-        categories={categories}
-        clubCodes={clubCodes}
-        registrationState={registrationState}
-        startDateDisplay={startDateDisplay}
-        periodDisplay={periodDisplay}
-      />
-    </PageContainer>
+    <RegistrationHub
+      categories={categories}
+      regStatus={reg.status}
+    />
   );
 }

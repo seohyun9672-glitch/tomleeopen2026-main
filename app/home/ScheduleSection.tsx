@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { TournamentCalendar } from "@/app/components/TournamentCalendar";
+import { useLocale } from "@/lib/locale-context";
 
 type TodayMatch = {
   id: string;
@@ -11,20 +14,16 @@ type TodayMatch = {
 };
 
 type ScheduleSectionProps = {
-  hp: {
-    sectionTitles: { tournamentSchedules: string; todaysMatches: string };
-    buttons: { viewAll: string };
-    todayMatchesEmpty: { beforeLink: string; scheduleLink: string; afterLink: string };
-    matchListVersus: string;
-    matchListCourtPrefix: string;
-  };
   todayMatches: TodayMatch[];
-  scheduleHref: string;
 };
 
 const INNER_CARD = "flex min-h-0 flex-1 flex-col rounded-xl bg-[var(--section-bg)] p-[var(--calendar-card-padding)] text-[var(--foreground-on-light)] shadow-sm";
 
-export function ScheduleSection({ hp, todayMatches, scheduleHref }: ScheduleSectionProps) {
+export function ScheduleSection({ todayMatches }: ScheduleSectionProps) {
+  const { t } = useLocale();
+  const hp = t.homePage;
+  const scheduleHref = hp.hero.navLinks.find((l) => /\/schedule$/.test(l.href))?.href ?? hp.hero.navLinks[0].href;
+
   return (
     <div className="py-[var(--layout-gap)]">
       <div className="page-shell">

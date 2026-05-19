@@ -60,7 +60,6 @@ export async function GET(request: Request) {
         categoryId: r.categoryId,
         status: r.status,
         photoVideoConsent: r.photoVideoConsent,
-        engraving: r.engraving,
         nameOnEtransfer: r.nameOnEtransfer,
         notes: r.notes,
       })),

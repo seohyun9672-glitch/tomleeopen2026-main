@@ -126,7 +126,7 @@ export function MultiSelect({
               onFocus={() => setOpen(true)}
               onBlur={() => onSearchBlur?.()}
               onClick={(e) => e.stopPropagation()}
-              placeholder={selected.length === 0 ? "" : "Type to add more"}
+              placeholder=""
               className="min-h-[1.25rem] min-w-[8rem] max-w-none flex-1 cursor-text border-0 bg-transparent [color:var(--input-text)] outline-none focus:outline-none focus-visible:outline-none focus:ring-0"
               autoComplete="off"
               role="searchbox"

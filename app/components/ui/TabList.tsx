@@ -82,7 +82,7 @@ export function TabList({
   onSelect,
   variant = "default",
   className = "",
-  dividerClassName = "bg-[color:var(--tab-row-border)]",
+  dividerClassName = "bg-[color:var(--color-border-ui)]",
 }: TabListProps) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const tabWrapRefs = useRef<Array<HTMLDivElement | null>>([]);

@@ -1,30 +1,32 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { Locale } from "@/lib/content";
-import { siteContent } from "@/lib/content";
+import { getRequestLocale, getRequestContent } from "@/lib/request-locale";
 import { getClubs, getClubSlugs } from "@/lib/clubs";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
 
-type Props = { params: Promise<{ locale: string; slug: string }> };
+type Props = { params: Promise<{ slug: string }> };
+
+const HIDDEN_CLUB_SLUGS = new Set(["sagol", "na", "machang"]);
 
 export async function generateStaticParams() {
   const slugs = await getClubSlugs();
-  return ["en", "ko"].flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
+  return ["en", "ko"].flatMap((locale) =>
+    slugs.filter((s) => !HIDDEN_CLUB_SLUGS.has(s)).map((slug) => ({ locale, slug })),
+  );
 }
 
 export default async function ClubDetailPage({ params }: Props) {
-  const { locale: localeParam, slug } = await params;
-  const locale: Locale = localeParam === "ko" ? "ko" : "en";
-  const content = siteContent[locale];
+  const { slug } = await params;
+  const locale = getRequestLocale();
+  const content = getRequestContent();
 
   const allClubs = await getClubs();
   const club = allClubs.find((c) => c.slug === slug);
-  if (!club) notFound();
-  const excludeFromOtherClubs = new Set(["sagol", "na", "machang"]);
+  if (!club || HIDDEN_CLUB_SLUGS.has(club.slug)) notFound();
   const otherClubs = allClubs.filter(
-    (c) => c.slug !== slug && !excludeFromOtherClubs.has(c.slug.toLowerCase())
+    (c) => c.slug !== slug && !HIDDEN_CLUB_SLUGS.has(c.slug),
   );
 
   const heroTitle =

@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useLocale } from "@/lib/locale-context";
 import { contactData } from "@/lib/contactData";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
@@ -31,99 +30,102 @@ function buildFinalistsSelectionValue(items: readonly ReactNode[]): ReactNode {
 }
 
 export default function TournamentRulesPage() {
-  const { t } = useLocale();
-  const {
-    sectionTitles,
-    formatAndScoring,
-    rules,
-    officialBall,
-    preliminaryMatches,
-    finalistsSelection,
-    resultsSection,
-    preliminariesCourt,
-  } = t.rulesPage;
-
-  const scoringRows = [
-    formatAndScoring.table[0],
-    formatAndScoring.table[1],
-    formatAndScoring.table[2],
-  ].filter(Boolean);
-
-  const matchGuidelinesRows = [
-    { label: officialBall.title, items: officialBall.table[0]?.items ?? [] },
-    { label: preliminaryMatches.title, items: preliminaryMatches.table[0]?.items ?? [] },
-    {
-      label: finalistsSelection.title,
-      value: buildFinalistsSelectionValue(finalistsSelection.table[0]?.items ?? []),
-    },
-  ];
-
-  const resultsRows = [
-    {
-      label: resultsSection.reportingResultsLabel,
-      items: [
-        <>
-          {resultsSection.reportingResultsPrefix}
-          <a href={contactData.kakao.href} target="_blank" rel="noreferrer" className="link-default">
-            {resultsSection.reportingResultsLinkLabel}
-          </a>
-          {resultsSection.reportingResultsSuffix}
-        </>,
-        resultsSection.reportingResultsExample,
-      ],
-    },
-    {
-      label: resultsSection.viewingResultsLabel,
-      items: [
-        <>
-          {resultsSection.viewingResultsPrefix}
-          <a href={contactData.kakao.href} target="_blank" rel="noreferrer" className="link-default">
-            {resultsSection.viewingResultsLinkLabel}
-          </a>
-          {resultsSection.viewingResultsSuffix}
-        </>,
-      ],
-    },
-  ];
-
   return (
     <PageContainer>
-      <div className="flex flex-col gap-[var(--layout-gap)]">
-        <Section title={sectionTitles.matchGuidelines}>
-          <Table variant="key-value" rows={matchGuidelinesRows} alignTop />
-        </Section>
+      {(t) => {
+        const {
+          sectionTitles,
+          formatAndScoring,
+          rules,
+          officialBall,
+          preliminaryMatches,
+          finalistsSelection,
+          resultsSection,
+          preliminariesCourt,
+        } = t.rulesPage;
 
-        <Section title={sectionTitles.scoringFormat}>
-          <Table variant="key-value" rows={scoringRows} alignTop />
-        </Section>
+        const scoringRows = [
+          formatAndScoring.table[0],
+          formatAndScoring.table[1],
+          formatAndScoring.table[2],
+        ].filter(Boolean);
 
-        <Section title={sectionTitles.matchSchedulingCourtAvailability}>
-          <p className="text-body text-[var(--color-text-secondary)]">{preliminariesCourt.description}</p>
-          <Table
-            variant="data"
-            headers={preliminariesCourt.prelimHeaders}
-            dataRows={preliminariesCourt.prelimRows.map((row) => [
-              <span key={`${row.location}-cell`}>
-                <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
-                  {row.location}
+        const matchGuidelinesRows = [
+          { label: officialBall.title, items: officialBall.table[0]?.items ?? [] },
+          { label: preliminaryMatches.title, items: preliminaryMatches.table[0]?.items ?? [] },
+          {
+            label: finalistsSelection.title,
+            value: buildFinalistsSelectionValue(finalistsSelection.table[0]?.items ?? []),
+          },
+        ];
+
+        const resultsRows = [
+          {
+            label: resultsSection.reportingResultsLabel,
+            items: [
+              <>
+                {resultsSection.reportingResultsPrefix}
+                <a href={contactData.kakao.href} target="_blank" rel="noreferrer" className="link-default">
+                  {resultsSection.reportingResultsLinkLabel}
                 </a>
-              </span>,
-              row.date,
-              row.day,
-              row.time,
-            ])}
-          />
-        </Section>
+                {resultsSection.reportingResultsSuffix}
+              </>,
+              resultsSection.reportingResultsExample,
+            ],
+          },
+          {
+            label: resultsSection.viewingResultsLabel,
+            items: [
+              <>
+                {resultsSection.viewingResultsPrefix}
+                <a href={contactData.kakao.href} target="_blank" rel="noreferrer" className="link-default">
+                  {resultsSection.viewingResultsLinkLabel}
+                </a>
+                {resultsSection.viewingResultsSuffix}
+              </>,
+            ],
+          },
+        ];
 
-        <Section title={resultsSection.title}>
-          <Table variant="key-value" rows={resultsRows} alignTop />
-        </Section>
+        return (
+          <div className="flex flex-col gap-[var(--layout-gap)]">
+            <Section title={sectionTitles.matchGuidelines}>
+              <Table variant="key-value" rows={matchGuidelinesRows} alignTop />
+            </Section>
 
-        <Section title={sectionTitles.localRules}>
-          <p className="leading-relaxed text-[var(--color-text-secondary)]">{rules.intro}</p>
-          <Table variant="key-value" rows={rules.table} alignTop />
-        </Section>
-      </div>
+            <Section title={sectionTitles.scoringFormat}>
+              <Table variant="key-value" rows={scoringRows} alignTop />
+            </Section>
+
+            <Section title={sectionTitles.matchSchedulingCourtAvailability}>
+              <p className="text-body text-[var(--color-text-secondary)]">{preliminariesCourt.description}</p>
+              <Table
+                variant="data"
+                headers={preliminariesCourt.prelimHeaders}
+                dataRows={preliminariesCourt.prelimRows.map((row) => [
+                  <span key={`${row.location}-cell`}>
+                    <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
+                      {row.location}
+                    </a>
+                  </span>,
+                  row.date,
+                  row.day,
+                  row.time,
+                ])}
+              />
+            </Section>
+
+            <Section title={resultsSection.title}>
+              <Table variant="key-value" rows={resultsRows} alignTop />
+            </Section>
+
+            <Section title={sectionTitles.localRules}>
+              <p className="leading-relaxed text-[var(--color-text-secondary)]">{rules.intro}</p>
+              <Table variant="key-value" rows={rules.table} alignTop />
+            </Section>
+          </div>
+        );
+      }}
     </PageContainer>
   );
 }

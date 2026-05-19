@@ -133,7 +133,7 @@
 
   /* Neutrals
    * --color-background → page base (body, canvas).
-   * --color-surface → cards, panels, modals, tables. */
+   * --color-surface → cards, panels, tables. */
   --color-text-primary: #111111;
   --color-text-secondary: #525252;
   --color-background: #fafafa;
@@ -144,7 +144,6 @@
   /* Text on brand (header / hero) */
   --color-text-on-brand: #ffffff;
   --color-text-on-brand-muted: color-mix(in srgb, var(--color-text-on-brand) 78%, transparent);
-  --color-text-on-brand-subtle: color-mix(in srgb, var(--color-text-on-brand) 58%, transparent);
 
   /* Surfaces derived from brand + neutrals */
   --color-surface-muted: color-mix(in srgb, var(--color-primary-blue-500) 3.2%, var(--color-background));
@@ -158,18 +157,8 @@
   --outline-blue-ghost: color-mix(in srgb, var(--color-primary-blue-500) 8%, var(--color-background));
   --outline-blue-subtle: color-mix(in srgb, var(--color-primary-blue-500) 14%, var(--color-surface-card));
   --outline-blue-soft: color-mix(in srgb, var(--color-primary-blue-500) 12%, var(--color-background));
-  --outline-blue-default: color-mix(
-    in srgb,
-    var(--color-primary-blue-500) 22%,
-    var(--color-text-primary) 3%,
-    transparent
-  );
-  --outline-blue-emphasis: color-mix(
-    in srgb,
-    var(--color-primary-blue-500) 40%,
-    var(--color-text-primary) 5%,
-    transparent
-  );
+  --outline-blue-default: color-mix(in srgb, var(--color-primary-blue-500) 25%, transparent);
+  --outline-blue-emphasis: color-mix(in srgb, var(--color-primary-blue-500) 45%, transparent);
   --outline-blue-focus: color-mix(in srgb, var(--color-primary-blue-500) 78%, var(--color-primary-blue-700) 22%);
   --outline-blue-focus-ring: color-mix(in srgb, var(--color-primary-blue-500) 38%, transparent);
   --color-filter-outline: var(--outline-blue-default);
@@ -188,7 +177,6 @@
   /* Brand chrome */
   --color-bg-primary: var(--color-primary-blue-500);
   --color-bg-secondary: var(--color-secondary-blue-500);
-  --color-bg-surface: var(--color-primary-blue-700);
   --color-page-body-bg: var(--color-background);
 
   /* Borders */
@@ -228,8 +216,7 @@
   --destructive-outline-text: color-mix(in srgb, var(--color-status-error) 48%, black);
   --destructive-outline-hover-bg: color-mix(in srgb, var(--color-status-error) 7%, var(--color-surface-card));
 
-  /* Overlays / modals */
-  --modal-backdrop-scrim: color-mix(in srgb, var(--color-primary-blue-900) 48%, transparent);
+  /* Overlays */
   --overlay-scrim-strong: color-mix(in srgb, var(--color-primary-blue-900) 88%, black);
   --overlay-control-bg: color-mix(in srgb, var(--color-primary-blue-900) 42%, transparent);
   --overlay-control-bg-hover: color-mix(in srgb, var(--color-primary-blue-900) 58%, transparent);
@@ -286,30 +273,9 @@
 
   --table-data-pill-note-color: color-mix(in srgb, var(--color-status-warning) 48%, black);
 
-  /* Match card tokens */
-  --match-text-loser: var(--color-text-tertiary);
-  --match-text-winner: var(--color-text-primary);
-  --match-rank-loser-border: var(--color-border-ui-strong);
-  --match-rank-loser-bg: color-mix(in srgb, var(--color-text-secondary) 8%, var(--color-surface-card));
-  --match-rank-loser-text: var(--color-text-secondary);
-  --match-rank-win-border: color-mix(in srgb, var(--color-secondary-blue-500) 35%, var(--color-surface-card));
-  --match-rank-win-bg: color-mix(in srgb, var(--color-secondary-blue-500) 14%, var(--color-surface-card));
-  --match-rank-win-text: var(--color-primary-blue-700);
-  --match-rank-bracket-win-border: color-mix(in srgb, var(--color-secondary-blue-500) 28%, var(--color-surface-card));
-  --match-rank-bracket-win-bg: color-mix(in srgb, var(--color-secondary-blue-500) 22%, var(--color-surface-card));
-  --match-rank-bracket-win-text: var(--color-primary-blue-800);
-  --match-rank-bracket-lose-border: color-mix(in srgb, var(--color-secondary-blue-400) 40%, var(--color-surface-card));
-  --match-rank-bracket-lose-bg: color-mix(in srgb, var(--color-secondary-blue-300) 18%, var(--color-surface-card));
-  --match-rank-bracket-lose-text: var(--color-primary-blue-700);
-  --match-withdrew-border: color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card));
-  --match-withdrew-bg: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card));
-  --match-withdrew-text: color-mix(in srgb, var(--color-status-orange) 55%, black);
-  --match-card-meta-bg: var(--color-surface-strong);
-  --match-card-meta-text: var(--color-text-secondary);
 
   /* Card chrome */
   --color-border-card: color-mix(in srgb, var(--color-border-ui) 82%, transparent);
-  --card-accent-border: var(--color-primary-yellow-400);
   --card-placeholder-stripe: var(--color-border-ui);
   --card-placeholder-fill: color-mix(in srgb, var(--color-text-secondary) 18%, var(--color-surface-card));
   --card-label-lesson: color-mix(in srgb, var(--color-status-success) 52%, black);
@@ -322,10 +288,6 @@
   --calendar-accent-4: color-mix(in srgb, var(--color-status-orange) 38%, transparent);
   --calendar-accent-5: color-mix(in srgb, var(--color-primary-yellow-400) 50%, transparent);
   --calendar-accent-6: color-mix(in srgb, var(--color-secondary-blue-600) 34%, transparent);
-  --timeline-accent: var(--color-primary-yellow-500);
-  --timeline-card-bg: color-mix(in srgb, var(--color-text-on-brand) 12%, transparent);
-  --timeline-card-text: var(--color-text-on-brand);
-  --timeline-card-text-muted: var(--color-text-on-brand-muted);
 
   /* Button tokens */
   --button-on-accent-text: var(--color-text-primary);
@@ -343,8 +305,6 @@
 
   /* Semantic usage aliases */
   --bg-page: var(--color-page-body-bg);
-  --bg-section: var(--color-bg-secondary);
-  --bg-surface: var(--color-bg-surface);
   --header-bg: var(--color-bg-primary);
   --footer-bg: var(--header-bg);
   --footer-text: var(--color-text-on-brand);
@@ -358,13 +318,8 @@
   --bg-table: var(--color-table-bg);
   --text-table: var(--color-table-text);
   --border-table: var(--color-table-border);
-  --border-table-accent: color-mix(in srgb, var(--color-accent) 35%, var(--color-table-border));
   --table-header-bg: color-mix(in srgb, var(--color-primary-blue-500) 4.5%, var(--color-surface-card));
   --table-header-text: var(--color-text-primary);
-  --match-stage-header-bg: color-mix(in srgb, var(--color-secondary-blue-500) 18%, var(--color-surface-card));
-  --match-stage-header-text: var(--color-primary-blue-900);
-  --match-stage-header-text-muted: var(--color-text-secondary);
-  --match-stage-header-font-weight: 500;
   --tournament-tree-stage-header-bg-solid: var(--color-background);
   --tournament-tree-stage-header-border-bottom-width: 2px;
   --tournament-tree-stage-header-border-bottom-color: var(--color-primary-blue-500);
@@ -387,8 +342,6 @@
   --badge-category-border: var(--color-secondary-blue-300);
   --link-default: var(--color-secondary-blue-600);
   --link-hover: var(--color-primary-blue-600);
-  --border-default: var(--color-border-subtle);
-
   /* Layout grid */
   --grid-unit: 96px;
   --grid-line-color: color-mix(in srgb, #dfff00 30%, transparent);
@@ -466,14 +419,6 @@
   /* Filter / search box max-width — used by both Filter and SearchBox */
   --filter-control-max-w: 16rem;
 
-  /* Filter bar widths (legacy — kept for reference) */
-  --filter-width-year: 7.5rem;
-  --filter-width-round: 10rem;
-  --filter-width-category: 16rem;
-  --filter-width-club: 11rem;
-  --filter-width-locale: 5.75rem;
-  --filter-width-date: 11rem;
-
   /* Button system */
   --button-border-radius: 9999px;
   --button-border-radius-rounded: 0.5rem;
@@ -521,13 +466,12 @@
   --text-body-size: 14px;
   --text-body-letter-spacing: -0.02em;
   --text-body-line-height: 1.6;
-  --text-badge-size: calc(var(--text-body-size) * 0.82);
 
   /* Misc */
-  --radius-heading-accent: 12px;
+  /* --radius-heading-accent: 12px;
   --radius-heading-accent-sm: 8px;
   --radius-badge: 6px;
-  --calendar-card-padding: var(--content-gap);
+  --calendar-card-padding: var(--content-gap); */
 }
 
 /* ============================================================
@@ -538,7 +482,6 @@
 
 html[lang="ko"] {
   --font-heading: "Paperlogy", sans-serif;
-  --text-title-weight: 600;
   --text-h1-weight: 800;
   --text-h2-weight: 800;
   --text-h3-weight: 400;
@@ -647,20 +590,20 @@ html[lang="ko"] {
    STATUS CHIP COLORS
    ============================================================ */
 
-.match-status-chip-scheduled        { background-color: var(--chip-status-info-bg);    color: var(--chip-status-info-fg); }
-.match-status-chip-completed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); }
-.match-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
-.match-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
+.match-status-chip-scheduled        { background-color: var(--chip-status-info-bg);    color: var(--chip-status-info-fg);    border: 1px solid color-mix(in srgb, var(--chip-status-info-fg)    30%, transparent); }
+.match-status-chip-completed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
+.match-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
+.match-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
+.player-status-withdrew             { background-color: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card)); color: color-mix(in srgb, var(--color-status-orange) 55%, black); border: 1px solid color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card)); }
 
-.registration-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
-.registration-status-chip-confirmed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); }
-.registration-status-chip-refund-requested { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); }
-.registration-status-chip-refunded         { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
-.registration-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
+.registration-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
+.registration-status-chip-confirmed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
+.registration-status-chip-refund-requested { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
+.registration-status-chip-refunded         { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
 
-.category-status-chip-active        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); }
-.category-status-chip-inactive      { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg); }
-.category-status-chip-pending       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
+.category-status-chip-active        { background-color: var(--chip-pastel-sky-bg);     color: var(--chip-pastel-sky-fg);     border: 1px solid color-mix(in srgb, var(--chip-pastel-sky-fg)     30%, transparent); }
+.category-status-chip-inactive      { background-color: var(--chip-pastel-peach-bg);   color: var(--chip-pastel-peach-fg);   border: 1px solid color-mix(in srgb, var(--chip-pastel-peach-fg)   30%, transparent); }
+.category-status-chip-pending       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
 
 /* ============================================================
    BASE ELEMENT STYLES
@@ -920,11 +863,6 @@ button:disabled {
   box-shadow: var(--card-elev-shadow);
 }
 
-.card-elev--interactive {
-  transition:
-    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.2s ease;
-}
 
 /* ============================================================
    SCROLL FADE-IN
@@ -961,10 +899,6 @@ button:disabled {
 }
 
 
-a:hover .card-elev--interactive,
-a:focus-visible .card-elev--interactive {
-  box-shadow: var(--card-elev-shadow-hover);
-}
 
 /* ============================================================
    SITE LOGO
@@ -977,23 +911,6 @@ a:focus-visible .card-elev--interactive {
   text-decoration: none;
   color: inherit;
   flex-shrink: 0;
-}
-.site-logo:hover {
-  opacity: 0.85;
-}
-.site-logo:focus-visible {
-  outline: none;
-  border-radius: 0.25rem;
-}
-.site-logo--header:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--header-bg),
-    0 0 0 4px var(--color-focus-ring);
-}
-.site-logo--footer:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--footer-bg),
-    0 0 0 4px var(--color-focus-ring);
 }
 .site-logo__img {
   display: block;
@@ -1022,16 +939,6 @@ a:focus-visible .card-elev--interactive {
   border-bottom-color: var(--tournament-tree-stage-header-border-bottom-color);
   background-color: var(--tournament-tree-stage-header-bg-solid);
   background-image: none;
-}
-
-/* Match stage header */
-.match-stage-header h3 {
-  color: var(--match-stage-header-text);
-  font-weight: var(--match-stage-header-font-weight);
-}
-.match-stage-header .match-stage-header-detail {
-  color: var(--match-stage-header-text-muted);
-  font-weight: var(--match-stage-header-font-weight);
 }
 
 /* ============================================================
@@ -1110,103 +1017,8 @@ a:focus-visible .card-elev--interactive {
   border-top-color: var(--table-border-row);
 }
 
-/* Stacked player / team lines inside table cells */
-.table-stacked-players-root {
-  display: block;
-  min-width: 0;
-  text-align: left;
-}
-.table-stacked-players-multi {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--element-gap);
-}
-.table-stacked-players-split {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--element-gap);
-}
-.table-stacked-players-line {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: 500;
-  color: var(--table-body-text);
-}
 
-/* Bilingual member / player name blocks */
-.table-member-names {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--element-gap);
-}
-.table-member-names-primary {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
-  font-weight: 500;
-  color: var(--table-body-text);
-}
-.table-member-names-secondary {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
-  font-weight: 400;
-  color: color-mix(in srgb, var(--table-body-text) 72%, var(--color-surface-card));
-}
-
-.table-player-name-link {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  cursor: pointer;
-  color: var(--table-body-text);
-  text-decoration: none;
-}
-.table-player-name-link:hover {
-  text-decoration: underline;
-}
-.table-player-name-stack {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--element-gap);
-}
-.table-player-name-primary {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-  color: var(--table-body-text);
-}
-.table-player-name-secondary {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
-  font-weight: 400;
-  opacity: 0.68;
-}
-
-/* Chip groups in data tables */
-.table-data-chip-group {
+.chip-group {
   display: flex;
   flex-wrap: wrap;
   gap: var(--element-gap);
@@ -1214,67 +1026,6 @@ a:focus-visible .card-elev--interactive {
   min-width: 0;
 }
 
-/* Secondary line under a link inside a data table cell */
-.table-inline-secondary-line {
-  display: block;
-  margin-top: var(--element-gap);
-  font-size: inherit;
-  color: color-mix(in srgb, var(--table-body-text) 72%, var(--color-surface-card));
-}
-
-.table-cell-technical-id {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: inherit;
-  color: color-mix(in srgb, var(--table-body-text) 88%, var(--color-surface-card));
-  white-space: nowrap;
-}
-
-.table-cell-score-line {
-  display: block;
-  white-space: normal;
-}
-
-.table-match-scores-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--element-gap);
-  align-items: flex-start;
-}
-.table-match-scores-stack-line {
-  display: block;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-}
-
-.table-cell-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--element-gap);
-}
-.table-cell-stack-item {
-  font-size: inherit;
-  font-weight: 500;
-}
-
-.table-cell-icon-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Note under registration status chip */
-.table-data-pill-note {
-  font-size: inherit;
-  line-height: 1.25;
-  color: var(--table-data-pill-note-color);
-}
-
-/* h3 date / section label stacked card layout */
-.h3-card-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--content-gap);
-}
 
 /* ============================================================
    FORMS
@@ -1302,7 +1053,6 @@ a:focus-visible .card-elev--interactive {
 .form-control-input:focus,
 .form-control-input:focus-within {
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
 
 .form-control-select {
@@ -1315,11 +1065,14 @@ a:focus-visible .card-elev--interactive {
 
 .form-control-chips-trigger {
   display: flex;
-  min-height: 2.75rem;
+  height: auto !important;
+  min-height: var(--button-height-medium);
   flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
-  cursor: text;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  cursor: pointer;
 }
 
 .form-control-button-match:hover {
@@ -1342,7 +1095,6 @@ a:focus-visible .card-elev--interactive {
 .form-input-match:focus,
 .form-input-match:focus-within {
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
 .form-input-match:hover {
   background-color: var(--color-surface-muted);

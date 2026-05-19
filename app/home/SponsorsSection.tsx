@@ -1,5 +1,8 @@
+"use client";
+
 import { Section } from "@/app/components/Section";
 import { Card } from "@/app/components/ui/Card";
+import { useLocale } from "@/lib/locale-context";
 
 type Sponsor = {
   id: string | number;
@@ -9,11 +12,7 @@ type Sponsor = {
 };
 
 type SponsorsSectionProps = {
-  title: string;
-  note?: string;
   sponsors: Sponsor[];
-  tierLabels: { gold: string; silver: string; bronze: string };
-  content: { shared: { aria: { visit: (name: string) => string } } };
 };
 
 const GOLD_NAMES = ["tom lee sedation"];
@@ -40,11 +39,15 @@ function bronzeColSpan(index: number): string {
   return index < 2 ? "col-span-1 sm:col-span-3 lg:col-span-1" : "col-span-1 sm:col-span-2 lg:col-span-1";
 }
 
-export function SponsorsSection({ title, sponsors, tierLabels, content }: SponsorsSectionProps) {
+export function SponsorsSection({ sponsors }: SponsorsSectionProps) {
+  const { t } = useLocale();
+  const title = t.homePage.sectionTitles.sponsors;
+  const tierLabels = t.homePage.sponsorTierLabels;
+  const visit = t.shared.aria.visit;
+
   const gold = sponsors.filter((s) => sponsorTier(s.name) === "gold");
   const silver = sponsors.filter((s) => sponsorTier(s.name) === "silver");
   const bronze = sponsors.filter((s) => sponsorTier(s.name) === "bronze");
-  const visit = content.shared.aria.visit;
 
   return (
     <Section title={title} zebra>

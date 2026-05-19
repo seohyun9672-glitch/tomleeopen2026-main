@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/locale-context";
-import type { Messages } from "@/lib/content";
+import type { Locale, Messages } from "@/lib/content";
 import { PageHero } from "./layout/PageHero";
 
 const shellClassName =
@@ -24,16 +24,17 @@ const PATH_TITLES: Partial<Record<string, (t: Messages) => string>> = {
 };
 
 export type PageContainerProps = {
-  children: ReactNode;
+  children: ReactNode | ((t: Messages, locale: Locale) => ReactNode);
   title?: string;
+  titleActions?: ReactNode;
   beforeTitle?: ReactNode;
   /** Tailwind max-width class (e.g. "max-w-[700px]") applied to both the hero and children. */
   contentMaxWidth?: string;
 };
 
 /** Max-width container with page padding. Optional page title row via `title`. */
-export function PageContainer({ children, title, beforeTitle, contentMaxWidth }: PageContainerProps) {
-  const { t } = useLocale();
+export function PageContainer({ children, title, titleActions, beforeTitle, contentMaxWidth }: PageContainerProps) {
+  const { t, locale } = useLocale();
   const pathname = usePathname();
 
   // Strip /ko prefix to get the locale-neutral path, then look up the locale-aware title.
@@ -45,8 +46,8 @@ export function PageContainer({ children, title, beforeTitle, contentMaxWidth }:
       {beforeTitle != null ? (
         <div className={resolvedTitle != null ? "mb-[var(--content-gap)]" : undefined}>{beforeTitle}</div>
       ) : null}
-      {resolvedTitle != null ? <PageHero title={resolvedTitle} /> : null}
-      {children}
+      {resolvedTitle != null ? <PageHero title={resolvedTitle} actions={titleActions} /> : null}
+      {typeof children === "function" ? children(t, locale) : children}
     </>
   );
 

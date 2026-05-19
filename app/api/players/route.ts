@@ -7,10 +7,45 @@ const NAME_SEARCH_TAKE = 50;
  * GET /api/players?email=... or /api/players?name=... — find players for registration prefill.
  * Returns array of players with profile fields; empty if no match.
  */
+/** POST /api/players — create a new player (admin). */
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const fullNameEn = typeof body.fullNameEn === "string" ? body.fullNameEn.trim() : "";
+    if (!fullNameEn)
+      return NextResponse.json({ error: "fullNameEn required" }, { status: 400 });
+
+    const player = await prisma.player.create({
+      data: {
+        email: email || "",
+        fullNameEn,
+        fullNameKo: body.fullNameKo?.trim() || null,
+        phone: body.phone?.trim() || null,
+        ntrp: body.ntrp?.trim() || null,
+      },
+    });
+
+    const clubs: string[] = Array.isArray(body.clubs) ? body.clubs : [];
+    if (clubs.length > 0) {
+      await prisma.playerClub.createMany({
+        data: clubs.map((code: string) => ({ playerId: player.id, clubCode: code })),
+        skipDuplicates: true,
+      });
+    }
+
+    return NextResponse.json({ id: player.id });
+  } catch (e) {
+    console.error("POST /api/players", e);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const email = searchParams.get("email")?.trim().toLowerCase();
   const name = searchParams.get("name")?.trim();
+  const all = searchParams.get("all") === "1";
   const nameLower = name?.toLowerCase() ?? "";
   const hasEmail = Boolean(email && email.length >= 2);
   const hasName = Boolean(name && name.length >= 1);
@@ -28,7 +63,7 @@ export async function GET(request: Request) {
         ntrp: true,
       },
       orderBy: { fullNameEn: "asc" },
-      take: hasEmail ? NAME_SEARCH_TAKE : hasName ? 500 : 5,
+      take: all ? undefined : hasEmail ? NAME_SEARCH_TAKE : hasName ? 500 : 5,
     });
     const players = hasName
       ? rawPlayers
