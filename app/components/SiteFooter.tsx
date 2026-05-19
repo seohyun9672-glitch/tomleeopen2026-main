@@ -39,10 +39,10 @@ export const SiteFooter = memo(function SiteFooter() {
             </IconButton>
           ))}
           <IconButton
-            aria-label={`Email: ${contactData.email}`}
-            title={contactData.email}
+            aria-label={`Email: ${contactData.email.link}`}
+            title={contactData.email.label}
             className={FOOTER_ICON_CLASS}
-            onClick={() => { window.location.href = `mailto:${contactData.email}`; }}
+            onClick={() => { window.location.href = `mailto:${contactData.email.link}`; }}
           >
             <MailIcon />
           </IconButton>
