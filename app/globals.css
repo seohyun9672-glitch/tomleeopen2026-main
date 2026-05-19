@@ -561,9 +561,11 @@ html[lang="ko"] {
 .category-chip-md-b { background-color: var(--chip-pastel-peach-bg);     color: var(--chip-pastel-peach-fg); }
 .category-chip-md-s { background-color: var(--chip-pastel-peach-mid-bg); color: var(--chip-pastel-peach-mid-fg); }
 .category-chip-md-g { background-color: var(--chip-pastel-peach-deep-bg); color: var(--chip-pastel-peach-mid-fg); }
+.category-chip-md-o { background-color: var(--chip-pastel-rose-bg);      color: var(--chip-pastel-rose-fg); }
 .category-chip-ms-b { background-color: var(--chip-pastel-sky-bg);       color: var(--chip-pastel-sky-fg); }
 .category-chip-ms-s { background-color: var(--chip-pastel-sky-mid-bg);   color: var(--chip-pastel-sky-mid-fg); }
 .category-chip-ms-g { background-color: var(--chip-pastel-sky-deep-bg);  color: var(--chip-pastel-sky-deep-fg); }
+.category-chip-ms-o { background-color: var(--chip-pastel-periwinkle-bg); color: var(--chip-pastel-periwinkle-fg); }
 .category-chip-xd-b { background-color: var(--chip-pastel-pink-bg);      color: var(--chip-pastel-pink-fg); }
 .category-chip-xd-s { background-color: var(--chip-pastel-violet-bg);    color: var(--chip-pastel-violet-fg); }
 .category-chip-xd-g { background-color: var(--chip-pastel-slate-bg);     color: var(--chip-pastel-slate-fg); }
