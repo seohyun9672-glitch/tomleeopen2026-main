@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useLocale } from "@/lib/locale-context";
-import { Button } from "@/app/components/ui/Button";
 import {
   NavItem,
   NavDropdown,
@@ -18,7 +17,6 @@ import {
 import { MobileMenu } from "@/app/components/topheader/MobileMenu";
 import { getMenuData } from "@/lib/content/menu";
 import { LocaleSelector } from "@/app/components/LocaleSelector";
-import { importantDates } from "@/lib/importantDatesData";
 
 export function TopHeader() {
   const pathname = usePathname();
@@ -87,15 +85,7 @@ export function TopHeader() {
     return menu.nav as HeaderNavItem[];
   }, [locale]);
 
-  const isRegistrationOpen = useMemo(() => {
-    const reg = importantDates.find((d) => d.type === "range" && d.label === "Registration");
-    if (!reg || reg.type !== "range") return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today >= new Date(reg.startDate);
-  }, []);
-
-  const { tournamentGroup, leafItems } = useMemo(() => {
+  const { tournamentGroup, leafItems} = useMemo(() => {
     const first = navItems[0];
     if (first && isHeaderNavGroup(first)) {
       return {
@@ -185,13 +175,8 @@ export function TopHeader() {
               />
             </div>
 
-            {/* Mobile: register button + hamburger */}
+            {/* Mobile: hamburger */}
             <div className="flex shrink-0 items-center gap-2 lg:hidden">
-              {isRegistrationOpen && (
-                <Button href={`${localePrefix}/registration`} variant="primary" size="medium">
-                  {t.header.register}
-                </Button>
-              )}
               <button
                 type="button"
                 onClick={() => setMenuOpen((o) => !o)}
@@ -237,16 +222,6 @@ export function TopHeader() {
                   className="shrink-0"
                 />
               ))}
-              {isRegistrationOpen && (
-                <Button
-                  href={`${localePrefix}/registration`}
-                  variant="primary"
-                  size="medium"
-                  className="shrink-0"
-                >
-                  {t.header.register}
-                </Button>
-              )}
             </nav>
           </div>
         </div>

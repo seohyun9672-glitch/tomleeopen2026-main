@@ -470,8 +470,8 @@
   /* Misc */
   /* --radius-heading-accent: 12px;
   --radius-heading-accent-sm: 8px;
-  --radius-badge: 6px;
-  --calendar-card-padding: var(--content-gap); */
+  --radius-badge: 6px; */
+  --calendar-card-padding: var(--content-gap);
 }
 
 /* ============================================================
@@ -526,7 +526,7 @@ html[lang="ko"] {
     --table-cell-py: var(--content-gap);
     --table-cell-px: var(--content-gap);
     --table-radius: 0.5rem;
-    --calendar-card-padding: var(--content-gap);
+    --calendar-card-padding: var(--section-gap);
     --button-font-size: 0.9375rem;
     --button-inline-safe-pad: 24px;
     --button-height-large: 2.875rem;
@@ -571,8 +571,10 @@ html[lang="ko"] {
 .category-chip-xd-g { background-color: var(--chip-pastel-slate-bg);     color: var(--chip-pastel-slate-fg); }
 .category-chip-wd-b { background-color: var(--chip-pastel-butter-bg);    color: var(--chip-pastel-butter-fg); }
 .category-chip-wd-s { background-color: var(--chip-pastel-lilac-bg);     color: var(--chip-pastel-lilac-fg); }
+.category-chip-wd-g { background-color: var(--chip-pastel-aqua-bg);      color: var(--chip-pastel-aqua-fg); }
 .category-chip-ws-b { background-color: var(--chip-pastel-mint-bg);      color: var(--chip-pastel-mint-fg); }
 .category-chip-ws-s { background-color: var(--chip-pastel-sky-bg);       color: var(--chip-pastel-sky-fg); }
+.category-chip-ws-g { background-color: var(--chip-pastel-neutral-bg);   color: var(--chip-pastel-neutral-fg); }
 
 /* ============================================================
    CLUB CHIP COLORS — one class per Club.code (lowercase).
@@ -603,9 +605,9 @@ html[lang="ko"] {
 .registration-status-chip-refund-requested { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
 .registration-status-chip-refunded         { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
 
-.category-status-chip-active        { background-color: var(--chip-pastel-sky-bg);     color: var(--chip-pastel-sky-fg);     border: 1px solid color-mix(in srgb, var(--chip-pastel-sky-fg)     30%, transparent); }
-.category-status-chip-inactive      { background-color: var(--chip-pastel-peach-bg);   color: var(--chip-pastel-peach-fg);   border: 1px solid color-mix(in srgb, var(--chip-pastel-peach-fg)   30%, transparent); }
-.category-status-chip-pending       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
+.category-status-chip-active        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
+.category-status-chip-inactive      { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
+.category-status-chip-pending       { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
 
 /* ============================================================
    BASE ELEMENT STYLES
@@ -1055,6 +1057,16 @@ button:disabled {
 .form-control-input:focus,
 .form-control-input:focus-within {
   border-color: var(--input-focus-border);
+}
+
+textarea.form-control-input {
+  height: auto;
+  min-height: var(--button-height-medium);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  resize: vertical;
+  field-sizing: content;
+  line-height: 1.5;
 }
 
 .form-control-select {

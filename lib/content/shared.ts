@@ -40,8 +40,10 @@ export const shared = {
         allSeeds: "All seeds",
         date: "Date",
         status: "Status",
+        allStatuses: "All statuses",
         players: "Players",
         allYears: "All",
+        total: "Total",
       },
       aria: {
         viewDetail: (name: string) => `View ${name} details`,
@@ -99,8 +101,10 @@ export const shared = {
         allSeeds: "전체 시드",
         date: "날짜",
         status: "상태",
+        allStatuses: "전체 상태",
         players: "선수",
         allYears: "전체",
+        total: "총",
       },
       aria: {
         viewDetail: (name: string) => `${name} 자세히 보기`,

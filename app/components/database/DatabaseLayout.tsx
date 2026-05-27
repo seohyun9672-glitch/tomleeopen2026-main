@@ -10,6 +10,7 @@ import {
   RoundFilter,
   GroupFilter,
   ClubFilter,
+  StatusFilter,
 } from "./Filters";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import { ScheduleDatePicker } from "@/app/schedule/ScheduleDatePicker";
@@ -58,6 +59,7 @@ export type RoundFilterConfig = {
   value: string;
   options: { value: string; label: string }[];
   onChange: (v: string) => void;
+  allLabel?: string;
   /** Hide on mobile, show on md+ (renders as display:contents so it joins the flex row). */
   desktopOnly?: boolean;
 };
@@ -77,6 +79,14 @@ export type ClubFilterConfig = {
   placeholder?: string;
 };
 
+export type StatusFilterConfig = {
+  type: "status";
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+  allLabel?: string;
+};
+
 export type FilterConfig =
   | DateFilterConfig
   | YearFilterConfig
@@ -84,7 +94,8 @@ export type FilterConfig =
   | GroupFilterConfig
   | RoundFilterConfig
   | SearchFilterConfig
-  | ClubFilterConfig;
+  | ClubFilterConfig
+  | StatusFilterConfig;
 
 // ─── Self-managed filter config types ─────────────────────────────────────────
 // DatabaseLayout owns the URL param state; hub provides data + param key +
@@ -109,6 +120,8 @@ export type ManagedYearFilterConfig<T> = {
   /** Additional params to clear when this filter changes. */
   clearParams?: string[];
   allLabel?: string;
+  /** When true, defaults to showing all years instead of the most recent year. */
+  defaultToAll?: boolean;
 };
 
 export type ManagedCategoryFilterConfig<T> = {
@@ -145,6 +158,7 @@ export type ManagedRoundFilterConfig<T> = {
   /** Static list or a function derived from items already filtered by earlier filters. */
   options: { value: string; label: string }[] | ((prevItems: T[]) => { value: string; label: string }[]);
   apply: (items: T[], roundCode: string) => T[];
+  allLabel?: string;
   desktopOnly?: boolean;
   /** Additional params to clear when this filter changes. */
   clearParams?: string[];
@@ -156,6 +170,16 @@ export type ManagedGroupFilterConfig<T> = {
   /** Static list or a function derived from items already filtered by earlier filters. */
   options: string[] | ((prevItems: T[]) => string[]);
   apply: (items: T[], group: string) => T[];
+  allLabel?: string;
+  /** If provided, group filter is only shown in the filter bar when this returns true. */
+  visibleWhen?: (resolvedSoFar: Record<string, string>) => boolean;
+};
+
+export type ManagedStatusFilterConfig<T> = {
+  type: "status";
+  param: string;
+  options: { value: string; label: string }[] | ((prevItems: T[]) => { value: string; label: string }[]);
+  apply: (items: T[], status: string) => T[];
   allLabel?: string;
 };
 
@@ -175,7 +199,8 @@ export type ManagedFilterConfig<T> =
   | ManagedSearchFilterConfig<T>
   | ManagedRoundFilterConfig<T>
   | ManagedGroupFilterConfig<T>
-  | ManagedClubFilterConfig<T>;
+  | ManagedClubFilterConfig<T>
+  | ManagedStatusFilterConfig<T>;
 
 // ─── View config types ─────────────────────────────────────────────────────────
 
@@ -203,6 +228,8 @@ type SharedProps = {
   className?: string;
   contentClassName?: string;
   loading?: boolean;
+  /** When provided, renders "Total N {rowCountLabel}" below the table. */
+  rowCountLabel?: string;
 };
 
 // Caller-managed mode: hub owns filter state, passes pre-filtered data via view.items.
@@ -305,6 +332,7 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
             value={config.value}
             options={config.options}
             onChange={config.onChange}
+            allLabel={config.allLabel}
           />
         </div>
       );
@@ -327,6 +355,17 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
           options={config.options}
           onChange={config.onChange}
           placeholder={config.placeholder}
+        />
+      );
+    case "status":
+      return (
+        <StatusFilter
+          id={id}
+          label={t.shared.labels.status}
+          value={config.value}
+          options={config.options}
+          onChange={config.onChange}
+          allLabel={config.allLabel}
         />
       );
   }
@@ -368,7 +407,7 @@ function computeManaged<T>(
 
     } else if (f.type === "year") {
       let value = raw;
-      if (!value && f.years.length > 0) {
+      if (!value && !f.defaultToAll && f.years.length > 0) {
         value = String([...f.years].sort((a, b) => b - a)[0]);
       }
       resolvedValues[f.param] = value;
@@ -409,6 +448,7 @@ function computeManaged<T>(
         value: raw,
         options: roundOpts,
         onChange: (v) => set(f.param, v, { clear: f.clearParams }),
+        allLabel: f.allLabel,
         desktopOnly: f.desktopOnly,
       });
       if (raw) items = f.apply(items, raw);
@@ -426,7 +466,8 @@ function computeManaged<T>(
     } else if (f.type === "group") {
       const groupOpts = typeof f.options === "function" ? f.options(items) : f.options;
       resolvedValues[f.param] = raw;
-      if (groupOpts.length > 0) {
+      const groupVisible = !f.visibleWhen || f.visibleWhen(resolvedValues);
+      if (groupVisible && groupOpts.length > 0) {
         displayConfigs.push({
           type: "group",
           value: raw,
@@ -436,6 +477,18 @@ function computeManaged<T>(
         });
       }
       items = f.apply(items, raw);
+
+    } else if (f.type === "status") {
+      const statusOpts = typeof f.options === "function" ? f.options(items) : f.options;
+      resolvedValues[f.param] = raw;
+      displayConfigs.push({
+        type: "status",
+        value: raw,
+        options: statusOpts,
+        onChange: (v) => set(f.param, v),
+        allLabel: f.allLabel,
+      });
+      if (raw) items = f.apply(items, raw);
 
     } else if (f.type === "club") {
       const selected = raw ? raw.split(",").filter(Boolean) : [];
@@ -457,6 +510,7 @@ function computeManaged<T>(
 // ─── DatabaseLayout ────────────────────────────────────────────────────────────
 
 export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
+  const { t } = useLocale();
   const isManaged = "data" in props;
 
   const managedFilters = isManaged
@@ -488,7 +542,7 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
     }
   }, [resolvedStr, urlStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { emptyText, className, contentClassName, loading } = props;
+  const { emptyText, className, contentClassName, loading, rowCountLabel } = props;
 
   const activeFilters = managed
     ? managed.displayConfigs
@@ -563,7 +617,7 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
   return (
     <div className={className}>
       {hasFilters && (
-        <div className="flex flex-row flex-nowrap gap-[var(--content-gap)]">
+        <div className="flex flex-wrap items-end gap-[var(--content-gap)]">
           {activeFilters.map((config, i) => (
             <FilterSlot key={i} config={config} id={`db-filter-${i}`} />
           ))}
@@ -577,6 +631,11 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
       >
         {content}
       </div>
+      {rowCountLabel && managed && (
+        <p className="mt-2 text-right text-xs text-[var(--color-text-tertiary)]">
+          {t.shared.labels.total} {(managed.filteredItems as unknown[]).length} {rowCountLabel}
+        </p>
+      )}
     </div>
   );
 }

@@ -44,15 +44,16 @@ export type FilterProps = {
 };
 
 const FILL_CHILD = "[&_select]:w-full [&_input]:w-full";
-const HUG_CONTROLS = new Set<FilterControlKind>(["year", "round"]);
+const HUG_CONTROLS = new Set<FilterControlKind>(["year", "round", "status"]);
 
 function shellClass(control: FilterControlKind, className?: string) {
   if (HUG_CONTROLS.has(control)) return cn("flex flex-none flex-col gap-0 min-w-0 w-fit", className);
   if (control === "default") return cn("flex flex-1 flex-col gap-0 min-w-0 h-full w-full", className);
   if (control === "stretch") return cn("flex flex-1 flex-col gap-0 min-w-0 w-full", className);
-  if (control === "category" || control === "date")
-    return cn("flex flex-col gap-0 min-w-0 w-full sm:max-w-[var(--filter-control-max-w)]", className);
-  return cn("flex flex-col gap-0 min-w-0 w-full max-w-[var(--filter-control-max-w)]", className);
+  // Category fills leftover row space; date and club keep a capped fixed width.
+  if (control === "category") return cn("flex flex-1 flex-col gap-0 min-w-0", className);
+  if (control === "date") return cn("flex flex-none flex-col gap-0 min-w-0 w-full sm:max-w-[var(--filter-control-max-w)]", className);
+  return cn("flex flex-none flex-col gap-0 min-w-0 w-full max-w-[var(--filter-control-max-w)]", className);
 }
 
 function innerClass(control: FilterControlKind) {
@@ -407,6 +408,7 @@ type StatusFilterProps = {
   options: SelectOption[];
   onChange: (value: string) => void;
   control?: FilterControlKind;
+  allLabel?: string;
 };
 
 export function StatusFilter({
@@ -416,6 +418,7 @@ export function StatusFilter({
   options,
   onChange,
   control = "status",
+  allLabel,
 }: StatusFilterProps) {
   return (
     <Filter control={control} htmlFor={id} label={label}>
@@ -424,6 +427,7 @@ export function StatusFilter({
         value={value}
         onChange={(e) => { onChange(e.currentTarget.value); e.currentTarget.blur(); }}
       >
+        {allLabel !== undefined && <option value="">{allLabel}</option>}
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </Filter.Select>
     </Filter>

@@ -44,6 +44,7 @@ export function HonourRollHub({ categories, allMatches }: Props) {
             year ? items.filter((e) => String(e.year) === year) : items,
           clearParams: ["cat"],
           allLabel: t.shared.labels.allYears,
+          defaultToAll: true,
         },
         {
           type: "category" as const,

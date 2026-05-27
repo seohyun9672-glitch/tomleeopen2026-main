@@ -270,7 +270,7 @@ export function TournamentCalendar() {
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
-      <div className="flex w-full shrink-0 items-center justify-between gap-2">
+      <div className="mx-[calc(-1*var(--calendar-card-padding))] mt-[calc(-1*var(--calendar-card-padding))] flex w-[calc(100%+2*var(--calendar-card-padding))] shrink-0 items-center justify-between gap-2 border-b border-[color:var(--color-border-ui)] px-[var(--calendar-card-padding)] pb-[var(--content-gap)] pt-[var(--calendar-card-padding)]">
         <button
           type="button"
           onClick={() => hasPrev && setView(prevView)}

@@ -32,11 +32,12 @@ export const importantDates: ImportantDateEntry[] = [
     valueDisplayKo: "6월 1일 – 20일",
   },
   {
-    type: "text",
+    type: "date",
     label: "Draw published",
-    value: "After registration closes",
+    date: "2026-06-26",
     labelKo: "대진표 발표",
-    valueKo: "등록 마감 후",
+    valueDisplay: "June 26",  
+    valueDisplayKo: "6월 26일",
   },
   {
     type: "range",

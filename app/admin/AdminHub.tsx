@@ -2,28 +2,25 @@
 
 import { useState, useMemo } from "react";
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUrlParams } from "@/lib/hooks/useUrlParams";
 import { TabList } from "@/app/components/ui/TabList";
 import { DatabaseLayout } from "@/app/components/database";
 import { Modal } from "@/app/components/ui/Modal";
 import { Button } from "@/app/components/ui/Button";
 import { Field } from "@/app/components/ui/Field";
-import { CheckboxField } from "@/app/components/ui/Checkbox";
 import { PageContainer } from "@/app/components/PageContainer";
 import { PlayerForm, type PlayerFormValues } from "@/app/components/PlayerForm";
-import { MatchForm, type MatchFormValues } from "@/app/components/MatchForm";
+import { MatchForm } from "@/app/components/MatchForm";
+import { MatchCard } from "@/app/components/MatchCard";
 import { RegistrationForm } from "@/app/registration/RegistrationForm";
-import {
-  REGISTRATION_STATUSES,
-  registrationStatusChipClass,
-} from "@/lib/registration";
-import { matchStatusChipClass, formatDateDisplay } from "@/lib/matches";
+import { registrationStatusChipClass, REGISTRATION_STATUSES } from "@/lib/registration";
+import type { Match } from "@/lib/matches";
 import { categoryStatusChipClass, CATEGORY_YEAR_STATUSES } from "@/lib/categories";
 import { clubChipClass } from "@/lib/clubs";
 import { useLocale } from "@/lib/locale-context";
 import type { CategoryRecord } from "@/lib/categories";
-import type { ManagedFilterConfig, TableViewConfig } from "@/app/components/database";
+import type { ManagedFilterConfig, ManagedCardViewConfig, TableViewConfig } from "@/app/components/database";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -120,49 +117,44 @@ function adminUserStatusChipClass(active: boolean): string {
   return active ? "category-status-chip-active" : "category-status-chip-inactive";
 }
 
+function parseTimeToHHMM(time: string | null | undefined): string {
+  if (!time) return "";
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(time)) return time.slice(0, 5);
+  const m = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return "";
+  let h = parseInt(m[1], 10);
+  const isPM = m[3].toUpperCase() === "PM";
+  if (isPM && h !== 12) h += 12;
+  if (!isPM && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
+}
+
+function computeMatchWinner(m: Pick<MatchRow, "set1T1" | "set2T1" | "set3T1" | "set1T2" | "set2T2" | "set3T2">): 1 | 2 | null {
+  const sets: [string | null, string | null][] = [
+    [m.set1T1, m.set1T2], [m.set2T1, m.set2T2], [m.set3T1, m.set3T2],
+  ];
+  let w1 = 0, w2 = 0;
+  for (const [s1, s2] of sets) {
+    if (s1 == null && s2 == null) continue;
+    const n1 = parseInt(s1 ?? "0", 10), n2 = parseInt(s2 ?? "0", 10);
+    if (n1 > n2) w1++; else if (n2 > n1) w2++;
+  }
+  if (w1 >= 2) return 1;
+  if (w2 >= 2) return 2;
+  if (w1 === 1 && w2 === 0) return 1;
+  if (w2 === 1 && w1 === 0) return 2;
+  return null;
+}
+
 // ─── Shared empty values ──────────────────────────────────────────────────────
 
 const EMPTY_PLAYER: PlayerFormValues = {
   fullNameEn: "", fullNameKo: "", email: "", phone: "", ntrp: "", clubs: [],
 };
 
-const EMPTY_MATCH: MatchFormValues = {
-  matchStatus: "Scheduled", date: "", time: "", location: "", comment: "",
-  set1T1: "", set2T1: "", set3T1: "", set1T2: "", set2T2: "", set3T2: "",
-};
 
 // ─── Registrations Tab ────────────────────────────────────────────────────────
 
-type PlayerSearchResult = {
-  id: number;
-  fullNameEn: string;
-  fullNameKo: string | null;
-  email: string;
-  phone: string | null;
-  ntrp: string | null;
-  clubs: string[];
-};
-
-type RegEditState = {
-  status: string;
-  categoryId: string;
-  nameOnEtransfer: string;
-  photoVideoConsent: boolean;
-  notes: string;
-  playerNameEn: string;
-  playerNameKo: string;
-  playerEmail: string;
-  playerPhone: string;
-  playerNtrp: string;
-  playerClubs: string[];
-  partnerId: number | null;
-  partnerNameEn: string;
-  partnerNameKo: string;
-  partnerEmail: string;
-  partnerPhone: string;
-  partnerNtrp: string;
-  partnerClubs: string[];
-};
 
 function RegistrationsTab({
   regs,
@@ -179,122 +171,11 @@ function RegistrationsTab({
 }) {
   const { t, locale } = useLocale();
   const a = t.adminPage;
+  const rf = t.registrationForm;
   const [editReg, setEditReg] = useState<RegistrationRow | null>(null);
-  const [editState, setEditState] = useState<RegEditState | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const regYear = useMemo(() => {
-    const years = [...new Set(regs.map((r) => r.tournamentYear))].sort((a, b) => b - a);
-    return years[0] ?? new Date().getFullYear();
-  }, [regs]);
-
-  function openEdit(r: RegistrationRow) {
-    setEditReg(r);
-    setEditState({
-      status: r.status,
-      categoryId: r.categoryId,
-      nameOnEtransfer: r.nameOnEtransfer ?? "",
-      photoVideoConsent: r.photoVideoConsent,
-      notes: r.notes ?? "",
-      playerNameEn: r.playerNameEn,
-      playerNameKo: r.playerNameKo ?? "",
-      playerEmail: r.playerEmail,
-      playerPhone: r.playerPhone ?? "",
-      playerNtrp: r.playerNtrp ?? "",
-      playerClubs: r.playerClubs,
-      partnerId: r.partnerId,
-      partnerNameEn: r.partnerNameEn ?? "",
-      partnerNameKo: r.partnerNameKo ?? "",
-      partnerEmail: r.partnerEmail ?? "",
-      partnerPhone: r.partnerPhone ?? "",
-      partnerNtrp: r.partnerNtrp ?? "",
-      partnerClubs: r.partnerClubs,
-    });
-    setSaveError(null);
-  }
-
-  async function loadPartnerOptions(query: string): Promise<PlayerSearchResult[]> {
-    if (!query.trim()) return [];
-    const res = await fetch(`/api/players?name=${encodeURIComponent(query)}`);
-    if (!res.ok) return [];
-    return res.json();
-  }
-
-  function onPartnerSelect(p: PlayerSearchResult) {
-    setEditState((s) => s && ({
-      ...s,
-      partnerId: p.id,
-      partnerNameEn: p.fullNameEn,
-      partnerNameKo: p.fullNameKo ?? "",
-      partnerEmail: p.email,
-      partnerPhone: p.phone ?? "",
-      partnerNtrp: p.ntrp ?? "",
-      partnerClubs: p.clubs,
-    }));
-  }
-
-  async function saveReg() {
-    if (!editReg || !editState) return;
-    setSaving(true); setSaveError(null);
-    const requests: Promise<Response>[] = [
-      fetch(`/api/registrations/${editReg.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: editState.status,
-          categoryId: editState.categoryId,
-          notes: editState.notes,
-          nameOnEtransfer: editState.nameOnEtransfer,
-          photoVideoConsent: editState.photoVideoConsent,
-        }),
-      }),
-      fetch(`/api/players/${editReg.playerId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullNameEn: editState.playerNameEn,
-          fullNameKo: editState.playerNameKo,
-          email: editState.playerEmail,
-          phone: editState.playerPhone,
-          ntrp: editState.playerNtrp,
-          clubs: editState.playerClubs,
-        }),
-      }),
-    ];
-    if (editState.partnerId) {
-      requests.push(
-        fetch(`/api/players/${editState.partnerId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fullNameEn: editState.partnerNameEn,
-            fullNameKo: editState.partnerNameKo,
-            email: editState.partnerEmail,
-            phone: editState.partnerPhone,
-            ntrp: editState.partnerNtrp,
-            clubs: editState.partnerClubs,
-          }),
-        }),
-      );
-    }
-    const results = await Promise.all(requests);
-    setSaving(false);
-    if (results.some((r) => !r.ok)) { setSaveError("Save failed"); return; }
-    setEditReg(null);
-    onMutate();
-  }
-
-  async function deleteReg() {
-    if (!editReg) return;
-    setDeleting(true); setSaveError(null);
-    const res = await fetch(`/api/registrations/${editReg.id}`, { method: "DELETE" });
-    setDeleting(false);
-    if (!res.ok) { setSaveError("Delete failed"); return; }
-    setEditReg(null);
-    onMutate();
-  }
+  const [regSaving, setRegSaving] = useState(false);
+  const [regDeleting, setRegDeleting] = useState(false);
+  const [regAddSaving, setRegAddSaving] = useState(false);
 
   const years = useMemo(
     () => [...new Set(regs.map((r) => r.tournamentYear))].sort((a, b) => b - a),
@@ -322,6 +203,13 @@ function RegistrationsTab({
       },
       apply: (items, catId) => (catId ? items.filter((r) => r.categoryId === catId) : items),
       allLabel: t.shared.labels.allCategories,
+    },
+    {
+      type: "status",
+      param: "status",
+      options: REGISTRATION_STATUSES.map((s) => ({ value: s, label: s })),
+      apply: (items, status) => (status ? items.filter((r) => r.status === status) : items),
+      allLabel: t.shared.labels.allStatuses,
     },
   ];
 
@@ -366,7 +254,7 @@ function RegistrationsTab({
         }),
       },
     ],
-    onRowClick: openEdit,
+    onRowClick: (r) => setEditReg(r),
   };
 
   return (
@@ -376,134 +264,103 @@ function RegistrationsTab({
         managedFilters={managedFilters}
         view={view}
         emptyText={a.registrations.empty}
+        rowCountLabel={a.tabs.registrations.toLowerCase()}
       />
 
       {/* Edit modal */}
-      <Modal open={!!editReg} onClose={() => setEditReg(null)} title={a.registrations.modal.title} maxWidthClass="max-w-lg">
-        {editReg && editState && (
-          <div className="flex flex-col gap-4">
-            {/* Category */}
-            <Field
-              variant="select"
-              id="reg-category"
-              label={a.registrations.modal.category}
-              value={editState.categoryId}
-              onChange={(e) => setEditState((s) => s && ({ ...s, categoryId: (e.target as HTMLSelectElement).value }))}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {locale === "ko" ? (c.labelKo ?? c.label) : c.label}
-                </option>
-              ))}
-            </Field>
-
-            {/* Player info */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                {a.registrations.modal.playerSection}
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <Field variant="text" id="reg-name-en" label={a.registrations.modal.name}
-                  value={editState.playerNameEn}
-                  onChange={(e) => setEditState((s) => s && ({ ...s, playerNameEn: e.target.value }))} />
-                <Field variant="text" id="reg-name-ko" label={a.registrations.modal.nameKo}
-                  value={editState.playerNameKo}
-                  onChange={(e) => setEditState((s) => s && ({ ...s, playerNameKo: e.target.value }))} />
-              </div>
-              <Field variant="email" id="reg-email" label={t.shared.form.email}
-                value={editState.playerEmail}
-                onChange={(e) => setEditState((s) => s && ({ ...s, playerEmail: e.target.value }))} />
-              <div className="grid grid-cols-2 gap-3">
-                <Field variant="text" id="reg-phone" label={t.shared.form.phone}
-                  value={editState.playerPhone}
-                  onChange={(e) => setEditState((s) => s && ({ ...s, playerPhone: e.target.value }))} />
-                <Field variant="text" id="reg-ntrp" label={t.shared.form.ntrp}
-                  value={editState.playerNtrp}
-                  onChange={(e) => setEditState((s) => s && ({ ...s, playerNtrp: e.target.value }))} />
-              </div>
-            </div>
-
-            {editReg.isDoubles && (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                  {a.registrations.modal.partnerName}
-                </p>
-                <PlayerForm<PlayerSearchResult>
-                  values={{
-                    fullNameEn: editState.partnerNameEn,
-                    fullNameKo: editState.partnerNameKo,
-                    email: editState.partnerEmail,
-                    phone: editState.partnerPhone,
-                    ntrp: editState.partnerNtrp,
-                    clubs: editState.partnerClubs,
-                  }}
-                  onChange={(updates) => setEditState((s) => {
-                    if (!s) return s;
-                    const next = { ...s };
-                    if ("fullNameEn" in updates) next.partnerNameEn = updates.fullNameEn ?? "";
-                    if ("fullNameKo" in updates) next.partnerNameKo = updates.fullNameKo ?? "";
-                    if ("email" in updates) next.partnerEmail = updates.email ?? "";
-                    if ("phone" in updates) next.partnerPhone = updates.phone ?? "";
-                    if ("ntrp" in updates) next.partnerNtrp = updates.ntrp ?? "";
-                    if ("clubs" in updates) next.partnerClubs = updates.clubs ?? [];
-                    return next;
-                  })}
-                  idPrefix="partner"
-                  nameCombobox={{
-                    loadOptions: loadPartnerOptions,
-                    onSelect: onPartnerSelect,
-                    getOptionKey: (p) => p.id,
-                    getOptionLabelEn: (p) => p.fullNameEn,
-                    getOptionLabelKo: (p) => p.fullNameKo ?? p.fullNameEn,
-                  }}
-                />
-              </div>
-            )}
-
-            <Field variant="text" id="reg-etransfer" label={a.registrations.modal.nameOnEtransfer}
-              value={editState.nameOnEtransfer}
-              onChange={(e) => setEditState((s) => s && ({ ...s, nameOnEtransfer: e.target.value }))} />
-            <CheckboxField
-              checked={editState.photoVideoConsent}
-              onChange={(e) => setEditState((s) => s && ({ ...s, photoVideoConsent: e.target.checked }))}
-            >
-              {a.registrations.modal.photoConsent}
-            </CheckboxField>
-
-            <Field variant="select" id="reg-status" label={t.shared.labels.status}
-              value={editState.status}
-              onChange={(e) => setEditState((s) => s && ({ ...s, status: (e.target as HTMLSelectElement).value }))}>
-              {REGISTRATION_STATUSES.map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </Field>
-
-            <Field variant="textarea" id="reg-notes" label={a.registrations.modal.notes}
-              value={editState.notes}
-              onChange={(e) => setEditState((s) => s && ({ ...s, notes: (e.target as HTMLTextAreaElement).value }))}
-              rows={2} />
-
-            {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
-            <div className="flex justify-between gap-2">
-              <Button variant="destructiveOutline" size="small" onClick={deleteReg} disabled={deleting}>
-                {deleting ? a.actions.deleting : a.actions.delete}
-              </Button>
-              <div className="flex gap-2">
-                <Button variant="secondary" size="small" onClick={() => setEditReg(null)}>{a.actions.cancel}</Button>
-                <Button size="small" onClick={saveReg} disabled={saving}>{saving ? a.actions.saving : a.actions.save}</Button>
-              </div>
-            </div>
-          </div>
+      <Modal
+        open={!!editReg}
+        onClose={() => setEditReg(null)}
+        title={a.registrations.modal.title}
+        maxWidthClass="max-w-2xl"
+        onDestructive={async () => {
+          if (!editReg) return;
+          setRegDeleting(true);
+          await fetch(`/api/registrations/${editReg.id}`, { method: "DELETE" });
+          setRegDeleting(false);
+          setEditReg(null);
+          onMutate();
+        }}
+        destructiveDisabled={regDeleting}
+        destructiveLabel={a.actions.delete}
+        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditReg(null) }}
+        primaryAction={{ label: regSaving ? a.actions.saving : a.actions.save, form: "admin-reg-edit", disabled: regSaving }}
+      >
+        {editReg && (
+          <RegistrationForm
+            key={editReg.id}
+            categories={categories}
+            year={editReg.tournamentYear}
+            player={{
+              fullNameEn: editReg.playerNameEn,
+              fullNameKo: editReg.playerNameKo ?? "",
+              email: editReg.playerEmail,
+              phone: editReg.playerPhone ?? "",
+              ntrp: editReg.playerNtrp ?? "",
+              clubs: editReg.playerClubs,
+              playerId: editReg.playerId,
+            }}
+            categoryIds={[editReg.categoryId]}
+            partnerNames={editReg.partnerNameEn ? { [editReg.categoryId]: editReg.partnerNameEn } : {}}
+            partnerIds={editReg.partnerId ? { [editReg.categoryId]: editReg.partnerId } : {}}
+            nameOnEtransfer={editReg.nameOnEtransfer ?? ""}
+            mediaConsent={editReg.photoVideoConsent}
+            isEdit
+            adminFields={{ status: editReg.status, notes: editReg.notes ?? "" }}
+            formId="admin-reg-edit"
+            onSavingChange={setRegSaving}
+            onSaveOverride={async (data) => {
+              const catId = data.selectedCategoryIds[0] ?? editReg.categoryId;
+              const partnerId = data.partnerIds[catId] ?? editReg.partnerId ?? null;
+              await Promise.all([
+                fetch(`/api/registrations/${editReg.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    status: data.status,
+                    categoryId: catId,
+                    notes: data.notes || null,
+                    nameOnEtransfer: data.nameOnEtransfer || null,
+                    photoVideoConsent: data.mediaConsent,
+                    partnerId,
+                  }),
+                }),
+                fetch(`/api/players/${editReg.playerId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    fullNameEn: data.playerValues.fullNameEn,
+                    fullNameKo: data.playerValues.fullNameKo || null,
+                    email: data.playerValues.email,
+                    phone: data.playerValues.phone || null,
+                    ntrp: data.playerValues.ntrp || null,
+                    clubs: data.playerValues.clubs,
+                  }),
+                }),
+              ]);
+              setEditReg(null);
+              onMutate();
+            }}
+            onSuccess={() => { setEditReg(null); onMutate(); }}
+          />
         )}
       </Modal>
 
       {/* Add modal */}
-      <Modal open={addOpen} onClose={onCloseAdd} title={a.registrations.modal.addTitle} maxWidthClass="max-w-2xl">
+      <Modal
+        open={addOpen}
+        onClose={onCloseAdd}
+        title={a.registrations.modal.addTitle}
+        maxWidthClass="max-w-2xl"
+        secondaryAction={{ label: a.actions.cancel, onClick: onCloseAdd }}
+        primaryAction={{ label: regAddSaving ? rf.buttons.submitting : rf.buttons.submit, form: "admin-reg-add", disabled: regAddSaving }}
+      >
         <RegistrationForm
           categories={categories}
-          year={regYear}
+          year={new Date().getFullYear()}
+          formId="admin-reg-add"
+          onSavingChange={setRegAddSaving}
           onSuccess={() => { onMutate(); }}
-          onCancel={onCloseAdd}
           onComplete={() => { onMutate(); onCloseAdd(); }}
         />
       </Modal>
@@ -512,6 +369,51 @@ function RegistrationsTab({
 }
 
 // ─── Matches Tab ──────────────────────────────────────────────────────────────
+
+function matchRowToMatch(m: MatchRow): Match {
+  return {
+    id: m.id,
+    tournamentYear: m.tournamentYear,
+    categoryId: m.categoryId,
+    round: m.roundCode != null
+      ? {
+          id: 0,
+          code: m.roundCode,
+          labelEn: m.roundLabel ?? m.roundCode,
+          labelKo: m.roundLabelKo ?? m.roundLabel ?? m.roundCode,
+          sortOrder: 0,
+        }
+      : null,
+    matchNumber: null,
+    team1Id: null,
+    team2Id: null,
+    team1Seed: null,
+    team2Seed: null,
+    team1DisplayName: m.team1Names.length > 0 ? m.team1Names.join(" / ") : null,
+    team2DisplayName: m.team2Names.length > 0 ? m.team2Names.join(" / ") : null,
+    // Per-player Ko fallback: if a player has no Ko name, use their En name.
+    team1DisplayNameKo: m.team1Names.length > 0
+      ? m.team1Names.map((en, i) => m.team1NamesKo[i]?.trim() || en).join(" / ")
+      : null,
+    team2DisplayNameKo: m.team2Names.length > 0
+      ? m.team2Names.map((en, i) => m.team2NamesKo[i]?.trim() || en).join(" / ")
+      : null,
+    matchStatus: m.matchStatus,
+    date: m.date,
+    time: m.time,
+    location: m.location,
+    set1ScoreTeam1: m.set1T1,
+    set2ScoreTeam1: m.set2T1,
+    set3ScoreTeam1: m.set3T1,
+    set1ScoreTeam2: m.set1T2,
+    set2ScoreTeam2: m.set2T2,
+    set3ScoreTeam2: m.set3T2,
+    winner: computeMatchWinner(m),
+    comment: m.comment,
+    categoryDisplayLabel: m.categoryLabel,
+    categoryDisplayLabelKo: m.categoryLabelKo,
+  };
+}
 
 function MatchesTab({
   matches,
@@ -523,59 +425,12 @@ function MatchesTab({
   const { t, locale } = useLocale();
   const a = t.adminPage;
   const [editMatch, setEditMatch] = useState<MatchRow | null>(null);
-  const [matchValues, setMatchValues] = useState<MatchFormValues>(EMPTY_MATCH);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [matchSaving, setMatchSaving] = useState(false);
 
   const locationOptions = useMemo(
     () => [...new Set(matches.map((m) => m.location).filter((l): l is string => Boolean(l)))].sort(),
     [matches],
   );
-
-  function openEdit(m: MatchRow) {
-    setEditMatch(m);
-    setMatchValues({
-      matchStatus: m.matchStatus,
-      date: m.date ?? "",
-      time: m.time ?? "",
-      location: m.location ?? "",
-      comment: m.comment ?? "",
-      set1T1: m.set1T1 ?? "",
-      set2T1: m.set2T1 ?? "",
-      set3T1: m.set3T1 ?? "",
-      set1T2: m.set1T2 ?? "",
-      set2T2: m.set2T2 ?? "",
-      set3T2: m.set3T2 ?? "",
-    });
-    setSaveError(null);
-  }
-
-  async function saveMatch() {
-    if (!editMatch) return;
-    setSaving(true); setSaveError(null);
-    const f = matchValues;
-    const res = await fetch(`/api/matches/${editMatch.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        matchStatus: f.matchStatus,
-        date: f.date || null,
-        time: f.time || null,
-        location: f.location || null,
-        comment: f.comment || null,
-        set1ScoreTeam1: f.set1T1 || null,
-        set2ScoreTeam1: f.set2T1 || null,
-        set3ScoreTeam1: f.set3T1 || null,
-        set1ScoreTeam2: f.set1T2 || null,
-        set2ScoreTeam2: f.set2T2 || null,
-        set3ScoreTeam2: f.set3T2 || null,
-      }),
-    });
-    setSaving(false);
-    if (!res.ok) { setSaveError("Save failed"); return; }
-    setEditMatch(null);
-    onMutate();
-  }
 
   const years = useMemo(
     () => [...new Set(matches.map((m) => m.tournamentYear))].sort((a, b) => b - a),
@@ -624,6 +479,7 @@ function MatchesTab({
         return [...seen.values()].sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
       },
       apply: (items, roundCode) => roundCode ? items.filter((m) => m.roundCode === roundCode) : items,
+      allLabel: t.shared.labels.allRounds,
       clearParams: ["group"],
     },
     {
@@ -639,100 +495,22 @@ function MatchesTab({
       },
       apply: (items, group) => (group ? items.filter((m) => m.group === group) : items),
       allLabel: t.shared.labels.allGroups,
+      visibleWhen: (v) => v.round === "Pre",
     },
   ];
 
-  // Build a code→locale-aware label map for the round column display
-  const roundLabelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const m of matches) {
-      if (m.roundCode && !map.has(m.roundCode)) {
-        map.set(
-          m.roundCode,
-          locale === "ko"
-            ? (m.roundLabelKo ?? m.roundLabel ?? m.roundCode)
-            : (m.roundLabel ?? m.roundCode),
-        );
-      }
-    }
-    return map;
-  }, [matches, locale]);
-
-  const view: TableViewConfig<MatchRow> = {
-    type: "table",
-    columns: [
-      {
-        header: t.shared.labels.year,
-        sortKey: "year",
-        sortValue: (m) => m.tournamentYear,
-        renderCell: (m) => ({ type: "text", value: String(m.tournamentYear) }),
-      },
-      {
-        header: t.shared.labels.category,
-        renderCell: (m) => ({
-          type: "text",
-          value: locale === "ko" ? (m.categoryLabelKo ?? m.categoryLabel) : m.categoryLabel,
-        }),
-      },
-      {
-        header: t.shared.labels.round,
-        renderCell: (m) => ({
-          type: "text",
-          value: m.roundCode ? (roundLabelMap.get(m.roundCode) ?? m.roundCode) : null,
-        }),
-      },
-      {
-        header: a.matches.columns.group,
-        renderCell: (m) => ({ type: "text", value: m.group }),
-      },
-      {
-        header: a.matches.columns.team1,
-        renderCell: (m) => ({
-          type: "stack",
-          lines: locale === "ko" && m.team1NamesKo.length > 0 ? m.team1NamesKo : m.team1Names,
-        }),
-      },
-      {
-        header: a.matches.columns.team2,
-        renderCell: (m) => ({
-          type: "stack",
-          lines: locale === "ko" && m.team2NamesKo.length > 0 ? m.team2NamesKo : m.team2Names,
-        }),
-      },
-      {
-        header: a.matches.columns.score,
-        renderCell: (m) => {
-          const lines = (
-            [[m.set1T1, m.set1T2], [m.set2T1, m.set2T2], [m.set3T1, m.set3T2]] as [string | null, string | null][]
-          )
-            .filter(([a, b]) => a != null || b != null)
-            .map(([a, b]) => `${a ?? ""}–${b ?? ""}`);
-          return lines.length > 0 ? { type: "stack", lines } : { type: "text", value: null };
-        },
-      },
-      {
-        header: t.shared.labels.status,
-        renderCell: (m) => ({
-          type: "chips",
-          items: [{ label: m.matchStatus, className: matchStatusChipClass(m.matchStatus) }],
-        }),
-      },
-      {
-        header: t.shared.labels.date,
-        sortKey: "date",
-        sortValue: (m) => m.date ?? "",
-        renderCell: (m) => ({ type: "text", value: formatDateDisplay(m.date, locale) }),
-      },
-      {
-        header: a.matches.columns.time,
-        renderCell: (m) => ({ type: "text", value: m.time }),
-      },
-      {
-        header: a.matches.columns.location,
-        renderCell: (m) => ({ type: "text", value: m.location }),
-      },
-    ],
-    onRowClick: openEdit,
+  const view: ManagedCardViewConfig<MatchRow> = {
+    getKey: (m) => m.id,
+    renderItem: (m) => (
+      <button
+        type="button"
+        className="w-full cursor-pointer text-left"
+        onClick={() => setEditMatch(m)}
+      >
+        <MatchCard match={matchRowToMatch(m)} group={m.group ?? undefined} />
+      </button>
+    ),
+    gridClass: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
   };
 
   return (
@@ -742,34 +520,48 @@ function MatchesTab({
         managedFilters={managedFilters}
         view={view}
         emptyText={a.matches.empty}
+        rowCountLabel={a.tabs.matches.toLowerCase()}
       />
-      <Modal open={!!editMatch} onClose={() => setEditMatch(null)} title={a.matches.modal.title} maxWidthClass="max-w-lg">
+      <Modal
+        open={!!editMatch}
+        onClose={() => setEditMatch(null)}
+        title={a.matches.modal.title}
+        maxWidthClass="max-w-lg"
+        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditMatch(null) }}
+        primaryAction={{ label: matchSaving ? a.actions.saving : a.actions.save, form: "edit-match", disabled: matchSaving }}
+      >
         {editMatch && (
-          <div className="flex flex-col gap-4">
-            <MatchForm
-              values={matchValues}
-              onChange={(u) => setMatchValues((v) => ({ ...v, ...u }))}
-              team1Label={
-                (locale === "ko" && editMatch.team1NamesKo.length > 0
-                  ? editMatch.team1NamesKo
-                  : editMatch.team1Names
-                ).join(" / ") || a.matches.columns.team1
-              }
-              team2Label={
-                (locale === "ko" && editMatch.team2NamesKo.length > 0
-                  ? editMatch.team2NamesKo
-                  : editMatch.team2Names
-                ).join(" / ") || a.matches.columns.team2
-              }
-              idPrefix="edit-match"
-              locationOptions={locationOptions}
-            />
-            {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" size="small" onClick={() => setEditMatch(null)}>{a.actions.cancel}</Button>
-              <Button size="small" onClick={saveMatch} disabled={saving}>{saving ? a.actions.saving : a.actions.save}</Button>
-            </div>
-          </div>
+          <MatchForm
+            key={editMatch.id}
+            matchId={editMatch.id}
+            defaultValues={{
+              matchStatus: editMatch.matchStatus,
+              date: editMatch.date ?? "",
+              time: parseTimeToHHMM(editMatch.time),
+              location: editMatch.location ?? "",
+              comment: editMatch.comment ?? "",
+              set1T1: editMatch.set1T1 ?? "",
+              set2T1: editMatch.set2T1 ?? "",
+              set3T1: editMatch.set3T1 ?? "",
+              set1T2: editMatch.set1T2 ?? "",
+              set2T2: editMatch.set2T2 ?? "",
+              set3T2: editMatch.set3T2 ?? "",
+            }}
+            team1Label={
+              editMatch.team1Names.map((en, i) =>
+                (locale === "ko" ? editMatch.team1NamesKo[i]?.trim() || en : en)
+              ).join(" / ") || a.matches.columns.team1
+            }
+            team2Label={
+              editMatch.team2Names.map((en, i) =>
+                (locale === "ko" ? editMatch.team2NamesKo[i]?.trim() || en : en)
+              ).join(" / ") || a.matches.columns.team2
+            }
+            idPrefix="edit-match"
+            locationOptions={locationOptions}
+            onSave={() => { setEditMatch(null); onMutate(); }}
+            onSavingChange={setMatchSaving}
+          />
         )}
       </Modal>
     </>
@@ -897,7 +689,17 @@ function PlayersTab({
         emptyText={a.players.empty}
       />
 
-      <Modal open={!!editPlayer} onClose={() => setEditPlayer(null)} title={a.players.modal.editTitle} maxWidthClass="max-w-lg">
+      <Modal
+        open={!!editPlayer}
+        onClose={() => setEditPlayer(null)}
+        title={a.players.modal.editTitle}
+        maxWidthClass="max-w-lg"
+        onDestructive={deletePlayer}
+        destructiveDisabled={deleting}
+        destructiveLabel={a.actions.delete}
+        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditPlayer(null) }}
+        primaryAction={{ label: saving ? a.actions.saving : a.actions.save, onClick: savePlayer, disabled: saving }}
+      >
         {editPlayer && (
           <div className="flex flex-col gap-4">
             <PlayerForm
@@ -906,15 +708,6 @@ function PlayersTab({
               idPrefix="edit-player"
             />
             {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
-            <div className="flex justify-between gap-2">
-              <Button variant="destructiveOutline" size="small" onClick={deletePlayer} disabled={deleting}>
-                {deleting ? a.actions.deleting : a.actions.delete}
-              </Button>
-              <div className="flex gap-2">
-                <Button variant="secondary" size="small" onClick={() => setEditPlayer(null)}>{a.actions.cancel}</Button>
-                <Button size="small" onClick={savePlayer} disabled={saving}>{saving ? a.actions.saving : a.actions.save}</Button>
-              </div>
-            </div>
           </div>
         )}
       </Modal>
@@ -924,6 +717,8 @@ function PlayersTab({
         onClose={() => { onCloseAdd(); setAddValues(EMPTY_PLAYER); }}
         title={a.players.modal.addTitle}
         maxWidthClass="max-w-lg"
+        secondaryAction={{ label: a.actions.cancel, onClick: () => { onCloseAdd(); setAddValues(EMPTY_PLAYER); } }}
+        primaryAction={{ label: saving ? a.actions.adding : a.actions.add, onClick: addPlayer, disabled: saving || !addValues.fullNameEn.trim() }}
       >
         <div className="flex flex-col gap-4">
           <PlayerForm
@@ -932,18 +727,6 @@ function PlayersTab({
             idPrefix="add-player"
           />
           {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="small" onClick={() => { onCloseAdd(); setAddValues(EMPTY_PLAYER); }}>
-              {a.actions.cancel}
-            </Button>
-            <Button
-              size="small"
-              onClick={addPlayer}
-              disabled={saving || !addValues.fullNameEn.trim()}
-            >
-              {saving ? a.actions.adding : a.actions.add}
-            </Button>
-          </div>
         </div>
       </Modal>
     </>
@@ -966,7 +749,9 @@ function CategoriesTab({
   const { t, locale } = useLocale();
   const a = t.adminPage;
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  // Year is managed by DatabaseLayout's year filter; read it here for data derivation.
+  const searchParams = useSearchParams();
+  const selectedYear = Number(searchParams.get("catYear")) || currentYear;
   const [editRow, setEditRow] = useState<CategoryRow | null>(null);
   const [editStatus, setEditStatus] = useState("Pending");
   const [saving, setSaving] = useState(false);
@@ -994,7 +779,13 @@ function CategoriesTab({
         .filter((s) => s.tournamentYear === selectedYear)
         .map((s) => [s.categoryId, s.status]),
     );
-    return categories.map((cat) => ({ ...cat, status: statusMap.get(cat.id) ?? "Pending" }));
+    return categories
+      .map((cat) => ({ ...cat, status: statusMap.get(cat.id) ?? "Pending" }))
+      .sort((a, b) => {
+        if (a.status === "Active" && b.status !== "Active") return -1;
+        if (b.status === "Active" && a.status !== "Active") return 1;
+        return 0;
+      });
   }, [categories, categoryStatuses, selectedYear]);
 
   function openEdit(row: CategoryRow) {
@@ -1058,29 +849,36 @@ function CategoriesTab({
 
   return (
     <>
-      <div className="flex flex-col gap-[var(--content-gap)]">
-        <div>
-          <Field
-            variant="select"
-            id="cat-year"
-            label={t.shared.labels.year}
-            value={String(selectedYear)}
-            onChange={(e) => setSelectedYear(Number((e.target as HTMLSelectElement).value))}
-            wrapperClassName="w-fit"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </Field>
-        </div>
-        <DatabaseLayout<CategoryRow>
+      <DatabaseLayout<CategoryRow>
           data={mergedRows}
+          managedFilters={([
+            {
+              type: "year" as const,
+              param: "catYear",
+              years,
+              apply: (items: CategoryRow[]) => items, // mergedRows is already year-filtered
+            },
+            {
+              type: "status" as const,
+              param: "catStatus",
+              options: CATEGORY_YEAR_STATUSES.map((s) => ({ value: s, label: s })),
+              apply: (items: CategoryRow[], status: string) => (status ? items.filter((r) => r.status === status) : items),
+              allLabel: t.shared.labels.allStatuses,
+            },
+          ] satisfies ManagedFilterConfig<CategoryRow>[])}
           view={view}
           emptyText={a.categories.empty}
+          rowCountLabel={a.tabs.categories.toLowerCase()}
         />
-      </div>
 
-      <Modal open={!!editRow} onClose={() => setEditRow(null)} title={a.categories.modal.editTitle} maxWidthClass="max-w-sm">
+      <Modal
+        open={!!editRow}
+        onClose={() => setEditRow(null)}
+        title={a.categories.modal.editTitle}
+        maxWidthClass="max-w-sm"
+        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditRow(null) }}
+        primaryAction={{ label: saving ? a.actions.saving : a.actions.save, onClick: saveCategory, disabled: saving }}
+      >
         {editRow && (
           <div className="flex flex-col gap-5">
             <Field
@@ -1104,23 +902,22 @@ function CategoriesTab({
                 <p className="text-sm text-[var(--color-text-tertiary)]">{a.categories.modal.noPlayers}</p>
               ) : (
                 <div className="flex flex-col gap-1">
-                  {categoryPlayers.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span>{locale === "ko" ? (r.playerNameKo ?? r.playerNameEn) : r.playerNameEn}</span>
-                      <span className={`inline-flex items-center rounded-2xl border px-2.5 py-0.5 text-xs font-medium ${registrationStatusChipClass(r.status)}`}>
-                        {r.status}
-                      </span>
-                    </div>
-                  ))}
+                  {categoryPlayers.map((r) => {
+                    const p1 = locale === "ko" ? (r.playerNameKo?.trim() || r.playerNameEn) : r.playerNameEn;
+                    const p2 = r.isDoubles && r.partnerNameEn
+                      ? (locale === "ko" ? (r.partnerNameKo?.trim() || r.partnerNameEn) : r.partnerNameEn)
+                      : null;
+                    return (
+                      <div key={r.id} className="text-sm">
+                        {p2 ? `${p1} / ${p2}` : p1}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" size="small" onClick={() => setEditRow(null)}>{a.actions.cancel}</Button>
-              <Button size="small" onClick={saveCategory} disabled={saving}>{saving ? a.actions.saving : a.actions.save}</Button>
-            </div>
           </div>
         )}
       </Modal>
@@ -1202,6 +999,8 @@ function AdminUsersTab({
         onClose={() => { onCloseAdd(); setAddEmail(""); }}
         title={a.admins.modal.addTitle}
         maxWidthClass="max-w-sm"
+        secondaryAction={{ label: a.actions.cancel, onClick: () => { onCloseAdd(); setAddEmail(""); } }}
+        primaryAction={{ label: saving ? a.actions.adding : a.actions.add, onClick: addAdmin, disabled: saving || !addEmail.trim() }}
       >
         <div className="flex flex-col gap-4">
           <Field
@@ -1214,18 +1013,6 @@ function AdminUsersTab({
           />
           <p className="text-xs text-[var(--color-text-tertiary)]">{a.admins.modal.note}</p>
           {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="small" onClick={() => { onCloseAdd(); setAddEmail(""); }}>
-              {a.actions.cancel}
-            </Button>
-            <Button
-              size="small"
-              onClick={addAdmin}
-              disabled={saving || !addEmail.trim()}
-            >
-              {saving ? a.actions.adding : a.actions.add}
-            </Button>
-          </div>
         </div>
       </Modal>
     </>
@@ -1260,7 +1047,7 @@ export function AdminHub({
   ];
 
   function handleTabChange(v: string) {
-    setTabParam("tab", v);
+    setTabParam("tab", v, { clear: ["year", "cat", "round", "group", "status", "catStatus", "catYear", "q"] });
     setAddRegOpen(false);
     setAddPlayerOpen(false);
     setAddAdminOpen(false);

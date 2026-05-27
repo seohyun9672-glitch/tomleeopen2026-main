@@ -5,6 +5,7 @@ export const MENU_ITEMS = [
     label: { en: "Tournament", ko: "대회" },
     children: [
       { href: "/overview", label: { en: "Overview", ko: "개요" } },
+      { href: "/registration", label: { en: "Registration", ko: "등록" } },
       { href: "/rules", label: { en: "Rules", ko: "규칙" } },
       { href: "/honour-roll", label: { en: "Honour roll", ko: "명예의 전당" } },
     ],
@@ -18,7 +19,7 @@ export const MENU_ITEMS = [
 export function getMenuData(locale: MenuLocale) {
   const p = locale === "ko" ? "/ko" : "";
   const [tournament, schedule, draws, players, media] = MENU_ITEMS;
-  const [overview, rules, honourRoll] = tournament.children;
+  const [overview, registration, rules, honourRoll] = tournament.children;
 
   const loc = (item: { href: string; label: { en: string; ko: string } }) => ({
     href: `${p}${item.href}`,
@@ -38,6 +39,7 @@ export function getMenuData(locale: MenuLocale) {
   return {
     nav,
     overview: loc(overview),
+    registration: loc(registration),
     rules: loc(rules),
     honourRoll: loc(honourRoll),
     schedule: loc(schedule),

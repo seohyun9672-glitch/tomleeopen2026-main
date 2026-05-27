@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Button } from "@/app/components/ui/Button";
 import { useLocale } from "@/lib/locale-context";
 import { importantDates } from "@/lib/importantDatesData";
+import { getRegistrationStatus } from "@/lib/registrationStatus";
 
 function splitHeroTitle(title: string) {
   const words = title.trim().split(/\s+/);
@@ -18,6 +19,7 @@ const ballClass = "absolute z-0 pointer-events-none w-[160px] h-[160px] xs:w-[18
 export function Hero() {
   const { t, locale } = useLocale();
   const { title, navLinks } = t.homePage.hero;
+  const localePrefix = locale === "ko" ? "/ko" : "";
 
   const dateRange = (() => {
     const entry = importantDates.find((e) => e.label === "Tournament");
@@ -27,6 +29,8 @@ export function Hero() {
 
   const { line1, line2 } = splitHeroTitle(title);
   const isKorean = locale === "ko";
+  const { status } = getRegistrationStatus();
+  const registrationOpen = status === "open";
 
   return (
     <section className="bg-hero-with-grid flex items-center py-16 md:py-20 relative overflow-hidden min-h-[520px] md:min-h-[540px]">
@@ -53,7 +57,18 @@ export function Hero() {
             {isKorean ? `${line1} ${line2}` : <>{line1} <br />{line2}</>}
           </h1>
           <h2 className="hero-subtitle">{dateRange}</h2>
-          {navLinks.length > 0 && (
+          {registrationOpen ? (
+            <div className="flex flex-col gap-[var(--content-gap)] md:flex-row">
+              <Button
+                href={`${localePrefix}/registration`}
+                variant="primary"
+                size="medium"
+                className="w-fit"
+              >
+                {t.header.register}
+              </Button>
+            </div>
+          ) : navLinks.length > 0 && (
             <div className="flex flex-col gap-[var(--content-gap)] md:flex-row">
               {navLinks.map(({ href, label }) => (
                 <Button

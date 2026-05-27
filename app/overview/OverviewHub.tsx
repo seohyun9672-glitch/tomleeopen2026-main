@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { useLocale } from "@/lib/locale-context";
 import { importantDates } from "@/lib/importantDatesData";
-import { contactData } from "@/lib/contactData";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
 import { Table } from "@/app/components/ui/table/Table";
@@ -19,6 +18,24 @@ type CategoryRow = {
   tierKo: string | null;
   ntrp: string | null;
 };
+
+type SentencePart = { text: string } | { linkLabel: string; href: string };
+
+function renderSentenceParts(parts: readonly SentencePart[]) {
+  return (
+    <>
+      {parts.map((part, i) =>
+        "href" in part ? (
+          <a key={i} href={part.href} target="_blank" rel="noreferrer" className="link-default">
+            {part.linkLabel}
+          </a>
+        ) : (
+          <span key={i}>{part.text}</span>
+        )
+      )}
+    </>
+  );
+}
 
 type OverviewHubProps = {
   categories: CategoryRow[];
@@ -101,9 +118,14 @@ function CategoriesTable({ categories, locale, t }: CategoriesTableProps) {
 
 export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps) {
   const { t, locale } = useLocale();
-  const { overview, categories: categoriesSection, importantDatesTitle } = t.overviewPage;
-  const rd = t.registrationDetail;
-
+  const {
+    overview,
+    categories: categoriesSection,
+    importantDatesTitle,
+    matchLogistics,
+    venueAndCourts,
+    resultReporting,
+  } = t.overviewPage;
   const hostLookup = overview.hostSponsorLookupName.trim().toLowerCase();
 
   const overviewTableRows: KeyValueRow[] = overview.table.map((row) =>
@@ -136,37 +158,6 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
     };
   });
 
-  const registrationTableRows: KeyValueRow[] = [
-    { label: rd.registrationPeriodLabel, value: rd.registrationPeriodValue },
-    // { label: rd.eligibilityLabel, value: rd.eligibilityValue },
-    { label: rd.feeLabel, value: rd.feeValue },
-    {
-      label: rd.paymentDetailsLabel,
-      value: (
-        <>
-          e-Transfer:{" "}
-          <a href={`mailto:${contactData.email.link}`} className="link-default underline">
-            {contactData.email.link}
-          </a>
-        </>
-      ),
-    },
-    {
-      label: rd.inquiryLabel,
-      value: (
-        <>
-          <a href={contactData.kakao.href} target="_blank" rel="noreferrer" className="link-default underline">
-            {contactData.kakao.label}
-          </a>
-          {", "}
-          <a href={`mailto:${contactData.email.link}`} className="link-default underline">
-            {contactData.email.label}
-          </a>
-        </>
-      ),
-    },
-  ];
-
   return (
     <PageContainer>
       <div className="flex flex-col gap-[var(--layout-gap)]">
@@ -178,10 +169,6 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
           <Table variant="key-value" rows={importantDateRows} />
         </Section>
 
-        <Section title={rd.title}>
-          <Table variant="key-value" rows={registrationTableRows} />
-        </Section>
-
         <Section title={categoriesSection.title}>
           <CategoriesTable categories={categories} locale={locale} t={t.overviewPage} />
           <ul className="list-outside list-disc space-y-[var(--element-gap)] pl-6">
@@ -189,6 +176,73 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
               <li key={i}>{note}</li>
             ))}
           </ul>
+        </Section>
+
+        <Section title={matchLogistics.title} id={matchLogistics.id}>
+          <Table
+            variant="key-value"
+            rows={[
+              { label: matchLogistics.officialBall.title, items: [...matchLogistics.officialBall.items] },
+              { label: matchLogistics.preliminaryMatches.title, items: [...matchLogistics.preliminaryMatches.items] },
+              {
+                label: matchLogistics.finalistsSelection.title,
+                value: (
+                  <ul className="list-outside list-disc space-y-1 w-full">
+                    {matchLogistics.finalistsSelection.format.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                    <li>
+                      {matchLogistics.finalistsSelection.tiebreakers.intro}
+                      <ul className="mt-0.5 list-outside list-disc space-y-0.5 pl-[var(--content-gap)]">
+                        {matchLogistics.finalistsSelection.tiebreakers.items.map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ul>
+                    </li>
+                  </ul>
+                ),
+              },
+            ]}
+            alignTop
+          />
+        </Section>
+
+        <Section title={venueAndCourts.title} id={venueAndCourts.id}>
+          <p className="text-body text-[var(--color-text-secondary)]">{venueAndCourts.description}</p>
+          <Table
+            variant="data"
+            headers={[...venueAndCourts.prelimHeaders]}
+            dataRows={venueAndCourts.prelimRows.map((row) => [
+              <span key={`${row.location}-cell`}>
+                <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
+                  {row.location}
+                </a>
+              </span>,
+              row.date,
+              row.day,
+              row.time,
+            ])}
+          />
+        </Section>
+
+        <Section title={resultReporting.title} id={resultReporting.id}>
+          <Table
+            variant="key-value"
+            rows={[
+              {
+                label: resultReporting.reportingResults.label,
+                items: [
+                  renderSentenceParts(resultReporting.reportingResults.sentenceParts),
+                  resultReporting.reportingResults.example,
+                ],
+              },
+              {
+                label: resultReporting.viewingResults.label,
+                items: [renderSentenceParts(resultReporting.viewingResults.sentenceParts)],
+              },
+            ]}
+            alignTop
+          />
         </Section>
       </div>
     </PageContainer>

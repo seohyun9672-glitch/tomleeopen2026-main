@@ -351,6 +351,8 @@ type Props = {
   team2Rank?: number | null;
   fillHeight?: boolean;
   omitCategoryInHeader?: boolean;
+  /** When provided, shown in the header instead of the match number. */
+  group?: string | null;
 };
 
 export function MatchCard({
@@ -359,6 +361,7 @@ export function MatchCard({
   team2Rank,
   fillHeight = false,
   omitCategoryInHeader = false,
+  group,
 }: Props) {
   const { t, locale } = useLocale();
   const mUi = t.matchUi;
@@ -401,7 +404,9 @@ export function MatchCard({
       : null;
 
   const headerLine = omitCategoryInHeader
-    ? [roundPart, matchNumberPart].filter(Boolean).join(" ")
+    ? [roundPart, group ?? matchNumberPart].filter(Boolean).join(" ")
+    : group != null
+    ? [categoryPart, roundPart, group].filter(Boolean).join(" · ")
     : [categoryPart, roundPart, matchNumberPart]
         .filter(Boolean)
         .join(" · ")

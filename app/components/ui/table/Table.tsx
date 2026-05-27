@@ -18,7 +18,7 @@ export type TableCellProps =
   | { type: "text";   value: string | null | undefined }
   | { type: "number"; value: number | null | undefined }
   | { type: "chips";  items: Chip[] }
-  | { type: "stack";  lines: (string | null | undefined)[] };
+  | { type: "stack";  lines: (string | null | undefined)[]; topBadge?: { label: string; className: string } };
 
 const DATA_CHIP_SHELL =
   "inline-flex max-w-full min-w-0 shrink items-center rounded-2xl border border-[color:var(--chip-palette-ring)] px-2.5 py-1 text-left text-inherit font-medium leading-snug whitespace-normal [overflow-wrap:break-word] [word-break:break-word]";
@@ -44,6 +44,9 @@ function TableCell(props: TableCellProps): ReactNode {
     case "stack":
       return (
         <span className="flex flex-col gap-0.5">
+          {props.topBadge && (
+            <ChipComponent size="sm" label={props.topBadge.label} className={props.topBadge.className} />
+          )}
           {props.lines.filter(Boolean).map((line, i) => (
             <span key={i}>{line}</span>
           ))}
@@ -258,9 +261,13 @@ function KeyValueTable({ rows, alignTop }: { rows: readonly KeyValueTableRow[]; 
                 </th>
                 <td className={`${cell} break-words whitespace-normal ${topAlignClass}`}>
                   {isKeyValueListRow(row) ? (
-                    <ul className="list-outside list-disc w-full">
-                      {row.items.map((item, i) => <li key={i}>{item}</li>)}
-                    </ul>
+                    row.items.length === 1 ? (
+                      <span>{row.items[0]}</span>
+                    ) : (
+                      <ul className="list-outside list-disc w-full">
+                        {row.items.map((item, i) => <li key={i}>{item}</li>)}
+                      </ul>
+                    )
                   ) : (
                     <>
                       <div>
