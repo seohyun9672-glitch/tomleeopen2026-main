@@ -31,7 +31,7 @@ export default async function Home() {
     <>
       <Hero />
       <FadeIn>
-        <ScheduleSection todayMatches={todayMatches} />
+        <ScheduleSection todayMatches={todayMatches} hasMatchesThisYear={false} />
       </FadeIn>
       <FadeIn>
         <SponsorsSection sponsors={sponsorsItems} />
