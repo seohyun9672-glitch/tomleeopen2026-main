@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import type React from "react";
 import { Chip as ChipComponent } from "../Chip";
 import { computeColumnMeta } from "./tableColumnUtils";
 import type {
@@ -15,10 +16,11 @@ import { isKeyValueListRow } from "./tableTypes";
 export type Chip = { label: string; className?: string };
 
 export type TableCellProps =
-  | { type: "text";   value: string | null | undefined }
-  | { type: "number"; value: number | null | undefined }
-  | { type: "chips";  items: Chip[] }
-  | { type: "stack";  lines: (string | null | undefined)[]; topBadge?: { label: string; className: string } };
+  | { type: "text";     value: string | null | undefined }
+  | { type: "number";   value: number | null | undefined }
+  | { type: "chips";    items: Chip[] }
+  | { type: "stack";    lines: (string | null | undefined)[]; topBadge?: { label: string; className: string } }
+  | { type: "checkbox"; checked: boolean; onToggle?: (e: React.MouseEvent<HTMLButtonElement>) => void };
 
 const DATA_CHIP_SHELL =
   "inline-flex max-w-full min-w-0 shrink items-center rounded-2xl border border-[color:var(--chip-palette-ring)] px-2.5 py-1 text-left text-inherit font-medium leading-snug whitespace-normal [overflow-wrap:break-word] [word-break:break-word]";
@@ -52,6 +54,25 @@ function TableCell(props: TableCellProps): ReactNode {
           ))}
         </span>
       );
+    case "checkbox": {
+      const disabled = !props.onToggle;
+      return (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={props.checked}
+          disabled={disabled}
+          onClick={props.onToggle ? (e) => { e.stopPropagation(); props.onToggle!(e); } : undefined}
+          className="flex h-5 w-5 items-center justify-center rounded border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40 border-[var(--color-border-ui-strong)] bg-[var(--color-surface-card)] aria-checked:border-[var(--color-primary)] aria-checked:bg-[var(--color-primary)]"
+        >
+          {props.checked && (
+            <svg viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden>
+              <polyline points="2 6 5 9 10 3" />
+            </svg>
+          )}
+        </button>
+      );
+    }
   }
 }
 

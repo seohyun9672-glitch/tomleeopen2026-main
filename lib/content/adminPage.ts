@@ -72,6 +72,7 @@ export const adminPage = {
         empty: "No players",
         columns: {
           clubs: "Clubs",
+          tournaments: "Tournaments",
         },
         modal: {
           editTitle: "Edit Player",
@@ -180,6 +181,7 @@ export const adminPage = {
         empty: "선수 없음",
         columns: {
           clubs: "클럽",
+          tournaments: "대회 참가",
         },
         modal: {
           editTitle: "선수 편집",

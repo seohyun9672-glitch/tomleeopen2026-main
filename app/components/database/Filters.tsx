@@ -110,7 +110,7 @@ function FilterRoot({ htmlFor, label, children, className, control = "default" }
   return (
     <FilterHtmlForContext.Provider value={htmlFor}>
       <div className={shellClass(control, className)}>
-        <Label htmlFor={htmlFor}>{label}</Label>
+        <Label htmlFor={htmlFor} className="whitespace-nowrap">{label}</Label>
         <div className={innerClass(control)}>{children}</div>
       </div>
     </FilterHtmlForContext.Provider>

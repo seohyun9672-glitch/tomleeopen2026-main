@@ -89,6 +89,7 @@ export async function GET(request: Request) {
         partnerNameEn: r.partner?.fullNameEn ?? null,
         partnerNameKo: r.partner?.fullNameKo ?? null,
         notes: r.notes,
+        adminComments: r.adminComments,
         photoVideoConsent: r.photoVideoConsent,
         createdAt: r.createdAt.toISOString(),
       }))
@@ -229,9 +230,13 @@ export async function POST(request: Request) {
 
       // Submitter is always `playerId`; partner is `resolvedPartnerId`. Do not reorder by numeric id
       // (that made the lower Player.id appear as the "main" registrant and swapped names in the UI).
+      const paymentReceived = Boolean(body.paymentReceived);
+      const derivedStatus = paymentReceived ? ("Confirmed" as const) : NEW_REGISTRATION_STATUS;
+
       const registrationUpdateFields = {
         nameOnEtransfer: body.nameOnEtransfer?.trim() || undefined,
         photoVideoConsent: Boolean(body.photoVideoConsent),
+        paymentReceived,
         notes: body.notes?.trim() ?? undefined,
       };
 
@@ -257,7 +262,7 @@ export async function POST(request: Request) {
             data: {
               playerId,
               partnerId: resolvedPartnerId,
-              status: NEW_REGISTRATION_STATUS,
+              status: derivedStatus,
               ...registrationUpdateFields,
             },
           });
@@ -278,15 +283,17 @@ export async function POST(request: Request) {
           tournamentYear,
           playerId,
           categoryId,
-          status: NEW_REGISTRATION_STATUS,
+          status: derivedStatus,
           nameOnEtransfer: body.nameOnEtransfer?.trim() || null,
           partnerId: resolvedPartnerId,
           photoVideoConsent: Boolean(body.photoVideoConsent),
+          paymentReceived,
           notes: body.notes?.trim() || null,
         },
         update: {
           ...registrationUpdateFields,
           partnerId: resolvedPartnerId ?? undefined,
+          status: derivedStatus,
         },
       });
       created.push({ id: reg.id, categoryId: reg.categoryId });

@@ -271,6 +271,27 @@ export function matchStatusChipClass(status: string): string {
   return `match-status-chip-${matchStatusVariant(status)}`;
 }
 
+/** Format a time string (HH:MM 24h or H:MM AM/PM 12h) as 12h display, e.g. "8:41pm". */
+export function formatTimeDisplay(time: string | null | undefined): string {
+  if (!time?.trim()) return "—";
+  const t = time.trim();
+  // Check 12h format first (e.g. "8:00 PM", "8:41pm") — must check BEFORE 24h
+  const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (m12) {
+    return `${parseInt(m12[1], 10)}:${m12[2]}${m12[3].toLowerCase()}`;
+  }
+  // 24h: "20:41" or "08:00"
+  const m24 = t.match(/^(\d{1,2}):(\d{2})/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const min = m24[2];
+    const period = h >= 12 ? "pm" : "am";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${min}${period}`;
+  }
+  return t;
+}
+
 /** Format an ISO date string (YYYY-MM-DD) as a short locale-aware date, e.g. "Aug 23" / "8월 23일". */
 export function formatDateDisplay(dateStr: string | null | undefined, locale: "en" | "ko" = "en"): string {
   if (!dateStr?.trim()) return "—";

@@ -4,10 +4,8 @@ import { useState } from "react";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Field } from "@/app/components/ui/Field";
 import { Button } from "@/app/components/ui/Button";
-import { Chip } from "@/app/components/ui/Chip";
 import { RegistrationForm } from "@/app/registration/RegistrationForm";
 import { useLocale } from "@/lib/locale-context";
-import { registrationStatusLabel, registrationStatusChipClass } from "@/lib/registration";
 import type { CategoryRecord } from "@/lib/categories";
 import type { ReactNode } from "react";
 
@@ -19,6 +17,7 @@ type RegistrationEntry = {
   status: string;
   photoVideoConsent: boolean;
   nameOnEtransfer: string | null;
+  notes: string | null;
 };
 
 type LookupResult = {
@@ -105,7 +104,7 @@ export function RegistrationManageHub({ categories }: Props) {
 
   if (view === "edit" && lookupResult) {
     const activeRegs = lookupResult.registrations.filter(
-      (r) => !r.status.toLowerCase().includes("refund") && r.status !== "Cancelled"
+      (r) => r.status !== "Cancelled"
     );
     return (
       <PageContainer title={rp.manageHeroTitle} contentMaxWidth="max-w-[var(--form-max-width)]">
@@ -124,6 +123,8 @@ export function RegistrationManageHub({ categories }: Props) {
             }}
             categoryIds={activeRegs.map((r) => r.categoryId)}
             partnerNames={lookupResult.partnerNames}
+            nameOnEtransfer={activeRegs[0]?.nameOnEtransfer ?? ""}
+            notes={activeRegs[0]?.notes ?? ""}
             etransferSent
             mediaConsent={activeRegs[0]?.photoVideoConsent ?? false}
             isEdit
@@ -143,7 +144,7 @@ export function RegistrationManageHub({ categories }: Props) {
   if (view === "result" && lookupResult) {
     const { fullNameEn, fullNameKo, email, phone, ntrp, registrations } = lookupResult;
     const activeRegs = registrations.filter(
-      (r) => !r.status.toLowerCase().includes("refund") && r.status !== "Cancelled"
+      (r) => r.status !== "Cancelled"
     );
 
     return (
@@ -189,12 +190,6 @@ export function RegistrationManageHub({ categories }: Props) {
                       className="rounded-lg border border-[var(--color-border-ui)] bg-[var(--color-surface-muted)] px-4 py-3"
                     >
                       <div className="flex flex-col gap-1">
-                        <Chip
-                          label={registrationStatusLabel(reg.status, locale as "en" | "ko")}
-                          size="sm"
-                          shape="rounded"
-                          className={registrationStatusChipClass(reg.status)}
-                        />
                         <span className="font-medium text-[var(--color-text-primary)]">{label}</span>
                         {partnerName && (
                           <span className="text-sm text-[var(--color-text-secondary)]">

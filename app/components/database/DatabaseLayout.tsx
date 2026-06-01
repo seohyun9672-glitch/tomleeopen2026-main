@@ -228,8 +228,8 @@ type SharedProps = {
   className?: string;
   contentClassName?: string;
   loading?: boolean;
-  /** When provided, renders "Total N {rowCountLabel}" below the table. */
-  rowCountLabel?: string;
+  /** When provided, renders "Total N {label}" below the table. Pass [singular, plural] for correct inflection. */
+  rowCountLabel?: string | [string, string];
 };
 
 // Caller-managed mode: hub owns filter state, passes pre-filtered data via view.items.
@@ -631,11 +631,17 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
       >
         {content}
       </div>
-      {rowCountLabel && managed && (
-        <p className="mt-2 text-right text-xs text-[var(--color-text-tertiary)]">
-          {t.shared.labels.total} {(managed.filteredItems as unknown[]).length} {rowCountLabel}
-        </p>
-      )}
+      {rowCountLabel && managed && (() => {
+        const count = (managed.filteredItems as unknown[]).length;
+        const label = Array.isArray(rowCountLabel)
+          ? (count === 1 ? rowCountLabel[0] : rowCountLabel[1])
+          : rowCountLabel;
+        return (
+          <p className="mt-2 text-right text-xs text-[var(--color-text-tertiary)]">
+            {t.shared.labels.total} {count} {label}
+          </p>
+        );
+      })()}
     </div>
   );
 }

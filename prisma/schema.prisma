@@ -96,8 +96,10 @@ model TournamentRegistration {
   partner            Player?   @relation("RegistrationPartner", fields: [partnerId], references: [id], onDelete: SetNull)
   photoVideoConsent  Boolean   @default(false)
   notes              String?
-  /// Confirmed | Cancelled (see lib/registrationStatus.ts)
-  status             String    @default("Confirmed")
+  adminComments      String?
+  paymentReceived    Boolean   @default(false)
+  /// Pending | Confirmed | Cancelled — derived from paymentReceived + category status
+  status             String    @default("Pending")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

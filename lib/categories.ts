@@ -53,6 +53,16 @@ export function categoryStatusChipClass(status: string): string {
   return "category-status-chip-pending";
 }
 
+const CATEGORY_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
+  active:   { en: "Active",   ko: "활성" },
+  pending:  { en: "Pending",  ko: "대기" },
+  inactive: { en: "Inactive", ko: "비활성" },
+};
+
+export function categoryStatusLabel(status: string, locale: "en" | "ko"): string {
+  return CATEGORY_STATUS_LABELS[status.trim().toLowerCase()]?.[locale] ?? status;
+}
+
 export type CategoryYearListItem = {
   categoryId: string;
   status: CategoryYearStatus;

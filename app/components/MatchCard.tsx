@@ -3,7 +3,7 @@
 import { Chip } from "@/app/components/ui/Chip";
 import { useLocale } from "@/lib/locale-context";
 import type { Match } from "@/lib/matches";
-import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
+import { matchStatusLabel, matchStatusChipClass, formatTimeDisplay } from "@/lib/matches";
 import { ROUND_PRE } from "@/lib/round";
 import { cn } from "@/lib/utils";
 
@@ -40,9 +40,6 @@ function parseScore(score: string | null): number | null {
 }
 
 function getWithdrew(match: Match): { team1: boolean; team2: boolean } {
-  const noSchedule =
-    !match.location?.trim() && !match.date?.trim() && !match.time?.trim();
-  if (!noSchedule) return { team1: false, team2: false };
   const s1t1 = parseScore(match.set1ScoreTeam1);
   const s1t2 = parseScore(match.set1ScoreTeam2);
   const s2t1 = parseScore(match.set2ScoreTeam1);
@@ -414,7 +411,7 @@ export function MatchCard({
 
   const displayLocation = match.location?.trim() || "—";
   const displayDate = formatDateDisplay(match.date ?? null, locale);
-  const displayTime = match.time?.trim() || "—";
+  const displayTime = formatTimeDisplay(match.time);
 
   const teams = [
     {

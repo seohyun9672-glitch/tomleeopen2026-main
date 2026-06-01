@@ -51,13 +51,19 @@ export async function GET(request: Request) {
           ? [r.team1.member1.fullNameEn, r.team1.member2?.fullNameEn ?? null].filter(Boolean)
           : [],
         team1NamesKo: r.team1
-          ? [r.team1.member1.fullNameKo, r.team1.member2?.fullNameKo ?? null].filter(Boolean)
+          ? ([
+              r.team1.member1.fullNameKo?.trim() || r.team1.member1.fullNameEn.trim(),
+              r.team1.member2 ? (r.team1.member2.fullNameKo?.trim() || r.team1.member2.fullNameEn.trim()) : null,
+            ].filter(Boolean) as string[])
           : [],
         team2Names: r.team2
           ? [r.team2.member1.fullNameEn, r.team2.member2?.fullNameEn ?? null].filter(Boolean)
           : [],
         team2NamesKo: r.team2
-          ? [r.team2.member1.fullNameKo, r.team2.member2?.fullNameKo ?? null].filter(Boolean)
+          ? ([
+              r.team2.member1.fullNameKo?.trim() || r.team2.member1.fullNameEn.trim(),
+              r.team2.member2 ? (r.team2.member2.fullNameKo?.trim() || r.team2.member2.fullNameEn.trim()) : null,
+            ].filter(Boolean) as string[])
           : [],
         matchStatus: r.matchStatus,
         date: r.date,

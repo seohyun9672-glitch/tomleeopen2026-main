@@ -13,7 +13,7 @@ export function PageHero({ title, actions }: PageHeroProps) {
       <div className="flex-1 self-center border-l-6 border-[var(--color-primary-yellow)] pl-6">
         <h1>{title}</h1>
       </div>
-      {actions && <div className="ml-4 shrink-0">{actions}</div>}
+      <div className="ml-4 shrink-0 min-h-[2.25rem]">{actions}</div>
     </header>
   );
 }

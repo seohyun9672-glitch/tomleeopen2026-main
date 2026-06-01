@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { CategoryYearStatus } from "@/lib/categories";
-import type { RegistrationStatus } from "@/lib/registration";
-
-const CASCADE_STATUS: Partial<Record<CategoryYearStatus, RegistrationStatus>> = {
-  Active: "Confirmed",
-  Inactive: "Refund Requested",
-};
 
 /** PATCH /api/categoryStatus/[id] — upsert status for a category + year.
- *  Cascades to registrations when Active or Inactive (skips already-Refunded). */
+ *  Cascades to registrations:
+ *  - Inactive → Cancelled for all non-cancelled regs
+ *  - Active/Pending → re-derive from paymentReceived (Confirmed or Pending) */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -26,15 +21,21 @@ export async function PATCH(
       update: { status },
     });
 
-    const cascadeTo = CASCADE_STATUS[status as CategoryYearStatus];
-    if (cascadeTo) {
+    if (status === "Inactive") {
+      // Cancel all non-cancelled registrations
       await prisma.tournamentRegistration.updateMany({
-        where: {
-          tournamentYear: year,
-          categoryId: id,
-          NOT: { status: "Refunded" satisfies RegistrationStatus },
-        },
-        data: { status: cascadeTo },
+        where: { tournamentYear: year, categoryId: id, NOT: { status: "Cancelled" } },
+        data: { status: "Cancelled" },
+      });
+    } else {
+      // Re-derive status from paymentReceived for non-cancelled regs
+      await prisma.tournamentRegistration.updateMany({
+        where: { tournamentYear: year, categoryId: id, NOT: { status: "Cancelled" }, paymentReceived: true },
+        data: { status: "Confirmed" },
+      });
+      await prisma.tournamentRegistration.updateMany({
+        where: { tournamentYear: year, categoryId: id, NOT: { status: "Cancelled" }, paymentReceived: false },
+        data: { status: "Pending" },
       });
     }
 

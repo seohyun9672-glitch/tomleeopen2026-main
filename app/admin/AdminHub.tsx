@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUrlParams } from "@/lib/hooks/useUrlParams";
@@ -14,9 +14,9 @@ import { PlayerForm, type PlayerFormValues } from "@/app/components/PlayerForm";
 import { MatchForm } from "@/app/components/MatchForm";
 import { MatchCard } from "@/app/components/MatchCard";
 import { RegistrationForm } from "@/app/registration/RegistrationForm";
-import { registrationStatusChipClass, REGISTRATION_STATUSES } from "@/lib/registration";
+import { registrationStatusChipClass, registrationStatusLabel, REGISTRATION_STATUSES } from "@/lib/registration";
 import type { Match } from "@/lib/matches";
-import { categoryStatusChipClass, CATEGORY_YEAR_STATUSES } from "@/lib/categories";
+import { categoryStatusChipClass, categoryStatusLabel, CATEGORY_YEAR_STATUSES } from "@/lib/categories";
 import { clubChipClass } from "@/lib/clubs";
 import { useLocale } from "@/lib/locale-context";
 import type { CategoryRecord } from "@/lib/categories";
@@ -48,7 +48,9 @@ export type RegistrationRow = {
   partnerClubs: string[];
   nameOnEtransfer: string | null;
   photoVideoConsent: boolean;
+  paymentReceived: boolean;
   notes: string | null;
+  adminComments: string | null;
   createdAt: string;
 };
 
@@ -162,12 +164,14 @@ function RegistrationsTab({
   addOpen,
   onCloseAdd,
   onMutate,
+  loading,
 }: {
   regs: RegistrationRow[];
   categories: CategoryRecord[];
   addOpen: boolean;
   onCloseAdd: () => void;
   onMutate: () => void;
+  loading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const a = t.adminPage;
@@ -207,7 +211,7 @@ function RegistrationsTab({
     {
       type: "status",
       param: "status",
-      options: REGISTRATION_STATUSES.map((s) => ({ value: s, label: s })),
+      options: REGISTRATION_STATUSES.map((s) => ({ value: s, label: registrationStatusLabel(s, locale) })),
       apply: (items, status) => (status ? items.filter((r) => r.status === status) : items),
       allLabel: t.shared.labels.allStatuses,
     },
@@ -224,6 +228,8 @@ function RegistrationsTab({
       },
       {
         header: t.shared.labels.category,
+        sortKey: "category",
+        sortValue: (r) => r.categoryLabel,
         renderCell: (r) => ({
           type: "text",
           value: locale === "ko" ? (r.categoryLabelKo ?? r.categoryLabel) : r.categoryLabel,
@@ -231,6 +237,8 @@ function RegistrationsTab({
       },
       {
         header: a.registrations.columns.player,
+        sortKey: "player",
+        sortValue: (r) => r.playerNameEn,
         renderCell: (r) => ({
           type: "text",
           value: locale === "ko" ? (r.playerNameKo ?? r.playerNameEn) : r.playerNameEn,
@@ -238,6 +246,8 @@ function RegistrationsTab({
       },
       {
         header: a.registrations.columns.partner,
+        sortKey: "partner",
+        sortValue: (r) => r.partnerNameEn ?? "",
         renderCell: (r) =>
           r.isDoubles && r.partnerNameEn
             ? {
@@ -248,9 +258,38 @@ function RegistrationsTab({
       },
       {
         header: t.shared.labels.status,
+        sortKey: "status",
+        sortValue: (r) => r.status,
         renderCell: (r) => ({
           type: "chips",
-          items: [{ label: r.status, className: registrationStatusChipClass(r.status) }],
+          items: [{ label: registrationStatusLabel(r.status, locale), className: registrationStatusChipClass(r.status) }],
+        }),
+      },
+      {
+        header: "Payment",
+        sortKey: "payment",
+        sortValue: (r) => (r.paymentReceived ? 1 : 0),
+        renderCell: (r) => ({
+          type: "checkbox",
+          checked: r.paymentReceived,
+          onToggle: r.status === "Cancelled" ? undefined : async (e) => {
+            e.stopPropagation();
+            await fetch(`/api/registrations/${r.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentReceived: !r.paymentReceived }),
+            });
+            onMutate();
+          },
+        }),
+      },
+      {
+        header: "Notes",
+        sortKey: "notes",
+        sortValue: (r) => r.notes ?? "",
+        renderCell: (r) => ({
+          type: "text",
+          value: r.notes ? (r.notes.length > 40 ? r.notes.slice(0, 40) + "…" : r.notes) : null,
         }),
       },
     ],
@@ -264,68 +303,66 @@ function RegistrationsTab({
         managedFilters={managedFilters}
         view={view}
         emptyText={a.registrations.empty}
-        rowCountLabel={a.tabs.registrations.toLowerCase()}
+        loading={loading}
+        rowCountLabel={locale === "ko" ? ["등록", "등록"] : ["registration", "registrations"]}
       />
 
       {/* Edit modal */}
-      <Modal
-        open={!!editReg}
-        onClose={() => setEditReg(null)}
-        title={a.registrations.modal.title}
-        maxWidthClass="max-w-2xl"
-        onDestructive={async () => {
-          if (!editReg) return;
-          setRegDeleting(true);
-          await fetch(`/api/registrations/${editReg.id}`, { method: "DELETE" });
-          setRegDeleting(false);
-          setEditReg(null);
-          onMutate();
-        }}
-        destructiveDisabled={regDeleting}
-        destructiveLabel={a.actions.delete}
-        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditReg(null) }}
-        primaryAction={{ label: regSaving ? a.actions.saving : a.actions.save, form: "admin-reg-edit", disabled: regSaving }}
-      >
-        {editReg && (
-          <RegistrationForm
-            key={editReg.id}
-            categories={categories}
-            year={editReg.tournamentYear}
-            player={{
-              fullNameEn: editReg.playerNameEn,
-              fullNameKo: editReg.playerNameKo ?? "",
-              email: editReg.playerEmail,
-              phone: editReg.playerPhone ?? "",
-              ntrp: editReg.playerNtrp ?? "",
-              clubs: editReg.playerClubs,
-              playerId: editReg.playerId,
+      {editReg && (() => {
+        const allCategoryIds = [editReg.categoryId];
+        const allPartnerNames = editReg.partnerNameEn ? { [editReg.categoryId]: editReg.partnerNameEn } : {};
+        const allPartnerIds = editReg.partnerId ? { [editReg.categoryId]: editReg.partnerId } : {};
+        const regById = new Map([[editReg.categoryId, editReg]]);
+
+        return (
+          <Modal
+            open
+            onClose={() => setEditReg(null)}
+            title={a.registrations.modal.title}
+            maxWidthClass="max-w-2xl"
+            onDestructive={async () => {
+              setRegDeleting(true);
+              await fetch(`/api/registrations/${editReg.id}`, { method: "DELETE" });
+              setRegDeleting(false);
+              setEditReg(null);
+              onMutate();
             }}
-            categoryIds={[editReg.categoryId]}
-            partnerNames={editReg.partnerNameEn ? { [editReg.categoryId]: editReg.partnerNameEn } : {}}
-            partnerIds={editReg.partnerId ? { [editReg.categoryId]: editReg.partnerId } : {}}
-            nameOnEtransfer={editReg.nameOnEtransfer ?? ""}
-            mediaConsent={editReg.photoVideoConsent}
-            isEdit
-            adminFields={{ status: editReg.status, notes: editReg.notes ?? "" }}
-            formId="admin-reg-edit"
-            onSavingChange={setRegSaving}
-            onSaveOverride={async (data) => {
-              const catId = data.selectedCategoryIds[0] ?? editReg.categoryId;
-              const partnerId = data.partnerIds[catId] ?? editReg.partnerId ?? null;
-              await Promise.all([
-                fetch(`/api/registrations/${editReg.id}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    status: data.status,
-                    categoryId: catId,
-                    notes: data.notes || null,
-                    nameOnEtransfer: data.nameOnEtransfer || null,
-                    photoVideoConsent: data.mediaConsent,
-                    partnerId,
-                  }),
-                }),
-                fetch(`/api/players/${editReg.playerId}`, {
+            destructiveDisabled={regDeleting}
+            destructiveLabel={a.actions.delete}
+            secondaryAction={{ label: a.actions.cancel, onClick: () => setEditReg(null) }}
+            primaryAction={{ label: regSaving ? a.actions.saving : a.actions.save, form: "admin-reg-edit", disabled: regSaving }}
+          >
+            <RegistrationForm
+              key={editReg.id}
+              categories={categories}
+              year={editReg.tournamentYear}
+              player={{
+                fullNameEn: editReg.playerNameEn,
+                fullNameKo: editReg.playerNameKo ?? "",
+                email: editReg.playerEmail,
+                phone: editReg.playerPhone ?? "",
+                ntrp: editReg.playerNtrp ?? "",
+                clubs: editReg.playerClubs,
+                playerId: editReg.playerId,
+              }}
+              categoryIds={allCategoryIds}
+              partnerNames={allPartnerNames}
+              partnerIds={allPartnerIds}
+              nameOnEtransfer={editReg.nameOnEtransfer ?? ""}
+              notes={editReg.notes ?? ""}
+              adminComments={editReg.adminComments ?? ""}
+              mediaConsent={editReg.photoVideoConsent}
+              isEdit
+              adminFields={{ paymentReceived: editReg.paymentReceived }}
+              formId="admin-reg-edit"
+              onSavingChange={setRegSaving}
+              onSaveOverride={async (data) => {
+                const originalCatIds = new Set(allCategoryIds);
+                const newCatIds = data.selectedCategoryIds.filter((id) => !originalCatIds.has(id));
+                const removedCatIds = allCategoryIds.filter((id) => !data.selectedCategoryIds.includes(id));
+
+                // Update player info
+                await fetch(`/api/players/${editReg.playerId}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
@@ -336,15 +373,70 @@ function RegistrationsTab({
                     ntrp: data.playerValues.ntrp || null,
                     clubs: data.playerValues.clubs,
                   }),
-                }),
-              ]);
-              setEditReg(null);
-              onMutate();
-            }}
-            onSuccess={() => { setEditReg(null); onMutate(); }}
-          />
-        )}
-      </Modal>
+                });
+
+                // Update this registration (status/notes/nameOnEtransfer/category/partner)
+                const primaryCatId = data.selectedCategoryIds.includes(editReg.categoryId)
+                  ? editReg.categoryId
+                  : (data.selectedCategoryIds[0] ?? editReg.categoryId);
+                const partnerId = data.partnerIds[primaryCatId] !== undefined ? data.partnerIds[primaryCatId] : undefined;
+                const partnerName = data.partnerNames[primaryCatId] ?? null;
+                const regRes = await fetch(`/api/registrations/${editReg.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    paymentReceived: data.paymentReceived,
+                    categoryId: primaryCatId,
+                    notes: data.notes || null,
+                    adminComments: data.adminComments || null,
+                    nameOnEtransfer: data.nameOnEtransfer || null,
+                    photoVideoConsent: data.mediaConsent,
+                    ...(partnerId !== undefined ? { partnerId } : { partnerName }),
+                  }),
+                });
+                if (!regRes.ok) {
+                  const body = await regRes.json().catch(() => ({}));
+                  throw new Error(body.error ?? "Save failed");
+                }
+
+                // Create new registrations for any added categories
+                if (newCatIds.length > 0) {
+                  await fetch("/api/registrations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      tournamentYear: editReg.tournamentYear,
+                      fullNameEn: data.playerValues.fullNameEn,
+                      fullNameKo: data.playerValues.fullNameKo || null,
+                      email: data.playerValues.email,
+                      phone: data.playerValues.phone || null,
+                      ntrp: data.playerValues.ntrp || null,
+                      clubs: data.playerValues.clubs,
+                      playerId: editReg.playerId,
+                      categories: newCatIds,
+                      partnerNames: Object.fromEntries(newCatIds.map((id) => [id, data.partnerNames[id] ?? ""])),
+                      nameOnEtransfer: data.nameOnEtransfer || null,
+                      photoVideoConsent: data.mediaConsent,
+                    }),
+                  });
+                }
+
+                // Delete removed registrations
+                for (const catId of removedCatIds) {
+                  const removedReg = regById.get(catId);
+                  if (removedReg) {
+                    await fetch(`/api/registrations/${removedReg.id}`, { method: "DELETE" });
+                  }
+                }
+
+                setEditReg(null);
+                onMutate();
+              }}
+              onSuccess={() => { setEditReg(null); onMutate(); }}
+            />
+          </Modal>
+        );
+      })()}
 
       {/* Add modal */}
       <Modal
@@ -360,8 +452,35 @@ function RegistrationsTab({
           year={new Date().getFullYear()}
           formId="admin-reg-add"
           onSavingChange={setRegAddSaving}
-          onSuccess={() => { onMutate(); }}
-          onComplete={() => { onMutate(); onCloseAdd(); }}
+          adminFields={{ paymentReceived: false }}
+          onSaveOverride={async (data) => {
+            const res = await fetch("/api/registrations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                tournamentYear: new Date().getFullYear(),
+                fullNameEn: data.playerValues.fullNameEn,
+                fullNameKo: data.playerValues.fullNameKo || null,
+                email: data.playerValues.email,
+                phone: data.playerValues.phone || null,
+                ntrp: data.playerValues.ntrp || null,
+                clubs: data.playerValues.clubs,
+                playerId: data.playerId,
+                categories: data.selectedCategoryIds,
+                partnerNames: data.partnerNames,
+                nameOnEtransfer: data.nameOnEtransfer || null,
+                photoVideoConsent: false,
+                paymentReceived: data.paymentReceived,
+                notes: data.notes || null,
+              }),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              throw new Error(body.error ?? "Add failed");
+            }
+            onMutate();
+            onCloseAdd();
+          }}
         />
       </Modal>
     </>
@@ -418,14 +537,22 @@ function matchRowToMatch(m: MatchRow): Match {
 function MatchesTab({
   matches,
   onMutate,
+  loading,
 }: {
   matches: MatchRow[];
   onMutate: () => void;
+  loading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const a = t.adminPage;
   const [editMatch, setEditMatch] = useState<MatchRow | null>(null);
   const [matchSaving, setMatchSaving] = useState(false);
+  const [patchedMatches, setPatchedMatches] = useState<Map<string, Partial<MatchRow>>>(new Map());
+
+  const displayMatches = useMemo(
+    () => matches.map((m) => patchedMatches.has(m.id) ? { ...m, ...patchedMatches.get(m.id) } : m),
+    [matches, patchedMatches],
+  );
 
   const locationOptions = useMemo(
     () => [...new Set(matches.map((m) => m.location).filter((l): l is string => Boolean(l)))].sort(),
@@ -510,17 +637,18 @@ function MatchesTab({
         <MatchCard match={matchRowToMatch(m)} group={m.group ?? undefined} />
       </button>
     ),
-    gridClass: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+    gridClass: "grid-cols-1",
   };
 
   return (
     <>
       <DatabaseLayout<MatchRow>
-        data={matches}
+        data={displayMatches}
         managedFilters={managedFilters}
         view={view}
         emptyText={a.matches.empty}
-        rowCountLabel={a.tabs.matches.toLowerCase()}
+        loading={loading}
+        rowCountLabel={locale === "ko" ? ["경기", "경기"] : ["match", "matches"]}
       />
       <Modal
         open={!!editMatch}
@@ -557,9 +685,29 @@ function MatchesTab({
                 (locale === "ko" ? editMatch.team2NamesKo[i]?.trim() || en : en)
               ).join(" / ") || a.matches.columns.team2
             }
+            formId="edit-match"
             idPrefix="edit-match"
             locationOptions={locationOptions}
-            onSave={() => { setEditMatch(null); onMutate(); }}
+            onSave={(updated) => {
+              if (updated && editMatch) {
+                const patch: Partial<MatchRow> = {
+                  matchStatus: updated.matchStatus,
+                  date: updated.date || null,
+                  time: updated.time || null,
+                  location: updated.location || null,
+                  comment: updated.comment || null,
+                  set1T1: updated.set1T1 || null,
+                  set2T1: updated.set2T1 || null,
+                  set3T1: updated.set3T1 || null,
+                  set1T2: updated.set1T2 || null,
+                  set2T2: updated.set2T2 || null,
+                  set3T2: updated.set3T2 || null,
+                };
+                setPatchedMatches((prev) => new Map(prev).set(editMatch.id, patch));
+              }
+              setEditMatch(null);
+              onMutate();
+            }}
             onSavingChange={setMatchSaving}
           />
         )}
@@ -572,14 +720,18 @@ function MatchesTab({
 
 function PlayersTab({
   players,
+  registrations,
   addOpen,
   onCloseAdd,
   onMutate,
+  loading,
 }: {
   players: PlayerRow[];
+  registrations: RegistrationRow[];
   addOpen: boolean;
   onCloseAdd: () => void;
   onMutate: () => void;
+  loading?: boolean;
 }) {
   const { t } = useLocale();
   const a = t.adminPage;
@@ -622,7 +774,11 @@ function PlayersTab({
     setDeleting(true); setSaveError(null);
     const res = await fetch(`/api/players/${editPlayer.id}`, { method: "DELETE" });
     setDeleting(false);
-    if (!res.ok) { setSaveError("Delete failed"); return; }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setSaveError(body.error ?? "Delete failed");
+      return;
+    }
     setEditPlayer(null);
     onMutate();
   }
@@ -640,6 +796,19 @@ function PlayersTab({
     setAddValues(EMPTY_PLAYER);
     onMutate();
   }
+
+  const participationMap = useMemo(() => {
+    const map = new Map<number, { year: number; categoryId: string }[]>();
+    for (const r of registrations) {
+      const entry = map.get(r.playerId) ?? [];
+      entry.push({ year: r.tournamentYear, categoryId: r.categoryId });
+      map.set(r.playerId, entry);
+    }
+    for (const [, entries] of map) {
+      entries.sort((a, b) => b.year - a.year || a.categoryId.localeCompare(b.categoryId));
+    }
+    return map;
+  }, [registrations]);
 
   const managedFilters: ManagedFilterConfig<PlayerRow>[] = [
     {
@@ -666,14 +835,24 @@ function PlayersTab({
         sortValue: (p) => p.fullNameEn,
         renderCell: (p) => ({ type: "stack", lines: [p.fullNameEn, p.fullNameKo ?? null] }),
       },
-      { header: t.shared.form.email, renderCell: (p) => ({ type: "text", value: p.email }) },
-      { header: t.shared.form.phone, renderCell: (p) => ({ type: "text", value: p.phone }) },
-      { header: t.shared.form.ntrp, renderCell: (p) => ({ type: "text", value: p.ntrp }) },
+      { header: t.shared.form.email, sortKey: "email", sortValue: (p) => p.email, renderCell: (p) => ({ type: "text", value: p.email }) },
+      { header: t.shared.form.phone, sortKey: "phone", sortValue: (p) => p.phone ?? "", renderCell: (p) => ({ type: "text", value: p.phone }) },
+      { header: t.shared.form.ntrp, sortKey: "ntrp", sortValue: (p) => p.ntrp ?? "", renderCell: (p) => ({ type: "text", value: p.ntrp }) },
       {
         header: a.players.columns.clubs,
         renderCell: (p) => ({
           type: "chips",
           items: p.clubs.map((c) => ({ label: c, className: clubChipClass(c) })),
+        }),
+      },
+      {
+        header: a.players.columns.tournaments,
+        renderCell: (p) => ({
+          type: "chips",
+          items: (participationMap.get(p.id) ?? []).map(({ year, categoryId }) => ({
+            label: `${year} · ${categoryId}`,
+            className: "chip-neutral",
+          })),
         }),
       },
     ],
@@ -687,6 +866,7 @@ function PlayersTab({
         managedFilters={managedFilters}
         view={view}
         emptyText={a.players.empty}
+        loading={loading}
       />
 
       <Modal
@@ -740,11 +920,13 @@ function CategoriesTab({
   categoryStatuses,
   registrations,
   onMutate,
+  loading,
 }: {
   categories: CategoryRecord[];
   categoryStatuses: CategoryStatusRow[];
   registrations: RegistrationRow[];
   onMutate: () => void;
+  loading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const a = t.adminPage;
@@ -782,9 +964,8 @@ function CategoriesTab({
     return categories
       .map((cat) => ({ ...cat, status: statusMap.get(cat.id) ?? "Pending" }))
       .sort((a, b) => {
-        if (a.status === "Active" && b.status !== "Active") return -1;
-        if (b.status === "Active" && a.status !== "Active") return 1;
-        return 0;
+        const ORDER: Record<string, number> = { Active: 0, Pending: 1, Inactive: 2 };
+        return (ORDER[a.status] ?? 1) - (ORDER[b.status] ?? 1);
       });
   }, [categories, categoryStatuses, selectedYear]);
 
@@ -831,16 +1012,20 @@ function CategoriesTab({
       },
       {
         header: a.categories.columns.players,
+        sortKey: "players",
+        sortValue: (r) => regCountMap.get(r.id) ?? 0,
         renderCell: (r) => ({
-          type: "text",
-          value: String(regCountMap.get(r.id) ?? 0),
+          type: "number",
+          value: regCountMap.get(r.id) ?? 0,
         }),
       },
       {
         header: a.categories.columns.status,
+        sortKey: "status",
+        sortValue: (r) => ({ Active: 0, Pending: 1, Inactive: 2 }[r.status] ?? 1),
         renderCell: (r) => ({
           type: "chips",
-          items: [{ label: r.status, className: categoryStatusChipClass(r.status) }],
+          items: [{ label: categoryStatusLabel(r.status, locale), className: categoryStatusChipClass(r.status) }],
         }),
       },
     ],
@@ -861,14 +1046,15 @@ function CategoriesTab({
             {
               type: "status" as const,
               param: "catStatus",
-              options: CATEGORY_YEAR_STATUSES.map((s) => ({ value: s, label: s })),
+              options: CATEGORY_YEAR_STATUSES.map((s) => ({ value: s, label: categoryStatusLabel(s, locale) })),
               apply: (items: CategoryRow[], status: string) => (status ? items.filter((r) => r.status === status) : items),
               allLabel: t.shared.labels.allStatuses,
             },
           ] satisfies ManagedFilterConfig<CategoryRow>[])}
           view={view}
           emptyText={a.categories.empty}
-          rowCountLabel={a.tabs.categories.toLowerCase()}
+          loading={loading}
+          rowCountLabel={locale === "ko" ? ["카테고리", "카테고리"] : ["category", "categories"]}
         />
 
       <Modal
@@ -1037,6 +1223,7 @@ export function AdminHub({
   const [addRegOpen, setAddRegOpen] = useState(false);
   const [addPlayerOpen, setAddPlayerOpen] = useState(false);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
 
   const TABS = [
     { value: "registrations", label: a.tabs.registrations },
@@ -1054,7 +1241,7 @@ export function AdminHub({
   }
 
   function refresh() {
-    router.refresh();
+    startRefresh(() => { router.refresh(); });
   }
 
   const titleActions: ReactNode =
@@ -1081,17 +1268,20 @@ export function AdminHub({
           addOpen={addRegOpen}
           onCloseAdd={() => setAddRegOpen(false)}
           onMutate={refresh}
+          loading={refreshing}
         />
       )}
       {tab === "matches" && (
-        <MatchesTab matches={matches} onMutate={refresh} />
+        <MatchesTab matches={matches} onMutate={refresh} loading={refreshing} />
       )}
       {tab === "players" && (
         <PlayersTab
           players={players}
+          registrations={registrations}
           addOpen={addPlayerOpen}
           onCloseAdd={() => setAddPlayerOpen(false)}
           onMutate={refresh}
+          loading={refreshing}
         />
       )}
       {tab === "categories" && (
@@ -1100,6 +1290,7 @@ export function AdminHub({
           categoryStatuses={categoryStatuses}
           registrations={registrations}
           onMutate={refresh}
+          loading={refreshing}
         />
       )}
       {tab === "admins" && (

@@ -82,7 +82,7 @@ export function Modal({
       role="presentation"
     >
       <div
-        className={`flex w-fit min-w-[min(100%,20rem)] flex-col ${maxWidthClass} max-h-[calc(100dvh-4rem)] rounded-2xl bg-[var(--color-background)] shadow-xl overflow-hidden`}
+        className={`flex w-full min-w-[min(100%,20rem)] flex-col ${maxWidthClass} max-h-[calc(100dvh-4rem)] rounded-2xl bg-[var(--color-background)] shadow-xl overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

@@ -201,20 +201,23 @@ export const registrationPage = {
       lookupError: "Lookup failed. Please try again.",
       editButton: "Edit",
       cancelButton: "Cancel",
-      requestRefundButton: "Request refund",
+
       saveButton: "Save changes",
       savingButton: "Saving...",
       cancelEditButton: "Back",
       confirmationTitle: "Registration complete!",
       confirmationBody: "Your registration has been received. Join our KakaoTalk open chat to get the tournament information",
+      confirmationAdminBody: "Registration created for {name}.",
       confirmationButton: "Open KakaoTalk Chat",
       confirmationClose: "Close",
+      confirmationManage: "Manage registration",
     },
     registrationForm: {
       sections: {
         playerDetails: "Player details",
         tournamentDetails: "Tournament details",
         paymentDetails: "Payment details",
+        additionalDetails: "Additional details",
       },
       fields: {
         categories: "Categories",
@@ -222,6 +225,7 @@ export const registrationPage = {
         searchClubsPlaceholder: "Select clubs",
         partnerName: "Partner name",
         nameOnEtransfer: "Name on e-Transfer",
+        notes: "Notes",
       },
       buttons: {
         submit: "Submit",
@@ -284,19 +288,22 @@ export const registrationPage = {
       lookupError: "조회에 실패했습니다. 다시 시도해 주세요.",
       editButton: "수정",
       cancelButton: "취소",
-      requestRefundButton: "환불 요청",
+
       saveButton: "변경 저장",
       savingButton: "저장 중...",
       cancelEditButton: "뒤로",
       confirmationTitle: "등록 완료",
       confirmationBody: "등록이 접수되었습니다. 대회 정보는 카카오 오픈채팅을 통해 공유됩니다.",
+      confirmationAdminBody: "{name} 등록이 완료되었습니다.",
       confirmationButton: "오픈채팅 가입하기",
       confirmationClose: "닫기",
+      confirmationManage: "등록 관리",
     },
     registrationForm: {
       sections: {
         playerDetails: "개인 정보",
         tournamentDetails: "대회 정보",
+        additionalDetails: "추가 정보",
         paymentDetails: "결제 정보",
       },
       fields: {
@@ -305,6 +312,7 @@ export const registrationPage = {
         searchClubsPlaceholder: "클럽 검색",
         partnerName: "파트너 이름",
         nameOnEtransfer: "이체 시 이름",
+        notes: "메모",
       },
       buttons: {
         submit: "제출",

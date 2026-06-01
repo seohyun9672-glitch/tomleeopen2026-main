@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getCategories } from "@/lib/categories";
 import { getRegistrationStatus } from "@/lib/registrationStatus";
 import { registrationPage } from "@/lib/content/registrationPage";
@@ -17,8 +16,6 @@ export default async function RegistrationNewPage({
   const rp = isKo
     ? registrationPage.ko.registrationPage
     : registrationPage.en.registrationPage;
-  const manageHref = isKo ? "/ko/registration/manage" : "/registration/manage";
-
   const statusMessage =
     status === "not-open"
       ? { title: rp.notYetOpenTitle, body: rp.notYetOpenMessage }
@@ -35,12 +32,6 @@ export default async function RegistrationNewPage({
         <Callout title={statusMessage.title} message={statusMessage.body} />
       ) : (
         <div className="flex flex-col gap-3">
-          <Link
-            href={manageHref}
-            className="self-start text-sm text-[var(--link-default)] underline"
-          >
-            {rp.returningRegistrantButton}
-          </Link>
           <RegistrationForm categories={categories} year={year} />
         </div>
       )}

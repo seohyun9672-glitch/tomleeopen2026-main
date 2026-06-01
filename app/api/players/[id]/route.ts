@@ -48,6 +48,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
   try {
+    const currentYear = new Date().getFullYear();
+    const regCount = await prisma.tournamentRegistration.count({
+      where: { playerId, tournamentYear: currentYear },
+    });
+    if (regCount > 0) {
+      return NextResponse.json(
+        { error: `This player has ${regCount} registration${regCount === 1 ? "" : "s"} for ${currentYear} and cannot be deleted.` },
+        { status: 400 }
+      );
+    }
     await prisma.player.delete({ where: { id: playerId } });
     return NextResponse.json({ ok: true });
   } catch (e) {

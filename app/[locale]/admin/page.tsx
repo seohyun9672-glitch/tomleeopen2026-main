@@ -107,7 +107,9 @@ export default async function AdminPage() {
     partnerClubs: r.partner?.clubs.map((c) => c.clubCode) ?? [],
     nameOnEtransfer: r.nameOnEtransfer,
     photoVideoConsent: r.photoVideoConsent,
+    paymentReceived: r.paymentReceived,
     notes: r.notes,
+    adminComments: r.adminComments,
     createdAt: r.createdAt.toISOString(),
   }));
 
@@ -125,13 +127,19 @@ export default async function AdminPage() {
       ? ([r.team1.member1.fullNameEn, r.team1.member2?.fullNameEn ?? null].filter(Boolean) as string[])
       : [],
     team1NamesKo: r.team1
-      ? ([r.team1.member1.fullNameKo, r.team1.member2?.fullNameKo ?? null].filter(Boolean) as string[])
+      ? ([
+          r.team1.member1.fullNameKo?.trim() || r.team1.member1.fullNameEn.trim(),
+          r.team1.member2 ? (r.team1.member2.fullNameKo?.trim() || r.team1.member2.fullNameEn.trim()) : null,
+        ].filter(Boolean) as string[])
       : [],
     team2Names: r.team2
       ? ([r.team2.member1.fullNameEn, r.team2.member2?.fullNameEn ?? null].filter(Boolean) as string[])
       : [],
     team2NamesKo: r.team2
-      ? ([r.team2.member1.fullNameKo, r.team2.member2?.fullNameKo ?? null].filter(Boolean) as string[])
+      ? ([
+          r.team2.member1.fullNameKo?.trim() || r.team2.member1.fullNameEn.trim(),
+          r.team2.member2 ? (r.team2.member2.fullNameKo?.trim() || r.team2.member2.fullNameEn.trim()) : null,
+        ].filter(Boolean) as string[])
       : [],
     matchStatus: r.matchStatus,
     date: r.date,

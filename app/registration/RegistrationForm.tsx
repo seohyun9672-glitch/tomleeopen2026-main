@@ -9,7 +9,7 @@ import { Button } from "@/app/components/ui/Button";
 import { Modal } from "@/app/components/ui/Modal";
 import { useLocale } from "@/lib/locale-context";
 import { contactData } from "@/lib/contactData";
-import { totalFromCategories, formatPrice, REGISTRATION_STATUSES } from "@/lib/registration";
+import { totalFromCategories, formatPrice } from "@/lib/registration";
 import { categoryChipClass } from "@/lib/categories";
 import type { CategoryRecord } from "@/lib/categories";
 import Link from "next/link";
@@ -37,8 +37,9 @@ export type FormSaveData = {
   nameOnEtransfer: string;
   etransferSent: boolean;
   mediaConsent: boolean;
-  status?: string;
+  paymentReceived: boolean;
   notes?: string;
+  adminComments?: string;
 };
 
 type Props = {
@@ -49,6 +50,8 @@ type Props = {
   partnerNames?: Record<string, string>;
   partnerIds?: Record<string, number>;
   nameOnEtransfer?: string;
+  notes?: string;
+  adminComments?: string;
   etransferSent?: boolean;
   mediaConsent?: boolean;
   isEdit?: boolean;
@@ -56,12 +59,14 @@ type Props = {
   onCancel?: () => void;
   /** When provided, called instead of router.push after confirmation closes (used in admin modal context). */
   onComplete?: () => void;
-  /** When provided, called on save instead of the public API (admin override). Hides payment section. */
+  /** When true, hides the KakaoTalk CTA in the confirmation modal and shows a simple success message. */
+  omitCTA?: boolean;
+  /** When provided, called on save instead of the public API (admin override). Hides payment section and shows Admin section. */
   onSaveOverride?: (data: FormSaveData) => Promise<void>;
   /** When provided, shows a delete button that calls this function. */
   onDelete?: () => Promise<void>;
-  /** Admin-only fields (status, notes) shown in admin edit context. */
-  adminFields?: { status?: string; notes?: string };
+  /** Admin-only initial values shown when onSaveOverride is set. */
+  adminFields?: { paymentReceived?: boolean };
   /** When provided, the form renders with this id and hides its own submit buttons (parent controls submit via footer). */
   formId?: string;
   /** Called with true when a save is in progress, false when done. */
@@ -126,6 +131,8 @@ export function RegistrationForm({
   partnerNames: partnerNamesProp = {},
   partnerIds: partnerIdsProp = {},
   nameOnEtransfer: nameOnEtransferProp = "",
+  notes: notesProp = "",
+  adminComments: adminCommentsProp = "",
   etransferSent: etransferSentProp = false,
   mediaConsent: mediaConsentProp = false,
   isEdit = false,
@@ -137,11 +144,14 @@ export function RegistrationForm({
   adminFields,
   formId,
   onSavingChange,
+  omitCTA = false,
 }: Props) {
   const { t, locale } = useLocale();
   const rp = t.registrationPage;
   const rf = t.registrationForm;
   const router = useRouter();
+
+  const isAdminContext = !!onSaveOverride;
 
   // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -153,9 +163,10 @@ export function RegistrationForm({
   const [nameOnEtransfer, setNameOnEtransfer] = useState(nameOnEtransferProp);
   const [etransferSent, setEtransferSent] = useState(etransferSentProp);
   const [mediaConsent, setMediaConsent] = useState(mediaConsentProp);
+  const [paymentReceived, setPaymentReceived] = useState(adminFields?.paymentReceived ?? false);
   const [deleting, setDeleting] = useState(false);
-  const [status, setStatus] = useState(adminFields?.status ?? "");
-  const [notes, setNotes] = useState(adminFields?.notes ?? "");
+  const [notes, setNotes] = useState(notesProp);
+  const [adminComments, setAdminComments] = useState(adminCommentsProp);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   function clearError(...keys: string[]) {
@@ -167,11 +178,11 @@ export function RegistrationForm({
     });
   }
 
-  // Snapshot of initial values for change detection in edit mode
-  const snapshot = useRef({ playerValues: player ?? EMPTY_PLAYER, categoryIds, partnerNames: partnerNamesProp, mediaConsent: mediaConsentProp });
+  const snapshot = useRef({ playerValues: player ?? EMPTY_PLAYER, categoryIds, partnerNames: partnerNamesProp, mediaConsent: mediaConsentProp, notes: notesProp });
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmResult, setConfirmResult] = useState<CreatedEntry[] | null>(null);
+  const manageHref = locale === "ko" ? "/ko/registration/manage" : "/registration/manage";
 
   function resetForm() {
     setPlayerValues(EMPTY_PLAYER);
@@ -185,7 +196,7 @@ export function RegistrationForm({
     if (onComplete) {
       onComplete();
     } else {
-      router.push("/registration");
+      router.push(manageHref);
     }
   }
 
@@ -225,8 +236,9 @@ export function RegistrationForm({
       if ((partnerNames[id] ?? "") !== (s.partnerNames[id] ?? "")) return true;
     }
     if (mediaConsent !== s.mediaConsent) return true;
+    if (notes !== s.notes) return true;
     return false;
-  }, [isEdit, playerValues, selectedCategoryIds, partnerNames, mediaConsent, selectedDoublesIds]);
+  }, [isEdit, playerValues, selectedCategoryIds, partnerNames, mediaConsent, notes, selectedDoublesIds]);
 
   // ─── Player combobox ───────────────────────────────────────────────────────
 
@@ -255,8 +267,9 @@ export function RegistrationForm({
     if (!query.trim()) return [];
     const res = await fetch(`/api/players?name=${encodeURIComponent(query)}`);
     if (!res.ok) return [];
-    return res.json();
-  }, []);
+    const all: PlayerSearchResult[] = await res.json();
+    return all.filter((p) => p.id !== playerId);
+  }, [playerId]);
 
   // ─── Validation ────────────────────────────────────────────────────────────
 
@@ -272,7 +285,10 @@ export function RegistrationForm({
         errs[`partner-${id}`] = rf.errors.partnerNameRequired;
       }
     }
-    if (!onSaveOverride) {
+    if (!isAdminContext) {
+      if (!playerValues.fullNameKo.trim()) errs.fullNameKo = rf.errors.required;
+      if (!playerValues.ntrp.trim()) errs.ntrp = rf.errors.required;
+      if (selectedCategoryIds.length > 0 && (!isEdit || priceChanged) && !nameOnEtransfer.trim()) errs.nameOnEtransfer = rf.errors.required;
       if (!mediaConsent) errs.mediaConsent = rf.errors.mediaConsentRequired;
       if (!etransferSent) errs.etransferSent = rf.errors.etransferSentRequired;
     }
@@ -303,8 +319,9 @@ export function RegistrationForm({
           nameOnEtransfer,
           etransferSent,
           mediaConsent,
-          status,
+          paymentReceived,
           notes,
+          adminComments,
         });
       } catch {
         setErrors({ submit: rf.errors.registrationFailed });
@@ -332,6 +349,7 @@ export function RegistrationForm({
           partnerIds,
           nameOnEtransfer: nameOnEtransfer || null,
           photoVideoConsent: mediaConsent,
+          notes: notes || null,
         }
       : {
           tournamentYear: year,
@@ -347,6 +365,7 @@ export function RegistrationForm({
           partnerIds,
           nameOnEtransfer: nameOnEtransfer || null,
           photoVideoConsent: mediaConsent,
+          notes: notes || null,
         };
 
     try {
@@ -360,6 +379,7 @@ export function RegistrationForm({
         if (isEdit) {
           onSuccess?.();
         } else {
+          onSuccess?.();
           setConfirmResult(data.created ?? []);
         }
       } else {
@@ -379,17 +399,16 @@ export function RegistrationForm({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-  const manageHref =
-    locale === "ko" ? "/ko/registration/manage" : "/registration/manage";
-
+  const originalFee = totalFromCategories(categoryIds.length);
   const totalFee = totalFromCategories(selectedCategoryIds.length);
+  const priceChanged = isEdit && totalFee !== originalFee;
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <>
-      <form id={formId} onSubmit={handleSubmit} noValidate   className="mx-auto flex w-full max-w-[var(--form-max-width)] flex-col gap-4">
-        {!formId && (
+      <form id={formId} onSubmit={handleSubmit} noValidate className="mx-auto flex w-full max-w-[var(--form-max-width)] flex-col gap-4">
+        {!formId && !isEdit && (
           <Link
             href={manageHref}
             className="self-start text-sm text-[var(--link-default)] underline"
@@ -399,7 +418,7 @@ export function RegistrationForm({
         )}
 
         {/* Section 1: Player details */}
-        <FormSection title={rf.sections.playerDetails} unstyled={!!onSaveOverride || !!formId}>
+        <FormSection title={rf.sections.playerDetails} unstyled={isAdminContext || !!formId}>
           <PlayerForm
             values={playerValues}
             onChange={(updates) => {
@@ -407,7 +426,13 @@ export function RegistrationForm({
               clearError(...Object.keys(updates));
             }}
             errors={errors}
-            required={{ fullNameEn: true, email: true, phone: true }}
+            required={{
+              fullNameEn: true,
+              fullNameKo: !isAdminContext,
+              email: true,
+              phone: true,
+              ntrp: !isAdminContext,
+            }}
             nameCombobox={{
               loadOptions: loadPlayerOptions,
               onSelect: onPlayerSelect,
@@ -419,7 +444,7 @@ export function RegistrationForm({
         </FormSection>
 
         {/* Section 2: Tournament details */}
-        <FormSection title={rf.sections.tournamentDetails} unstyled={!!onSaveOverride || !!formId}>
+        <FormSection title={rf.sections.tournamentDetails} unstyled={isAdminContext || !!formId}>
           <Field
             variant="multiselect"
             id="reg-categories"
@@ -457,12 +482,13 @@ export function RegistrationForm({
                 onValueChange={(v) => { setPartnerNames((prev) => ({ ...prev, [id]: v })); clearError(`partner-${id}`); }}
                 loadOptions={loadPartnerOptions}
                 onSelect={(p: PlayerSearchResult) => {
-                  setPartnerNames((prev) => ({ ...prev, [id]: p.fullNameEn }));
+                  const name = locale === "ko" ? (p.fullNameKo ?? p.fullNameEn) : p.fullNameEn;
+                  setPartnerNames((prev) => ({ ...prev, [id]: name }));
                   setPartnerIds((prev) => ({ ...prev, [id]: p.id }));
                 }}
                 getOptionKey={(p: PlayerSearchResult) => p.id}
                 getOptionLabel={(p: PlayerSearchResult) =>
-                  p.fullNameKo ? `${p.fullNameEn} · ${p.fullNameKo}` : p.fullNameEn
+                  locale === "ko" ? (p.fullNameKo ?? p.fullNameEn) : p.fullNameEn
                 }
                 error={errors[`partner-${id}`] ? (
                   <p className="form-field-error">{errors[`partner-${id}`]}</p>
@@ -472,17 +498,76 @@ export function RegistrationForm({
           })}
         </FormSection>
 
-        {/* Section 3: Payment details */}
-        {selectedCategoryIds.length > 0 && !onSaveOverride && (
-          <FormSection title={rf.sections.paymentDetails}>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                {selectedCategoryIds.length} × {formatPrice(50)}
-              </span>
-              <span className="font-semibold text-[var(--color-text-primary)]">
-                {rf.summary.total}: {formatPrice(totalFee)}
-              </span>
+        {/* Section 3: Additional details */}
+        <FormSection title={rf.sections.additionalDetails} unstyled={isAdminContext || !!formId}>
+          <Field
+            variant="textarea"
+            id="reg-notes"
+            label={rf.fields.notes}
+            value={notes}
+            onChange={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
+            rows={2}
+          />
+          {!isAdminContext && (
+            <div>
+              <CheckboxField
+                checked={mediaConsent}
+                onChange={(e) => { setMediaConsent(e.target.checked); clearError("mediaConsent"); }}
+                required
+              >
+                {rf.helper.mediaConsent}
+              </CheckboxField>
+              {errors.mediaConsent && (
+                <p className="form-field-error mt-1">{errors.mediaConsent}</p>
+              )}
             </div>
+          )}
+
+          {/* Admin section */}
+          {isAdminContext && (
+            <>
+              <hr className="border-[var(--color-border-ui)]" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                Admin
+              </p>
+              <CheckboxField
+                checked={paymentReceived}
+                onChange={(e) => setPaymentReceived(e.target.checked)}
+              >
+                Payment Received
+              </CheckboxField>
+              <Field
+                variant="textarea"
+                id="reg-admin-comments"
+                label="Comments (admin only)"
+                value={adminComments}
+                onChange={(e) => setAdminComments((e.target as HTMLTextAreaElement).value)}
+                rows={2}
+              />
+            </>
+          )}
+        </FormSection>
+
+        {/* Section 4: Payment details — new registration always; edit only when price changes */}
+        {selectedCategoryIds.length > 0 && !isAdminContext && (!isEdit || priceChanged) && (
+          <FormSection title={rf.sections.paymentDetails}>
+            {isEdit && priceChanged && (
+              <div className="flex items-center justify-between gap-4 rounded-lg bg-[var(--color-surface-muted)] px-4 py-2 text-sm">
+                <span className="text-[var(--color-text-secondary)]">
+                  {rf.summary.total}: {formatPrice(originalFee)} → {formatPrice(totalFee)}
+                </span>
+              </div>
+            )}
+            {!isEdit && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-[var(--color-text-secondary)]">
+                  {selectedCategoryIds.length} × {formatPrice(50)}
+                </span>
+                <span className="font-semibold text-[var(--color-text-primary)]">
+                  {rf.summary.total}: {formatPrice(totalFee)}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
               <span>{rf.summary.etransferTo}</span>
               <span className="font-medium text-[var(--color-text-primary)]">
@@ -501,16 +586,12 @@ export function RegistrationForm({
             <Field
               variant="text"
               id="reg-name-on-etransfer"
-              label={rf.fields.nameOnEtransfer}
+              label={<>{rf.fields.nameOnEtransfer} <span className="text-[var(--form-required-mark)]">*</span></>}
               value={nameOnEtransfer}
-              onChange={(e) => setNameOnEtransfer(e.target.value)}
+              onChange={(e) => { setNameOnEtransfer(e.target.value); clearError("nameOnEtransfer"); }}
+              aria-invalid={Boolean(errors.nameOnEtransfer)}
+              error={errors.nameOnEtransfer ? <p className="form-field-error">{errors.nameOnEtransfer}</p> : undefined}
             />
-          </FormSection>
-        )}
-
-        {/* Consents — hidden in admin override mode */}
-        {!onSaveOverride && (
-          <div className="flex flex-col gap-3">
             <div>
               <CheckboxField
                 checked={etransferSent}
@@ -523,44 +604,7 @@ export function RegistrationForm({
                 <p className="form-field-error mt-1">{errors.etransferSent}</p>
               )}
             </div>
-            <div>
-              <CheckboxField
-                checked={mediaConsent}
-                onChange={(e) => { setMediaConsent(e.target.checked); clearError("mediaConsent"); }}
-                required
-              >
-                {rf.helper.mediaConsent}
-              </CheckboxField>
-              {errors.mediaConsent && (
-                <p className="form-field-error mt-1">{errors.mediaConsent}</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Admin-only fields */}
-        {adminFields && (
-          <>
-            <Field
-              variant="select"
-              id="reg-status"
-              label={t.shared.labels.status}
-              value={status}
-              onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
-            >
-              {REGISTRATION_STATUSES.map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </Field>
-            <Field
-              variant="textarea"
-              id="reg-notes"
-              label={t.adminPage.registrations.modal.notes}
-              value={notes}
-              onChange={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
-              rows={2}
-            />
-          </>
+          </FormSection>
         )}
 
         {errors.submit && (
@@ -604,22 +648,30 @@ export function RegistrationForm({
         onClose={resetForm}
         title={rp.confirmationTitle}
         closeLabel={rp.confirmationClose}
-        secondaryAction={{ label: rp.confirmationClose, onClick: resetForm }}
-        primaryAction={{ label: rp.confirmationButton, onClick: () => { window.open(contactData.kakao.href, "_blank"); resetForm(); } }}
+        secondaryAction={omitCTA ? undefined : { label: rp.confirmationManage, onClick: resetForm }}
+        primaryAction={omitCTA ? undefined : { label: rp.confirmationButton, onClick: () => { window.open(contactData.kakao.href, "_blank"); resetForm(); } }}
       >
         <div className="flex flex-col gap-4">
-          <p className="text-[var(--color-text-secondary)]">{rp.confirmationBody}</p>
-          {confirmResult && confirmResult.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {confirmResult.map(({ categoryId }) => {
-                const cat = categories.find((c) => c.id === categoryId);
-                return (
-                  <li key={categoryId} className="text-sm font-medium text-[var(--color-text-primary)]">
-                    {cat ? (locale === "ko" ? (cat.labelKo ?? cat.label) : cat.label) : categoryId}
-                  </li>
-                );
-              })}
-            </ul>
+          {omitCTA ? (
+            <p className="text-[var(--color-text-secondary)]">
+              {rp.confirmationAdminBody.replace("{name}", playerValues.fullNameEn)}
+            </p>
+          ) : (
+            <>
+              <p className="text-[var(--color-text-secondary)]">{rp.confirmationBody}</p>
+              {confirmResult && confirmResult.length > 0 && (
+                <ul className="flex flex-col gap-1">
+                  {confirmResult.map(({ categoryId }) => {
+                    const cat = categories.find((c) => c.id === categoryId);
+                    return (
+                      <li key={categoryId} className="text-sm font-medium text-[var(--color-text-primary)]">
+                        {cat ? (locale === "ko" ? (cat.labelKo ?? cat.label) : cat.label) : categoryId}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </Modal>

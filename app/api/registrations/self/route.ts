@@ -45,9 +45,9 @@ async function resolveOrCreatePartnerId(
  * PATCH /api/registrations/self — public player self-edit.
  *
  * Verified by email (no session auth). Applies the following diff against current registrations:
- * - Removed categories → status set to "Refund Requested"
+ * - Removed categories → registration record deleted
  * - Kept categories → update personal/tournament details
- * - New categories → create new Confirmed registrations
+ * - New categories → create new Pending registrations
  */
 export async function PATCH(request: Request) {
   try {
@@ -88,55 +88,29 @@ export async function PATCH(request: Request) {
       ? body.categories.filter((c: unknown): c is string => typeof c === "string" && c.trim().length > 0)
       : [];
 
-    // Fetch current registrations (excluding already-refunded/cancelled)
+    // Fetch current active registrations (excluding cancelled)
     const currentRegs = await prisma.tournamentRegistration.findMany({
       where: {
         playerId: player.id,
         tournamentYear: year,
-        status: { notIn: ["Refund Requested", "Cancelled"] },
+        status: { not: "Cancelled" },
       },
     });
 
     const currentCategoryIds = currentRegs.map((r) => r.categoryId);
 
-    if (requestedCategories.length === 0) {
-      // Full refund — mark all non-refunded registrations as "Refund Requested"
-      if (currentCategoryIds.length > 0) {
-        await prisma.tournamentRegistration.updateMany({
-          where: { playerId: player.id, tournamentYear: year, categoryId: { in: currentCategoryIds } },
-          data: { status: "Refund Requested" },
-        });
-      }
-      return NextResponse.json({ ok: true });
-    }
-
     const removedCategoryIds = currentCategoryIds.filter((c) => !requestedCategories.includes(c));
     const newCategoryIds = requestedCategories.filter((c) => !currentCategoryIds.includes(c));
     const keptCategoryIds = requestedCategories.filter((c) => currentCategoryIds.includes(c));
 
-    // Each new addition offsets one removal (payment transfers). Only excess removals need a refund.
-    const cancelledCategoryIds = removedCategoryIds.slice(0, newCategoryIds.length);
-    const refundCategoryIds = removedCategoryIds.slice(newCategoryIds.length);
-
-    // Swapped-out registrations are deleted — no record needed since payment transfers to the new category.
-    if (cancelledCategoryIds.length > 0) {
+    // Delete removed registrations
+    if (removedCategoryIds.length > 0) {
       await prisma.tournamentRegistration.deleteMany({
         where: {
           playerId: player.id,
           tournamentYear: year,
-          categoryId: { in: cancelledCategoryIds },
+          categoryId: { in: removedCategoryIds },
         },
-      });
-    }
-
-    if (refundCategoryIds.length > 0) {
-      await prisma.tournamentRegistration.updateMany({
-        where: {
-          playerId: player.id,
-          tournamentYear: year,
-          categoryId: { in: refundCategoryIds },
-        },
-        data: { status: "Refund Requested" },
       });
     }
 
@@ -157,6 +131,9 @@ export async function PATCH(request: Request) {
       }),
       ...(body.photoVideoConsent !== undefined && {
         photoVideoConsent: Boolean(body.photoVideoConsent),
+      }),
+      ...(body.notes !== undefined && {
+        notes: body.notes?.trim() || null,
       }),
     };
 
@@ -203,6 +180,7 @@ export async function PATCH(request: Request) {
           nameOnEtransfer: body.nameOnEtransfer?.trim() || null,
           partnerId,
           photoVideoConsent: Boolean(body.photoVideoConsent),
+          notes: body.notes?.trim() || null,
         },
         update: {
           status: "Pending",

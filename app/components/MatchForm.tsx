@@ -38,7 +38,7 @@ type Props = {
   idPrefix?: string;
   locationOptions?: string[];
   formId?: string;
-  onSave: () => void;
+  onSave: (updated?: Partial<MatchFormValues>) => void;
   /** Called with true when a save is in progress, false when done. */
   onSavingChange?: (saving: boolean) => void;
 };
@@ -80,7 +80,6 @@ export function MatchForm({
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     onSavingChange?.(true);
-    onSavingChange?.(true);
     setError(null);
     const res = await fetch(`/api/matches/${matchId}`, {
       method: "PATCH",
@@ -100,9 +99,8 @@ export function MatchForm({
       }),
     });
     onSavingChange?.(false);
-    onSavingChange?.(false);
     if (!res.ok) { setError("Save failed"); return; }
-    onSave();
+    onSave(values);
   }
 
   return (

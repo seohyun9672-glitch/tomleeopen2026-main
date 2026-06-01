@@ -191,7 +191,7 @@
   --color-table-text: var(--color-text-primary);
   --color-table-border: var(--outline-blue-default);
   --form-surface-bg: var(--color-table-bg);
-  --form-max-width: 32rem;
+  --form-max-width: 680px;
 
   /* Status */
   --color-status-success: #4cd964;
@@ -600,14 +600,15 @@ html[lang="ko"] {
 .match-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
 .player-status-withdrew             { background-color: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card)); color: color-mix(in srgb, var(--color-status-orange) 55%, black); border: 1px solid color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card)); }
 
-.registration-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
-.registration-status-chip-confirmed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
-.registration-status-chip-refund-requested { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
-.registration-status-chip-refunded         { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
+.registration-status-chip-pending   { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
+.registration-status-chip-confirmed { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
+.registration-status-chip-cancelled { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
 
 .category-status-chip-active        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
 .category-status-chip-inactive      { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
 .category-status-chip-pending       { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
+
+.chip-neutral                       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
 
 /* ============================================================
    BASE ELEMENT STYLES
