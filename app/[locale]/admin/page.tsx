@@ -184,6 +184,7 @@ export default async function AdminPage() {
     set1T2: r.set1ScoreTeam2,
     set2T2: r.set2ScoreTeam2,
     set3T2: r.set3ScoreTeam2,
+    ball: r.ball ?? null,
     comment: r.comment,
     };
   });
