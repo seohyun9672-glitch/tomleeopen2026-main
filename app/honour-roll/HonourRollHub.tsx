@@ -38,7 +38,6 @@ export function HonourRollHub({ categories, allMatches }: Props) {
       managedFilters={[
         {
           type: "year" as const,
-          param: "year",
           years: allYears,
           apply: (items: HonourEntry[], year: string) =>
             year ? items.filter((e) => String(e.year) === year) : items,
@@ -48,7 +47,6 @@ export function HonourRollHub({ categories, allMatches }: Props) {
         },
         {
           type: "category" as const,
-          param: "cat",
           // Options are derived from year-filtered entries so the category list
           // updates when the year filter changes.
           options: (yearFiltered: HonourEntry[]) => {

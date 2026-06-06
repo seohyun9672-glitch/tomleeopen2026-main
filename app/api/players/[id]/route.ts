@@ -18,6 +18,7 @@ export async function PATCH(
     if (typeof body.email === "string") data.email = body.email.trim().toLowerCase();
     if ("phone" in body) data.phone = body.phone?.trim() || null;
     if ("ntrp" in body) data.ntrp = body.ntrp?.trim() || null;
+    if ("gender" in body) data.gender = body.gender?.trim() || null;
 
     await prisma.player.update({ where: { id: playerId }, data });
 

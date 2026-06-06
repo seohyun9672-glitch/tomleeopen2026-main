@@ -15,7 +15,16 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
         const email = credentials.email.trim().toLowerCase();
         const admin = await prisma.adminUser.findUnique({ where: { email } });
-        if (!admin || !admin.active || !admin.passwordHash) return null;
+        if (!admin) return null;
+
+        if (!admin.passwordHash) {
+          // First login — set the entered password, activate the account
+          const hash = await bcrypt.hash(credentials.password, 12);
+          await prisma.adminUser.update({ where: { email }, data: { passwordHash: hash, active: true } });
+          return { id: admin.id, email: admin.email, role: "admin" };
+        }
+
+        if (!admin.active) return null;
         const valid = await bcrypt.compare(credentials.password, admin.passwordHash);
         if (!valid) return null;
         return { id: admin.id, email: admin.email, role: "admin" };
@@ -32,7 +41,14 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
+      if (token.email) {
+        const admin = await prisma.adminUser.findUnique({
+          where: { email: token.email as string },
+          select: { active: true },
+        });
+        if (!admin?.active) return { ...session, user: undefined };
+      }
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;

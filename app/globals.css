@@ -197,6 +197,8 @@
   --color-status-success: #4cd964;
   --color-status-warning: #ffd166;
   --color-status-error: #ff6b6b;
+  --color-gender-female: #e91e8c;
+  --color-gender-male: var(--color-primary-blue-500);
   --color-status-orange: #ee592a;
   --color-success: var(--color-status-success);
   --color-warning: var(--color-status-warning);
@@ -597,10 +599,10 @@ html[lang="ko"] {
 .match-status-chip-scheduled        { background-color: var(--chip-status-info-bg);    color: var(--chip-status-info-fg);    border: 1px solid color-mix(in srgb, var(--chip-status-info-fg)    30%, transparent); }
 .match-status-chip-completed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
 .match-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
-.match-status-chip-pending          { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
+.match-status-chip-pending          { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
 .player-status-withdrew             { background-color: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card)); color: color-mix(in srgb, var(--color-status-orange) 55%, black); border: 1px solid color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card)); }
 
-.registration-status-chip-pending   { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); border: 1px solid color-mix(in srgb, var(--chip-status-neutral-fg) 30%, transparent); }
+.registration-status-chip-pending   { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
 .registration-status-chip-confirmed { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
 .registration-status-chip-cancelled { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
 
@@ -609,6 +611,13 @@ html[lang="ko"] {
 .category-status-chip-pending       { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
 
 .chip-neutral                       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
+
+.group-chip-a { background-color: var(--chip-pastel-sky-bg);     color: var(--chip-pastel-sky-fg); }
+.group-chip-b { background-color: var(--chip-pastel-peach-bg);   color: var(--chip-pastel-peach-fg); }
+.group-chip-c { background-color: var(--chip-pastel-mint-bg);    color: var(--chip-pastel-mint-fg); }
+.group-chip-d { background-color: var(--chip-pastel-lilac-bg);   color: var(--chip-pastel-lilac-fg); }
+.group-chip-e { background-color: var(--chip-pastel-butter-bg);  color: var(--chip-pastel-butter-fg); }
+.group-chip-f { background-color: var(--chip-pastel-aqua-bg);    color: var(--chip-pastel-aqua-fg); }
 
 /* ============================================================
    BASE ELEMENT STYLES
@@ -641,6 +650,7 @@ html[lang="ko"] {
   h3 {
     font-size: var(--text-h3-display-size);
     line-height: 1.1;
+    color: var(--color-text-secondary);
   }
 
   h4 {
@@ -1025,10 +1035,10 @@ button:disabled {
 
 .chip-group {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--element-gap);
   align-items: center;
-  min-width: 0;
+  width: fit-content;
 }
 
 

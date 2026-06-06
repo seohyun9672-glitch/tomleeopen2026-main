@@ -214,6 +214,41 @@ export function isoDateLocal(d = new Date()): string {
 
 // ─── Pure data utilities ──────────────────────────────────────────────────────
 
+/** Returns a set of "playerId:year:categoryId" keys for the winning team of each final match. */
+export async function getFinalistPlayerKeys(): Promise<Set<string>> {
+  const rows = await prisma.match.findMany({
+    where: { round: { code: "F" } },
+    select: {
+      tournamentYear: true,
+      categoryId: true,
+      set1ScoreTeam1: true, set2ScoreTeam1: true, set3ScoreTeam1: true,
+      set1ScoreTeam2: true, set2ScoreTeam2: true, set3ScoreTeam2: true,
+      team1: {
+        select: {
+          member1: { select: { id: true } },
+          member2: { select: { id: true } },
+        },
+      },
+      team2: {
+        select: {
+          member1: { select: { id: true } },
+          member2: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  const keys = new Set<string>();
+  for (const m of rows) {
+    const winner = computeWinner(m);
+    const winningTeam = winner === 1 ? m.team1 : winner === 2 ? m.team2 : null;
+    if (!winningTeam) continue;
+    keys.add(`${winningTeam.member1.id}:${m.tournamentYear}:${m.categoryId}`);
+    if (winningTeam.member2) keys.add(`${winningTeam.member2.id}:${m.tournamentYear}:${m.categoryId}`);
+  }
+  return keys;
+}
+
 export function groupMatchesByYearAndCategory(
   matches: Match[]
 ): Record<number, Record<string, Match[]>> {
@@ -245,10 +280,10 @@ export function getMatchCalendarIndex(matches: Match[]): MatchCalendarIndex {
 // ─── Match status ─────────────────────────────────────────────────────────────
 
 export const MATCH_STATUS_LABELS: Record<string, { en: string; ko: string }> = {
-  scheduled: { en: "Scheduled", ko: "예정" },
+  pending:    { en: "Pending",   ko: "대기" },
+  scheduled:  { en: "Scheduled", ko: "예정" },
   completed:  { en: "Completed", ko: "종료" },
   cancelled:  { en: "Cancelled", ko: "취소" },
-  pending:    { en: "Pending",   ko: "대기" },
 };
 
 function matchStatusVariant(status: string): string {

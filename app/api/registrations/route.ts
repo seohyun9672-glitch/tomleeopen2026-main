@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { RegistrationStatus } from "@/lib/registration";
 import { parseClubCodesFromBody } from "@/lib/clubs";
+import { createTeamFromRegistration } from "@/lib/createTeam";
 
 const NEW_REGISTRATION_STATUS: RegistrationStatus = "Pending";
 
@@ -171,6 +172,8 @@ export async function POST(request: Request) {
     }
 
     const partnerNames = typeof body.partnerNames === "object" && body.partnerNames !== null ? body.partnerNames : {};
+    const partnerIdsFromBody: Record<string, number> =
+      typeof body.partnerIds === "object" && body.partnerIds !== null ? body.partnerIds : {};
 
     async function resolveOrCreatePartnerId(
       partnerName: string | null,
@@ -217,15 +220,18 @@ export async function POST(request: Request) {
         }
       }
       const isDoubles = categoryIsDoubles.get(categoryId) ?? false;
-      const partnerName = isDoubles
-        ? partnerNames[categoryId]?.trim() || body.partnerName?.trim() || null
-        : null;
-      const partnerResult = isDoubles
-        ? await resolveOrCreatePartnerId(partnerName, playerId)
-        : { id: null };
-      const resolvedPartnerId = partnerResult.id;
-      if (partnerResult.stubError) {
-        console.error(`[registration] stub creation error for "${partnerName}":`, partnerResult.stubError);
+      let resolvedPartnerId: number | null = null;
+      if (isDoubles) {
+        if (partnerIdsFromBody[categoryId] != null) {
+          resolvedPartnerId = partnerIdsFromBody[categoryId];
+        } else {
+          const partnerName = partnerNames[categoryId]?.trim() || body.partnerName?.trim() || null;
+          const partnerResult = await resolveOrCreatePartnerId(partnerName, playerId);
+          resolvedPartnerId = partnerResult.id;
+          if (partnerResult.stubError) {
+            console.error(`[registration] stub creation error for "${partnerName}":`, partnerResult.stubError);
+          }
+        }
       }
 
       // Submitter is always `playerId`; partner is `resolvedPartnerId`. Do not reorder by numeric id
@@ -240,38 +246,7 @@ export async function POST(request: Request) {
         notes: body.notes?.trim() ?? undefined,
       };
 
-      let reg;
-      if (
-        resolvedPartnerId != null &&
-        resolvedPartnerId !== playerId &&
-        isDoubles
-      ) {
-        const existingPair = await prisma.tournamentRegistration.findFirst({
-          where: {
-            tournamentYear,
-            categoryId,
-            OR: [
-              { playerId, partnerId: resolvedPartnerId },
-              { playerId: resolvedPartnerId, partnerId: playerId },
-            ],
-          },
-        });
-        if (existingPair) {
-          reg = await prisma.tournamentRegistration.update({
-            where: { id: existingPair.id },
-            data: {
-              playerId,
-              partnerId: resolvedPartnerId,
-              status: derivedStatus,
-              ...registrationUpdateFields,
-            },
-          });
-          created.push({ id: reg.id, categoryId: reg.categoryId });
-          continue;
-        }
-      }
-
-      reg = await prisma.tournamentRegistration.upsert({
+      const reg = await prisma.tournamentRegistration.upsert({
         where: {
           tournamentYear_playerId_categoryId: {
             tournamentYear,
@@ -296,6 +271,14 @@ export async function POST(request: Request) {
           status: derivedStatus,
         },
       });
+
+      await createTeamFromRegistration({
+        tournamentYear,
+        categoryId,
+        playerId,
+        partnerId: resolvedPartnerId,
+      });
+
       created.push({ id: reg.id, categoryId: reg.categoryId });
     }
 

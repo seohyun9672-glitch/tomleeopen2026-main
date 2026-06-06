@@ -1,6 +1,7 @@
 "use client";
 
 import { Chip } from "@/app/components/ui/Chip";
+import { Label } from "@/app/components/ui/Label";
 import { useLocale } from "@/lib/locale-context";
 import type { Match } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass, formatTimeDisplay } from "@/lib/matches";
@@ -12,8 +13,8 @@ import { cn } from "@/lib/utils";
 function formatDateDisplay(
   dateStr: string | null,
   locale: "en" | "ko" = "en",
-): string {
-  if (!dateStr?.trim()) return "—";
+): string | null {
+  if (!dateStr?.trim()) return null;
   const value = dateStr.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const date = new Date(`${value}T12:00:00`);
@@ -381,8 +382,6 @@ export function MatchCard({
   const withdrew = isCancelled
     ? { team1: false, team2: false }
     : getWithdrew(match);
-  const matchWithdrawn = withdrew.team1 || withdrew.team2;
-
   const statusLabel = matchStatusLabel(match.matchStatus, locale);
   const statusClassName = matchStatusChipClass(match.matchStatus);
 
@@ -409,9 +408,9 @@ export function MatchCard({
         .join(" · ")
         .replace(" · #", " #");
 
-  const displayLocation = match.location?.trim() || "—";
+  const displayLocation = match.location?.trim() || null;
   const displayDate = formatDateDisplay(match.date ?? null, locale);
-  const displayTime = formatTimeDisplay(match.time);
+  const displayTime = match.time?.trim() ? formatTimeDisplay(match.time) : null;
 
   const teams = [
     {
@@ -480,20 +479,11 @@ export function MatchCard({
         ))}
       </div>
 
-      {!matchWithdrawn ? (
+      {(displayLocation || displayDate || displayTime) ? (
         <div className={FOOTER_CLASS}>
-          <span className="flex min-w-0 items-center gap-1">
-            <LocationIcon />
-            <span>{displayLocation}</span>
-          </span>
-          <span className="flex shrink-0 items-center gap-1">
-            <DateIcon />
-            {displayDate}
-          </span>
-          <span className="flex shrink-0 items-center gap-1">
-            <TimeIcon />
-            {displayTime}
-          </span>
+          <Label icon={<LocationIcon />} value={displayLocation} truncate className="min-w-0" />
+          <Label icon={<DateIcon />} value={displayDate} className="shrink-0" />
+          <Label icon={<TimeIcon />} value={displayTime} className="shrink-0" />
         </div>
       ) : null}
     </article>

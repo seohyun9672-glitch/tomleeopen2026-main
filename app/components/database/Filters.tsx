@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/locale-context";
 import { Input } from "@/app/components/ui/Input";
 import { Select } from "@/app/components/ui/Select";
-import { Label } from "@/app/components/ui/Label";
 import { MultiSelect, type MultiSelectOption } from "@/app/components/ui/MultiSelect";
 import { Popover, usePopoverPlacement, useDismissOnOutsidePointerDown } from "@/app/components/ui/Popover";
 
@@ -110,7 +109,7 @@ function FilterRoot({ htmlFor, label, children, className, control = "default" }
   return (
     <FilterHtmlForContext.Provider value={htmlFor}>
       <div className={shellClass(control, className)}>
-        <Label htmlFor={htmlFor} className="whitespace-nowrap">{label}</Label>
+        <label htmlFor={htmlFor} className="block mb-1.5 text-sm font-medium [color:var(--section-text)] whitespace-nowrap">{label}</label>
         <div className={innerClass(control)}>{children}</div>
       </div>
     </FilterHtmlForContext.Provider>

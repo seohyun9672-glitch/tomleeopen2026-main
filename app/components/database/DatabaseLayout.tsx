@@ -101,10 +101,29 @@ export type FilterConfig =
 // DatabaseLayout owns the URL param state; hub provides data + param key +
 // how to apply the filter. Filters are applied sequentially in array order.
 
+/** Canonical URL param name for each filter type. Override via the `param` field. */
+export const FILTER_TYPE_PARAMS = {
+  date:     "date",
+  year:     "year",
+  category: "cat",
+  search:   "q",
+  round:    "round",
+  group:    "group",
+  status:   "status",
+  club:     "club",
+} as const satisfies Record<string, string>;
+
+export type FilterTypeName = keyof typeof FILTER_TYPE_PARAMS;
+
+/** Returns the default URL param name for a filter type. */
+export function filterTypeParam(type: FilterTypeName): string {
+  return FILTER_TYPE_PARAMS[type];
+}
+
 export type ManagedDateFilterConfig<T> = {
   type: "date";
-  /** URL search param key. */
-  param: string;
+  /** URL search param key. Defaults to {@link filterTypeParam}("date") = "date". */
+  param?: string;
   /** Passed to ScheduleDatePicker to show available dates. */
   matches: Match[];
   /** Fallback when the URL param is absent. Receives the full dataset. */
@@ -114,7 +133,8 @@ export type ManagedDateFilterConfig<T> = {
 
 export type ManagedYearFilterConfig<T> = {
   type: "year";
-  param: string;
+  /** URL search param key. Defaults to "year". */
+  param?: string;
   years: number[];
   apply: (items: T[], year: string) => T[];
   /** Additional params to clear when this filter changes. */
@@ -126,7 +146,8 @@ export type ManagedYearFilterConfig<T> = {
 
 export type ManagedCategoryFilterConfig<T> = {
   type: "category";
-  param: string;
+  /** URL search param key. Defaults to "cat". */
+  param?: string;
   /**
    * Static list or a function that derives options from items already filtered
    * by earlier filters in the array (e.g. year-filtered matches → available categories).
@@ -147,14 +168,16 @@ export type ManagedCategoryFilterConfig<T> = {
 
 export type ManagedSearchFilterConfig<T> = {
   type: "search";
-  param: string;
+  /** URL search param key. Defaults to "q". */
+  param?: string;
   apply: (items: T[], query: string) => T[];
   className?: string;
 };
 
 export type ManagedRoundFilterConfig<T> = {
   type: "round";
-  param: string;
+  /** URL search param key. Defaults to "round". */
+  param?: string;
   /** Static list or a function derived from items already filtered by earlier filters. */
   options: { value: string; label: string }[] | ((prevItems: T[]) => { value: string; label: string }[]);
   apply: (items: T[], roundCode: string) => T[];
@@ -166,7 +189,8 @@ export type ManagedRoundFilterConfig<T> = {
 
 export type ManagedGroupFilterConfig<T> = {
   type: "group";
-  param: string;
+  /** URL search param key. Defaults to "group". */
+  param?: string;
   /** Static list or a function derived from items already filtered by earlier filters. */
   options: string[] | ((prevItems: T[]) => string[]);
   apply: (items: T[], group: string) => T[];
@@ -177,7 +201,8 @@ export type ManagedGroupFilterConfig<T> = {
 
 export type ManagedStatusFilterConfig<T> = {
   type: "status";
-  param: string;
+  /** URL search param key. Defaults to "status". */
+  param?: string;
   options: { value: string; label: string }[] | ((prevItems: T[]) => { value: string; label: string }[]);
   apply: (items: T[], status: string) => T[];
   allLabel?: string;
@@ -185,7 +210,8 @@ export type ManagedStatusFilterConfig<T> = {
 
 export type ManagedClubFilterConfig<T> = {
   type: "club";
-  param: string;
+  /** URL search param key. Defaults to "club". */
+  param?: string;
   options: string[];
   /** Receives the decoded string array (comma-separated in URL). */
   apply: (items: T[], selected: string[]) => T[];
@@ -338,7 +364,7 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
       );
     case "search":
       return (
-        <div className={cn("min-w-0 max-w-xs flex-1", config.className)}>
+        <div className={cn("min-w-0 w-full sm:max-w-xs sm:flex-1", config.className)}>
           <SearchBox
             id={id}
             value={config.value}
@@ -381,9 +407,19 @@ type ManagedState = {
   resolvedValues: Record<string, string>;
 };
 
+/** Fill in the default URL param name for any filter that omits `param`. */
+function resolveFilterParams<T>(
+  filters: ManagedFilterConfig<T>[],
+): (ManagedFilterConfig<T> & { param: string })[] {
+  return filters.map((f) => {
+    const param: string = f.param ?? filterTypeParam(f.type);
+    return { ...f, param } as ManagedFilterConfig<T> & { param: string };
+  });
+}
+
 function computeManaged<T>(
   data: T[],
-  managedFilters: ManagedFilterConfig<T>[],
+  managedFilters: (ManagedFilterConfig<T> & { param: string })[],
   urlValues: Record<string, string>,
   set: SetParam,
 ): ManagedState {
@@ -513,9 +549,11 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
   const { t } = useLocale();
   const isManaged = "data" in props;
 
-  const managedFilters = isManaged
+  const rawFilters = isManaged
     ? ((props as ManagedView<T> | ManagedChildren<T>).managedFilters ?? [])
     : ([] as ManagedFilterConfig<T>[]);
+
+  const managedFilters = resolveFilterParams(rawFilters);
 
   const [urlValues, setUrlValue] = useUrlParams(managedFilters.map((f) => f.param));
 

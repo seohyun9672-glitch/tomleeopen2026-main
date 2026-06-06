@@ -1,21 +1,21 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-export const labelClass = "block mb-1.5 text-sm font-medium [color:var(--section-text)]";
-
-export function Label({
-  htmlFor,
-  className = "",
-  children,
-}: {
-  htmlFor?: string;
+type Props = {
+  icon: ReactNode;
+  value: string | null | undefined;
   className?: string;
-  children: ReactNode;
-}) {
+  truncate?: boolean;
+};
+
+export function Label({ icon, value, className, truncate }: Props) {
+  if (!value) return null;
   return (
-    <label htmlFor={htmlFor} className={`${labelClass} ${className}`.trim()}>
-      {children}
-    </label>
+    <span className={cn("flex items-center gap-1.5", className)}>
+      {icon}
+      <span className={truncate ? "min-w-0 truncate" : undefined}>{value}</span>
+    </span>
   );
 }

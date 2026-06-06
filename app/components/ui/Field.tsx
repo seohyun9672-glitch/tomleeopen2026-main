@@ -4,7 +4,6 @@ import type { ComponentProps, ReactNode } from "react";
 import type { ComboboxProps } from "@/app/components/ui/Combobox";
 import { Combobox } from "@/app/components/ui/Combobox";
 import { Input } from "@/app/components/ui/Input";
-import { Label } from "@/app/components/ui/Label";
 import { MultiSelect } from "@/app/components/ui/MultiSelect";
 import { Select } from "@/app/components/ui/Select";
 import { Textarea } from "@/app/components/ui/Textarea";
@@ -55,10 +54,10 @@ export function Field<TOption = unknown>(props: FieldProps<TOption> & FieldWrapP
   if (!label) return input;
   return (
     <div className={wrapperClassName}>
-      <Label htmlFor={id}>
+      <label htmlFor={id} className="block mb-1.5 text-sm font-medium [color:var(--section-text)]">
         {label}
         {required && <span className="text-[var(--form-required-mark)]"> *</span>}
-      </Label>
+      </label>
       {input}
       {error}
     </div>

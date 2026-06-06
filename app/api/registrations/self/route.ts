@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseClubCodesFromBody } from "@/lib/clubs";
+import { createTeamFromRegistration } from "@/lib/createTeam";
 
 async function setPlayerClubs(playerId: number, clubCodes: string[]) {
   await prisma.playerClub.deleteMany({ where: { playerId } });
@@ -124,6 +125,8 @@ export async function PATCH(request: Request) {
 
     const partnerNames: Record<string, string> =
       typeof body.partnerNames === "object" && body.partnerNames !== null ? body.partnerNames : {};
+    const partnerIds: Record<string, number> =
+      typeof body.partnerIds === "object" && body.partnerIds !== null ? body.partnerIds : {};
 
     const sharedUpdateFields = {
       ...(body.nameOnEtransfer !== undefined && {
@@ -140,11 +143,15 @@ export async function PATCH(request: Request) {
     // Update kept registrations
     for (const categoryId of keptCategoryIds) {
       let partnerId: number | null | undefined = undefined;
-      if ((categoryIsDoubles.get(categoryId) ?? false) && categoryId in partnerNames) {
-        partnerId = await resolveOrCreatePartnerId(
-          partnerNames[categoryId] || null,
-          player.id
-        );
+      if (categoryIsDoubles.get(categoryId) ?? false) {
+        if (partnerIds[categoryId] != null) {
+          partnerId = partnerIds[categoryId];
+        } else if (categoryId in partnerNames) {
+          partnerId = await resolveOrCreatePartnerId(
+            partnerNames[categoryId] || null,
+            player.id
+          );
+        }
       }
 
       await prisma.tournamentRegistration.updateMany({
@@ -159,12 +166,16 @@ export async function PATCH(request: Request) {
     // Create new registrations
     for (const categoryId of newCategoryIds) {
       const isDoubles = categoryIsDoubles.get(categoryId) ?? false;
-      const partnerId =
-        isDoubles && partnerNames[categoryId]
-          ? await resolveOrCreatePartnerId(partnerNames[categoryId], player.id)
-          : null;
+      let partnerId: number | null = null;
+      if (isDoubles) {
+        if (partnerIds[categoryId] != null) {
+          partnerId = partnerIds[categoryId];
+        } else if (partnerNames[categoryId]) {
+          partnerId = await resolveOrCreatePartnerId(partnerNames[categoryId], player.id);
+        }
+      }
 
-      await prisma.tournamentRegistration.upsert({
+      const reg = await prisma.tournamentRegistration.upsert({
         where: {
           tournamentYear_playerId_categoryId: {
             tournamentYear: year,
@@ -187,6 +198,13 @@ export async function PATCH(request: Request) {
           ...sharedUpdateFields,
           partnerId,
         },
+      });
+
+      await createTeamFromRegistration({
+        tournamentYear: year,
+        categoryId,
+        playerId: player.id,
+        partnerId,
       });
     }
 

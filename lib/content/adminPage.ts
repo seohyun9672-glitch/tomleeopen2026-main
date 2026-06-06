@@ -4,9 +4,11 @@ export const adminPage = {
       title: "Admin",
       tabs: {
         registrations: "Registrations",
+        teams: "Teams",
         matches: "Matches",
         players: "Players",
         categories: "Category",
+        prizes: "Prizes",
         admins: "Admin users",
       },
       actions: {
@@ -44,6 +46,15 @@ export const adminPage = {
           category: "Category",
         },
       },
+      teams: {
+        empty: "No teams",
+        columns: {
+          number: "#",
+          player1: "Player 1",
+          player2: "Player 2",
+          group: "Group",
+        },
+      },
       matches: {
         empty: "No matches",
         columns: {
@@ -65,6 +76,7 @@ export const adminPage = {
           time: "Time",
           location: "Location",
           matchStatus: "Match Status",
+          ball: "Ball",
           comment: "Comment",
         },
       },
@@ -84,13 +96,31 @@ export const adminPage = {
         columns: {
           label: "Category",
           status: "Status",
-          players: "Players",
+          teams: "Teams",
         },
         modal: {
           editTitle: "Edit Category",
           statusLabel: "Status",
           playersTitle: "Registered Players",
           noPlayers: "No registrations for this category.",
+        },
+      },
+      prizes: {
+        empty: "No prize data",
+        teamsUnit: "teams",
+        bracketSuffix: "bracket",
+        saveError: "Save failed",
+        columns: {
+          category: "Category",
+          teams: "Teams",
+          first: "1st",
+          second: "2nd",
+          third: "3rd",
+          fourth: "4th",
+          total: "Total",
+        },
+        modal: {
+          title: "Edit Prize",
         },
       },
       admins: {
@@ -113,9 +143,11 @@ export const adminPage = {
       title: "관리자",
       tabs: {
         registrations: "등록",
+        teams: "팀",
         matches: "경기",
         players: "선수",
         categories: "카테고리",
+        prizes: "상금",
         admins: "관리자 계정",
       },
       actions: {
@@ -153,6 +185,15 @@ export const adminPage = {
           category: "카테고리",
         },
       },
+      teams: {
+        empty: "팀 없음",
+        columns: {
+          number: "#",
+          player1: "선수 1",
+          player2: "선수 2",
+          group: "조",
+        },
+      },
       matches: {
         empty: "경기 없음",
         columns: {
@@ -174,6 +215,7 @@ export const adminPage = {
           time: "시간",
           location: "장소",
           matchStatus: "경기 상태",
+          ball: "공",
           comment: "코멘트",
         },
       },
@@ -193,13 +235,31 @@ export const adminPage = {
         columns: {
           label: "카테고리",
           status: "상태",
-          players: "선수",
+          teams: "팀",
         },
         modal: {
           editTitle: "카테고리 편집",
           statusLabel: "상태",
           playersTitle: "등록된 선수",
           noPlayers: "이 카테고리에 등록된 선수가 없습니다.",
+        },
+      },
+      prizes: {
+        empty: "상금 데이터 없음",
+        teamsUnit: "팀",
+        bracketSuffix: "구간",
+        saveError: "저장 실패",
+        columns: {
+          category: "카테고리",
+          teams: "팀",
+          first: "1위",
+          second: "2위",
+          third: "3위",
+          fourth: "4위",
+          total: "합계",
+        },
+        modal: {
+          title: "상금 편집",
         },
       },
       admins: {

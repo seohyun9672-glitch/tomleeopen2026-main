@@ -277,7 +277,7 @@ export const registrationPage = {
       step1Title: "등록 정보",
       step2Title: "참가 자격",
       giveawayLabel: "기념품",
-      giveawayValue: "텀블러 1개 (1인 1개)",
+      giveawayValue: "텀블러 (1인 1개)",
       returningRegistrantButton: "이미 등록하셨나요?",
       newRegistrationButton: "등록하기",
       lookupTitle: "등록 내역",

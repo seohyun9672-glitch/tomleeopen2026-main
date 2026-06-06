@@ -12,8 +12,30 @@ const MULTISELECT_DROPDOWN_MAX_PX = 192;
 const listOptionClass =
   "w-full px-4 py-2.5 text-left text-sm [color:var(--input-text)] hover:bg-[var(--color-surface-muted)]";
 const optionSelectedClass = "bg-[var(--color-surface-strong)]";
+const optionFocusedClass = "ring-2 ring-inset ring-[var(--color-primary)]";
 
-export type MultiSelectOption = { id: string; label: string; chipClassName?: string };
+export type MultiSelectOption = { id: string; label: string; chipClassName?: string; group?: string };
+
+type GroupedItem =
+  | { type: "divider" }
+  | { type: "header"; label: string }
+  | { type: "option"; option: MultiSelectOption; filteredIndex: number };
+
+function buildGroupedItems(options: readonly MultiSelectOption[]): GroupedItem[] {
+  const items: GroupedItem[] = [];
+  let lastGroup: string | undefined = undefined;
+  let firstGroup = true;
+  options.forEach((opt, idx) => {
+    if (opt.group !== undefined && opt.group !== lastGroup) {
+      if (!firstGroup) items.push({ type: "divider" });
+      items.push({ type: "header", label: opt.group });
+      lastGroup = opt.group;
+      firstGroup = false;
+    }
+    items.push({ type: "option", option: opt, filteredIndex: idx });
+  });
+  return items;
+}
 
 export function MultiSelect({
   id,
@@ -38,10 +60,15 @@ export function MultiSelect({
 }) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
+  const [focusedIndex, setFocusedIndex] = React.useState(-1);
+  const jumpQueryRef = React.useRef("");
+  const jumpTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const listId = React.useId();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const hiddenInputRef = React.useRef<HTMLInputElement>(null);
+  const listRef = React.useRef<HTMLUListElement>(null);
   const selectedIds = React.useMemo(() => selected.map((o) => o.id), [selected]);
   const selectedIdSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
   const filtered = React.useMemo(() => {
@@ -49,8 +76,10 @@ export function MultiSelect({
     const q = search.toLowerCase().trim();
     return available.filter((o) => o.label.toLowerCase().includes(q));
   }, [available, search, searchable]);
+  const groupedItems = React.useMemo(() => buildGroupedItems(filtered), [filtered]);
   const placement = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
   useDismissOnOutsidePointerDown(open, containerRef, () => setOpen(false));
+
   const toggleOption = React.useCallback(
     (optionId: string) => {
       if (selectedIdSet.has(optionId)) {
@@ -70,6 +99,71 @@ export function MultiSelect({
     });
   }, [searchable]);
 
+  // When the dropdown opens in non-searchable mode, focus the hidden input so
+  // it can capture keyboard events including IME composition.
+  React.useEffect(() => {
+    if (open && !searchable) {
+      queueMicrotask(() => hiddenInputRef.current?.focus());
+    }
+  }, [open, searchable]);
+
+  React.useEffect(() => {
+    if (!open) {
+      setFocusedIndex(-1);
+      jumpQueryRef.current = "";
+    }
+  }, [open]);
+
+  React.useEffect(() => {
+    if (focusedIndex < 0 || !listRef.current) return;
+    const items = listRef.current.querySelectorAll<HTMLElement>('[role="option"]');
+    items[focusedIndex]?.scrollIntoView({ block: "nearest" });
+  }, [focusedIndex]);
+
+  // Navigation keys on the trigger div (only used when dropdown is closed).
+  function handleTriggerKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (searchable || open) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleOpen();
+    }
+  }
+
+  // Arrow / Enter / Escape keys on the hidden input (dropdown open, non-searchable).
+  function handleHiddenInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+        toggleOption(filtered[focusedIndex].id);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+    // All other keys (including IME keystrokes) fall through to onInput below.
+  }
+
+  // Fired after IME composition completes — works for both Latin and Korean input.
+  function handleHiddenInputInput(e: React.FormEvent<HTMLInputElement>) {
+    const val = e.currentTarget.value;
+    if (!val) return;
+    e.currentTarget.value = ""; // clear so the next keystrokes accumulate in jumpQueryRef only
+
+    if (jumpTimerRef.current) clearTimeout(jumpTimerRef.current);
+    jumpQueryRef.current += val.toLowerCase();
+    jumpTimerRef.current = setTimeout(() => { jumpQueryRef.current = ""; }, 800);
+    const q = jumpQueryRef.current;
+    const idx = filtered.findIndex((o) => o.label.toLowerCase().includes(q));
+    if (idx >= 0) setFocusedIndex(idx);
+  }
+
   return (
     <div ref={containerRef} className="relative w-full">
         <div
@@ -82,12 +176,7 @@ export function MultiSelect({
           aria-controls={listId}
           tabIndex={searchable ? -1 : 0}
           onClick={toggleOpen}
-          onKeyDown={(e) => {
-            if (!searchable && (e.key === "Enter" || e.key === " ")) {
-              e.preventDefault();
-              toggleOpen();
-            }
-          }}
+          onKeyDown={handleTriggerKeyDown}
         >
           {selected.length === 0 ? (
             <span className="text-[var(--color-text-tertiary)]">{placeholder}</span>
@@ -134,30 +223,59 @@ export function MultiSelect({
             />
           ) : null}
         </div>
+
+        {/* Invisible input that captures IME-composed characters for type-to-jump */}
+        {!searchable && (
+          <input
+            ref={hiddenInputRef}
+            type="text"
+            aria-hidden="true"
+            tabIndex={-1}
+            onKeyDown={handleHiddenInputKeyDown}
+            onInput={handleHiddenInputInput}
+            className="sr-only"
+          />
+        )}
+
         {open && (
           <Popover placement={placement} maxHeightClass="max-h-48">
-            <ul id={listId} role="listbox" aria-multiselectable="true">
+            <ul ref={listRef} id={listId} role="listbox" aria-multiselectable="true">
               {filtered.length === 0 ? (
                 <li className="px-4 py-2 text-sm text-[var(--color-text-tertiary)]">{noMatchesText}</li>
               ) : (
-                filtered.map((opt) => (
-                  <li key={opt.id} role="option" aria-selected={selectedIdSet.has(opt.id)}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        toggleOption(opt.id);
-                        setSearch("");
-                      }}
-                      className={`${listOptionClass} ${selectedIdSet.has(opt.id) ? optionSelectedClass : ""}`.trim()}
-                    >
-                      <span className="inline-flex w-full items-center justify-between gap-2">
-                        <span>{opt.label}</span>
-                        {selectedIdSet.has(opt.id) ? <span aria-hidden>✓</span> : null}
-                      </span>
-                    </button>
-                  </li>
-                ))
+                groupedItems.map((item, i) =>
+                  item.type === "divider" ? (
+                    <li key={`divider-${i}`} role="presentation" aria-hidden="true"
+                      className="mx-4 my-1 border-t border-[var(--color-border-ui)]" />
+                  ) : item.type === "header" ? (
+                    <li key={`header-${item.label}-${i}`} role="presentation" aria-hidden="true"
+                      className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] first:pt-2">
+                      {item.label}
+                    </li>
+                  ) : (
+                    <li key={item.option.id} role="option" aria-selected={selectedIdSet.has(item.option.id)}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          toggleOption(item.option.id);
+                          setSearch("");
+                        }}
+                        className={[
+                          listOptionClass,
+                          item.option.group != null ? "pl-6" : "",
+                          selectedIdSet.has(item.option.id) ? optionSelectedClass : "",
+                          !searchable && focusedIndex === item.filteredIndex ? optionFocusedClass : "",
+                        ].filter(Boolean).join(" ")}
+                      >
+                        <span className="inline-flex w-full items-center justify-between gap-2">
+                          <span>{item.option.label}</span>
+                          {selectedIdSet.has(item.option.id) ? <span aria-hidden>✓</span> : null}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                )
               )}
             </ul>
           </Popover>

@@ -14,6 +14,7 @@ export async function PATCH(
     if ("time" in body) data.time = body.time || null;
     if ("location" in body) data.location = body.location || null;
     if ("comment" in body) data.comment = body.comment || null;
+    if ("ball" in body) data.ball = body.ball || null;
     if ("set1ScoreTeam1" in body) data.set1ScoreTeam1 = body.set1ScoreTeam1 || null;
     if ("set2ScoreTeam1" in body) data.set2ScoreTeam1 = body.set2ScoreTeam1 || null;
     if ("set3ScoreTeam1" in body) data.set3ScoreTeam1 = body.set3ScoreTeam1 || null;

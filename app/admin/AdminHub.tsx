@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import type { ReactNode } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { TableView } from "@/app/components/ui/table/Table";
 import { useUrlParams } from "@/lib/hooks/useUrlParams";
 import { TabList } from "@/app/components/ui/TabList";
 import { DatabaseLayout } from "@/app/components/database";
@@ -13,12 +14,13 @@ import { PageContainer } from "@/app/components/PageContainer";
 import { PlayerForm, type PlayerFormValues } from "@/app/components/PlayerForm";
 import { MatchForm } from "@/app/components/MatchForm";
 import { MatchCard } from "@/app/components/MatchCard";
+import { PlayerCard } from "@/app/components/PlayerCard";
 import { RegistrationForm } from "@/app/registration/RegistrationForm";
 import { registrationStatusChipClass, registrationStatusLabel, REGISTRATION_STATUSES } from "@/lib/registration";
 import type { Match } from "@/lib/matches";
 import { categoryStatusChipClass, categoryStatusLabel, CATEGORY_YEAR_STATUSES } from "@/lib/categories";
-import { clubChipClass } from "@/lib/clubs";
 import { useLocale } from "@/lib/locale-context";
+import { displayName } from "@/lib/names";
 import type { CategoryRecord } from "@/lib/categories";
 import type { ManagedFilterConfig, ManagedCardViewConfig, TableViewConfig } from "@/app/components/database";
 
@@ -75,6 +77,7 @@ export type MatchRow = {
   time: string | null;
   location: string | null;
   comment: string | null;
+  ball: string | null;
 };
 
 export type PlayerRow = {
@@ -84,10 +87,11 @@ export type PlayerRow = {
   email: string;
   phone: string | null;
   ntrp: string | null;
+  gender: string | null;
   clubs: string[];
 };
 
-export type CategoryRow = CategoryRecord & { status: string };
+export type CategoryRow = CategoryRecord & { status: string; year: number; regCount: number };
 
 export type AdminUserRow = {
   id: string;
@@ -102,15 +106,44 @@ export type CategoryStatusRow = {
   status: string;
 };
 
+export type TeamRow = {
+  teamId: string;
+  tournamentYear: number;
+  categoryId: string;
+  categoryLabel: string;
+  categoryLabelKo: string | null;
+  isDoubles: boolean;
+  seed: string | null;
+  member1NameEn: string;
+  member1NameKo: string | null;
+  member2NameEn: string | null;
+  member2NameKo: string | null;
+};
+
+export type PrizeBracketRow = {
+  id: string;
+  tournamentYear: number;
+  isDoubles: boolean;
+  teamCountBracket: string;
+  first: number;
+  second: number;
+  third: number;
+  fourth: number;
+};
+
+
 // ─── AdminHub props ───────────────────────────────────────────────────────────
 
 export type AdminHubProps = {
   registrations: RegistrationRow[];
+  teams: TeamRow[];
   matches: MatchRow[];
   players: PlayerRow[];
   categories: CategoryRecord[];
   categoryStatuses: CategoryStatusRow[];
   adminUsers: AdminUserRow[];
+  finalists: string[];
+  prizes: PrizeBracketRow[];
 };
 
 // ─── Chip helpers ─────────────────────────────────────────────────────────────
@@ -151,7 +184,7 @@ function computeMatchWinner(m: Pick<MatchRow, "set1T1" | "set2T1" | "set3T1" | "
 // ─── Shared empty values ──────────────────────────────────────────────────────
 
 const EMPTY_PLAYER: PlayerFormValues = {
-  fullNameEn: "", fullNameKo: "", email: "", phone: "", ntrp: "", clubs: [],
+  fullNameEn: "", fullNameKo: "", email: "", phone: "", ntrp: "", gender: "", clubs: [],
 };
 
 
@@ -189,14 +222,12 @@ function RegistrationsTab({
   const managedFilters: ManagedFilterConfig<RegistrationRow>[] = [
     {
       type: "year",
-      param: "year",
       years,
       apply: (items, year) => (year ? items.filter((r) => String(r.tournamentYear) === year) : items),
       clearParams: ["cat"],
     },
     {
       type: "category",
-      param: "cat",
       options: (prevItems) => {
         const map = new Map<string, { id: string; label: string; labelKo: string | null }>();
         for (const r of prevItems) {
@@ -210,7 +241,6 @@ function RegistrationsTab({
     },
     {
       type: "status",
-      param: "status",
       options: REGISTRATION_STATUSES.map((s) => ({ value: s, label: registrationStatusLabel(s, locale) })),
       apply: (items, status) => (status ? items.filter((r) => r.status === status) : items),
       allLabel: t.shared.labels.allStatuses,
@@ -487,6 +517,126 @@ function RegistrationsTab({
   );
 }
 
+// ─── Teams Tab ────────────────────────────────────────────────────────────────
+
+function TeamsTab({
+  teams,
+  loading,
+}: {
+  teams: TeamRow[];
+  loading?: boolean;
+}) {
+  const { t, locale } = useLocale();
+  const a = t.adminPage;
+
+  const years = useMemo(
+    () => [...new Set(teams.map((r) => r.tournamentYear))].sort((a, b) => b - a),
+    [teams],
+  );
+
+  const managedFilters: ManagedFilterConfig<TeamRow>[] = [
+    {
+      type: "year",
+      years,
+      apply: (items, year) => (year ? items.filter((r) => String(r.tournamentYear) === year) : items),
+      clearParams: ["cat", "group"],
+    },
+    {
+      type: "category",
+      options: (prevItems) => {
+        const map = new Map<string, { id: string; label: string; labelKo: string | null }>();
+        for (const r of prevItems) {
+          if (!map.has(r.categoryId))
+            map.set(r.categoryId, { id: r.categoryId, label: r.categoryLabel, labelKo: r.categoryLabelKo ?? null });
+        }
+        return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+      },
+      apply: (items, catId) => (catId ? items.filter((r) => r.categoryId === catId) : items),
+      autoSelect: true,
+    },
+    {
+      type: "group",
+      options: (prevItems) => {
+        const seen = new Set<string>();
+        for (const t of prevItems) {
+          if (t.seed) seen.add(t.seed);
+        }
+        return [...seen].sort();
+      },
+      apply: (items, group) => (group ? items.filter((r) => r.seed === group) : items),
+      allLabel: t.shared.labels.allGroups,
+      visibleWhen: (v) => !!v.cat,
+    },
+  ];
+
+  return (
+    <DatabaseLayout<TeamRow>
+      data={teams}
+      managedFilters={managedFilters}
+      emptyText={a.teams.empty}
+      loading={loading}
+      rowCountLabel={locale === "ko" ? ["팀", "팀"] : ["team", "teams"]}
+    >
+      {(filteredTeams) => {
+        type IndexedTeamRow = TeamRow & { rowNum: number };
+        const hasGroupData = filteredTeams.some((r) => r.seed);
+        const sortedTeams = [...filteredTeams].sort((a, b) => {
+          if (hasGroupData) {
+            const ga = a.seed ?? "";
+            const gb = b.seed ?? "";
+            if (ga !== gb) return ga.localeCompare(gb);
+          }
+          const na = parseInt(a.teamId.match(/(\d+)$/)![1], 10);
+          const nb = parseInt(b.teamId.match(/(\d+)$/)![1], 10);
+          return na - nb;
+        });
+        const indexedTeams: IndexedTeamRow[] = sortedTeams.map((r, i) => ({ ...r, rowNum: i + 1 }));
+        const hasDoubles = filteredTeams.some((r) => r.isDoubles);
+        return (
+          <TableView<IndexedTeamRow>
+            type="table"
+            items={indexedTeams}
+            columns={[
+              {
+                header: a.teams.columns.number,
+                sortKey: "num",
+                sortValue: (r) => r.rowNum,
+                renderCell: (r) => ({ type: "number", value: parseInt(r.teamId.match(/(\d+)$/)![1], 10) }),
+              },
+              {
+                header: a.teams.columns.player1,
+                sortKey: "player1",
+                sortValue: (r) => r.member1NameEn,
+                renderCell: (r) => ({
+                  type: "text",
+                  value: displayName(r.member1NameEn, r.member1NameKo, locale),
+                }),
+              },
+              ...(hasDoubles ? [{
+                header: a.teams.columns.player2,
+                sortKey: "player2",
+                sortValue: (r: IndexedTeamRow) => r.member2NameEn ?? "",
+                renderCell: (r: IndexedTeamRow) => ({
+                  type: "text" as const,
+                  value: r.member2NameEn ? displayName(r.member2NameEn, r.member2NameKo, locale) : null,
+                }),
+              }] : []),
+              ...(hasGroupData ? [{
+                header: a.teams.columns.group,
+                sortKey: "group",
+                sortValue: (r: IndexedTeamRow) => r.seed ?? "",
+                renderCell: (r: IndexedTeamRow) => r.seed
+                  ? { type: "chips" as const, items: [{ label: r.seed, className: `group-chip-${r.seed.toLowerCase()}` }] }
+                  : { type: "text" as const, value: null },
+              }] : []),
+            ]}
+          />
+        );
+      }}
+    </DatabaseLayout>
+  );
+}
+
 // ─── Matches Tab ──────────────────────────────────────────────────────────────
 
 function matchRowToMatch(m: MatchRow): Match {
@@ -567,14 +717,12 @@ function MatchesTab({
   const managedFilters: ManagedFilterConfig<MatchRow>[] = [
     {
       type: "year",
-      param: "year",
       years,
       apply: (items, year) => (year ? items.filter((m) => String(m.tournamentYear) === year) : items),
       clearParams: ["cat", "round", "group"],
     },
     {
       type: "category",
-      param: "cat",
       options: (prevItems) => {
         const map = new Map<string, { id: string; label: string; labelKo: string | null }>();
         for (const m of prevItems) {
@@ -589,7 +737,6 @@ function MatchesTab({
     },
     {
       type: "round",
-      param: "round",
       options: (prevItems) => {
         const seen = new Map<string, { value: string; label: string }>();
         for (const m of prevItems) {
@@ -611,7 +758,6 @@ function MatchesTab({
     },
     {
       type: "group",
-      param: "group",
       options: (prevItems) => {
         const seen = new Set<string>();
         const result: string[] = [];
@@ -668,6 +814,7 @@ function MatchesTab({
               time: parseTimeToHHMM(editMatch.time),
               location: editMatch.location ?? "",
               comment: editMatch.comment ?? "",
+              ball: editMatch.ball ?? null,
               set1T1: editMatch.set1T1 ?? "",
               set2T1: editMatch.set2T1 ?? "",
               set3T1: editMatch.set3T1 ?? "",
@@ -702,6 +849,7 @@ function MatchesTab({
                   set1T2: updated.set1T2 || null,
                   set2T2: updated.set2T2 || null,
                   set3T2: updated.set3T2 || null,
+                  ball: updated.ball || null,
                 };
                 setPatchedMatches((prev) => new Map(prev).set(editMatch.id, patch));
               }
@@ -721,6 +869,7 @@ function MatchesTab({
 function PlayersTab({
   players,
   registrations,
+  finalists,
   addOpen,
   onCloseAdd,
   onMutate,
@@ -728,6 +877,7 @@ function PlayersTab({
 }: {
   players: PlayerRow[];
   registrations: RegistrationRow[];
+  finalists: string[];
   addOpen: boolean;
   onCloseAdd: () => void;
   onMutate: () => void;
@@ -741,6 +891,30 @@ function PlayersTab({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [ntrpLevels, setNtrpLevels] = useState<string[]>([]);
+  const [clubOptions, setClubOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/ntrp")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((levels: string[]) => setNtrpLevels(levels))
+      .catch(() => {});
+    fetch("/api/clubs")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((clubs: { code: string }[]) => {
+        const codes = clubs.map((c) => c.code);
+        codes.sort((a, b) => {
+          const aN = a.toUpperCase() === "N/A";
+          const bN = b.toUpperCase() === "N/A";
+          if (aN !== bN) return aN ? 1 : -1;
+          return a.localeCompare(b);
+        });
+        setClubOptions(codes);
+      })
+      .catch(() => {});
+  }, []);
+
+  const finalistsSet = useMemo(() => new Set(finalists), [finalists]);
 
   function openEdit(p: PlayerRow) {
     setEditPlayer(p);
@@ -750,6 +924,7 @@ function PlayersTab({
       email: p.email,
       phone: p.phone ?? "",
       ntrp: p.ntrp ?? "",
+      gender: p.gender ?? "",
       clubs: p.clubs,
     });
     setSaveError(null);
@@ -761,7 +936,7 @@ function PlayersTab({
     const res = await fetch(`/api/players/${editPlayer.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editValues),
+      body: JSON.stringify({ ...editValues, gender: editValues.gender || null }),
     });
     setSaving(false);
     if (!res.ok) { setSaveError("Save failed"); return; }
@@ -788,7 +963,7 @@ function PlayersTab({
     const res = await fetch("/api/players", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addValues),
+      body: JSON.stringify({ ...addValues, gender: addValues.gender || null }),
     });
     setSaving(false);
     if (!res.ok) { setSaveError("Add failed"); return; }
@@ -798,22 +973,23 @@ function PlayersTab({
   }
 
   const participationMap = useMemo(() => {
-    const map = new Map<number, { year: number; categoryId: string }[]>();
+    const map = new Map<number, { year: number; categoryId: string; finalist: boolean }[]>();
     for (const r of registrations) {
+      if (r.status === "Cancelled") continue;
+      const finalist = finalistsSet.has(`${r.playerId}:${r.tournamentYear}:${r.categoryId}`);
       const entry = map.get(r.playerId) ?? [];
-      entry.push({ year: r.tournamentYear, categoryId: r.categoryId });
+      entry.push({ year: r.tournamentYear, categoryId: r.categoryId, finalist });
       map.set(r.playerId, entry);
     }
     for (const [, entries] of map) {
       entries.sort((a, b) => b.year - a.year || a.categoryId.localeCompare(b.categoryId));
     }
     return map;
-  }, [registrations]);
+  }, [registrations, finalistsSet]);
 
   const managedFilters: ManagedFilterConfig<PlayerRow>[] = [
     {
       type: "search",
-      param: "q",
       apply: (items, q) => {
         const lower = q.toLowerCase();
         return items.filter(
@@ -826,37 +1002,16 @@ function PlayersTab({
     },
   ];
 
-  const view: TableViewConfig<PlayerRow> = {
-    type: "table",
-    columns: [
-      {
-        header: t.shared.labels.name,
-        sortKey: "name",
-        sortValue: (p) => p.fullNameEn,
-        renderCell: (p) => ({ type: "stack", lines: [p.fullNameEn, p.fullNameKo ?? null] }),
-      },
-      { header: t.shared.form.email, sortKey: "email", sortValue: (p) => p.email, renderCell: (p) => ({ type: "text", value: p.email }) },
-      { header: t.shared.form.phone, sortKey: "phone", sortValue: (p) => p.phone ?? "", renderCell: (p) => ({ type: "text", value: p.phone }) },
-      { header: t.shared.form.ntrp, sortKey: "ntrp", sortValue: (p) => p.ntrp ?? "", renderCell: (p) => ({ type: "text", value: p.ntrp }) },
-      {
-        header: a.players.columns.clubs,
-        renderCell: (p) => ({
-          type: "chips",
-          items: p.clubs.map((c) => ({ label: c, className: clubChipClass(c) })),
-        }),
-      },
-      {
-        header: a.players.columns.tournaments,
-        renderCell: (p) => ({
-          type: "chips",
-          items: (participationMap.get(p.id) ?? []).map(({ year, categoryId }) => ({
-            label: `${year} · ${categoryId}`,
-            className: "chip-neutral",
-          })),
-        }),
-      },
-    ],
-    onRowClick: openEdit,
+  const view: ManagedCardViewConfig<PlayerRow> = {
+    getKey: (p) => p.id,
+    renderItem: (p) => (
+      <PlayerCard
+        player={p}
+        tournaments={participationMap.get(p.id) ?? []}
+        onClick={() => openEdit(p)}
+      />
+    ),
+    gridClass: "grid-cols-1 sm:grid-cols-2",
   };
 
   return (
@@ -886,6 +1041,9 @@ function PlayersTab({
               values={editValues}
               onChange={(u) => setEditValues((v) => ({ ...v, ...u }))}
               idPrefix="edit-player"
+              ntrpLevels={ntrpLevels}
+              clubOptions={clubOptions}
+              isAdmin
             />
             {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
           </div>
@@ -905,9 +1063,245 @@ function PlayersTab({
             values={addValues}
             onChange={(u) => setAddValues((v) => ({ ...v, ...u }))}
             idPrefix="add-player"
+            ntrpLevels={ntrpLevels}
+            clubOptions={clubOptions}
+            isAdmin
           />
           {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
         </div>
+      </Modal>
+    </>
+  );
+}
+
+// ─── Prizes Tab ───────────────────────────────────────────────────────────────
+
+function formatPrize(amount: number): string {
+  return amount === 0 ? "$0" : `$${amount.toLocaleString()}`;
+}
+
+type PrizeDisplayRow = {
+  categoryId: string;
+  categoryLabel: string;
+  categoryLabelKo: string | null;
+  isDoubles: boolean;
+  year: number;
+  teamCount: number;
+  bracket: string;
+  prizeId: string | null;
+  first: number;
+  second: number;
+  third: number;
+  fourth: number;
+};
+
+function buildPrizeRows(
+  categories: CategoryRecord[],
+  teams: TeamRow[],
+  prizes: PrizeBracketRow[],
+  years: number[],
+): PrizeDisplayRow[] {
+  const rows: PrizeDisplayRow[] = [];
+  for (const year of years) {
+    const teamCounts = new Map<string, number>();
+    for (const t of teams) {
+      if (t.tournamentYear !== year) continue;
+      teamCounts.set(t.categoryId, (teamCounts.get(t.categoryId) ?? 0) + 1);
+    }
+    const prizeMap = new Map<string, PrizeBracketRow>();
+    for (const p of prizes) {
+      if (p.tournamentYear === year) prizeMap.set(`${p.isDoubles}::${p.teamCountBracket}`, p);
+    }
+    for (const cat of categories) {
+      const teamCount = teamCounts.get(cat.id) ?? 0;
+      if (teamCount < 4) continue; // only categories with a valid bracket
+      const bracket = teamCount >= 12 ? "12+" : teamCount >= 6 ? "6+" : "4-5";
+      const prize = prizeMap.get(`${cat.isDoubles}::${bracket}`);
+      rows.push({
+        categoryId: cat.id,
+        categoryLabel: cat.label,
+        categoryLabelKo: cat.labelKo,
+        isDoubles: cat.isDoubles,
+        year,
+        teamCount,
+        bracket,
+        prizeId: prize?.id ?? null,
+        first:  prize?.first  ?? 0,
+        second: prize?.second ?? 0,
+        third:  prize?.third  ?? 0,
+        fourth: prize?.fourth ?? 0,
+      });
+    }
+  }
+  return rows;
+}
+
+function PrizesTab({
+  categories,
+  teams,
+  prizes,
+  onMutate,
+  loading,
+}: {
+  categories: CategoryRecord[];
+  teams: TeamRow[];
+  prizes: PrizeBracketRow[];
+  onMutate: () => void;
+  loading?: boolean;
+}) {
+  const { t, locale } = useLocale();
+  const a = t.adminPage;
+
+  const years = useMemo(
+    () => [...new Set(teams.map((t) => t.tournamentYear))].sort((a, b) => b - a),
+    [teams],
+  );
+
+  const prizeRows = useMemo(
+    () => buildPrizeRows(categories, teams, prizes, years),
+    [categories, teams, prizes, years],
+  );
+
+  const [editRow, setEditRow] = useState<PrizeDisplayRow | null>(null);
+  const [editFirst, setEditFirst] = useState("");
+  const [editSecond, setEditSecond] = useState("");
+  const [editThird, setEditThird] = useState("");
+  const [editFourth, setEditFourth] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  function openEdit(row: PrizeDisplayRow) {
+    setEditRow(row);
+    setSaveError(null);
+    setEditFirst(String(row.first));
+    setEditSecond(String(row.second));
+    setEditThird(String(row.third));
+    setEditFourth(String(row.fourth));
+  }
+
+  async function savePrize() {
+    if (!editRow) return;
+    setSaving(true); setSaveError(null);
+    const amounts = {
+      first: parseInt(editFirst, 10) || 0,
+      second: parseInt(editSecond, 10) || 0,
+      third: parseInt(editThird, 10) || 0,
+      fourth: parseInt(editFourth, 10) || 0,
+    };
+    const res = editRow.prizeId
+      ? await fetch(`/api/prizes/${editRow.prizeId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(amounts),
+        })
+      : await fetch("/api/prizes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tournamentYear: editRow.year,
+            isDoubles: editRow.isDoubles,
+            teamCountBracket: editRow.bracket,
+            ...amounts,
+          }),
+        });
+    setSaving(false);
+    if (!res.ok) { setSaveError(a.prizes.saveError); return; }
+    setEditRow(null);
+    onMutate();
+  }
+
+  const managedFilters: ManagedFilterConfig<PrizeDisplayRow>[] = [
+    {
+      type: "year" as const,
+      years,
+      apply: (items, year) => (year ? items.filter((r) => String(r.year) === year) : items),
+      clearParams: ["cat"],
+    },
+    {
+      type: "category" as const,
+      options: (prevItems) => {
+        const seen = new Map<string, { id: string; label: string; labelKo: string | null }>();
+        for (const r of prevItems) {
+          if (!seen.has(r.categoryId))
+            seen.set(r.categoryId, { id: r.categoryId, label: r.categoryLabel, labelKo: r.categoryLabelKo });
+        }
+        return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
+      },
+      apply: (items, catId) => (catId ? items.filter((r) => r.categoryId === catId) : items),
+      allLabel: t.shared.labels.allCategories,
+    },
+  ];
+
+  const view: TableViewConfig<PrizeDisplayRow> = {
+    type: "table",
+    stableColumnLayout: true,
+    columnClass: [undefined, undefined, undefined, undefined, undefined, undefined, "border-l border-[var(--table-border-row)]"],
+    columns: [
+      {
+        header: a.prizes.columns.category,
+        sortKey: "category",
+        sortValue: (r) => r.categoryLabel,
+        renderCell: (r) => ({
+          type: "text",
+          value: locale === "ko" ? (r.categoryLabelKo ?? r.categoryLabel) : r.categoryLabel,
+        }),
+      },
+      {
+        header: a.prizes.columns.teams,
+        renderCell: (r) => ({ type: "number", value: r.teamCount }),
+      },
+      { header: a.prizes.columns.first,  renderCell: (r) => ({ type: "text", value: formatPrize(r.first) }) },
+      { header: a.prizes.columns.second, renderCell: (r) => ({ type: "text", value: formatPrize(r.second) }) },
+      { header: a.prizes.columns.third,  renderCell: (r) => ({ type: "text", value: formatPrize(r.third) }) },
+      { header: a.prizes.columns.fourth, renderCell: (r) => ({ type: "text", value: formatPrize(r.fourth) }) },
+      { header: a.prizes.columns.total,  renderCell: (r) => ({ type: "text", value: formatPrize(r.first + r.second + r.third + r.fourth) }) },
+    ],
+    onRowClick: openEdit,
+  };
+
+  return (
+    <>
+      <DatabaseLayout<PrizeDisplayRow>
+        data={prizeRows}
+        managedFilters={managedFilters}
+        emptyText={a.prizes.empty}
+        loading={loading}
+      >
+        {(filteredData) => {
+          const totalPayout = filteredData.reduce((sum, r) => sum + r.first + r.second + r.third + r.fourth, 0);
+          return (
+            <div className="flex flex-col gap-2">
+              <TableView<PrizeDisplayRow> items={filteredData} {...view} />
+              <p className="mt-2 text-right text-xs text-[var(--color-text-tertiary)]">
+                {locale === "ko" ? `총 상금: ${formatPrize(totalPayout)}` : `Total payout: ${formatPrize(totalPayout)}`}
+              </p>
+            </div>
+          );
+        }}
+      </DatabaseLayout>
+
+      <Modal
+        open={!!editRow}
+        onClose={() => setEditRow(null)}
+        title={a.prizes.modal.title}
+        maxWidthClass="max-w-sm"
+        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditRow(null) }}
+        primaryAction={{ label: saving ? a.actions.saving : a.actions.save, onClick: savePrize, disabled: saving }}
+      >
+        {editRow && (
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-row gap-0.5">
+                {locale === "ko" ? (editRow.categoryLabelKo ?? editRow.categoryLabel) : editRow.categoryLabel} {editRow.teamCount} {a.prizes.teamsUnit}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field variant="number" id="prize-first"  label={a.prizes.columns.first}  value={editFirst}  onChange={(e) => setEditFirst(e.target.value)} />
+              <Field variant="number" id="prize-second" label={a.prizes.columns.second} value={editSecond} onChange={(e) => setEditSecond(e.target.value)} />
+              <Field variant="number" id="prize-third"  label={a.prizes.columns.third}  value={editThird}  onChange={(e) => setEditThird(e.target.value)} />
+              <Field variant="number" id="prize-fourth" label={a.prizes.columns.fourth} value={editFourth} onChange={(e) => setEditFourth(e.target.value)} />
+            </div>
+            {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
+          </div>
+        )}
       </Modal>
     </>
   );
@@ -918,22 +1312,19 @@ function PlayersTab({
 function CategoriesTab({
   categories,
   categoryStatuses,
-  registrations,
+  teams,
   onMutate,
   loading,
 }: {
   categories: CategoryRecord[];
   categoryStatuses: CategoryStatusRow[];
-  registrations: RegistrationRow[];
+  teams: TeamRow[];
   onMutate: () => void;
   loading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const a = t.adminPage;
   const currentYear = new Date().getFullYear();
-  // Year is managed by DatabaseLayout's year filter; read it here for data derivation.
-  const searchParams = useSearchParams();
-  const selectedYear = Number(searchParams.get("catYear")) || currentYear;
   const [editRow, setEditRow] = useState<CategoryRow | null>(null);
   const [editStatus, setEditStatus] = useState("Pending");
   const [saving, setSaving] = useState(false);
@@ -945,29 +1336,22 @@ function CategoriesTab({
     return [...set].sort((a, b) => b - a);
   }, [categoryStatuses, currentYear]);
 
-  const regCountMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of registrations) {
-      if (r.tournamentYear === selectedYear) {
-        map.set(r.categoryId, (map.get(r.categoryId) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [registrations, selectedYear]);
-
   const mergedRows: CategoryRow[] = useMemo(() => {
-    const statusMap = new Map(
-      categoryStatuses
-        .filter((s) => s.tournamentYear === selectedYear)
-        .map((s) => [s.categoryId, s.status]),
-    );
-    return categories
-      .map((cat) => ({ ...cat, status: statusMap.get(cat.id) ?? "Pending" }))
-      .sort((a, b) => {
-        const ORDER: Record<string, number> = { Active: 0, Pending: 1, Inactive: 2 };
-        return (ORDER[a.status] ?? 1) - (ORDER[b.status] ?? 1);
-      });
-  }, [categories, categoryStatuses, selectedYear]);
+    const ORDER: Record<string, number> = { Active: 0, Pending: 1, Inactive: 2 };
+    const teamCounts = new Map<string, number>();
+    for (const t of teams) {
+      const key = `${t.tournamentYear}::${t.categoryId}`;
+      teamCounts.set(key, (teamCounts.get(key) ?? 0) + 1);
+    }
+    return years.flatMap((year) => {
+      const statusMap = new Map(
+        categoryStatuses.filter((s) => s.tournamentYear === year).map((s) => [s.categoryId, s.status]),
+      );
+      return categories
+        .map((cat) => ({ ...cat, status: statusMap.get(cat.id) ?? "Pending", year, regCount: teamCounts.get(`${year}::${cat.id}`) ?? 0 }))
+        .sort((a, b) => (ORDER[a.status] ?? 1) - (ORDER[b.status] ?? 1));
+    });
+  }, [categories, categoryStatuses, teams, years]);
 
   function openEdit(row: CategoryRow) {
     setEditRow(row);
@@ -981,7 +1365,7 @@ function CategoriesTab({
     const res = await fetch(`/api/categoryStatus/${editRow.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ year: selectedYear, status: editStatus }),
+      body: JSON.stringify({ year: editRow.year, status: editStatus }),
     });
     setSaving(false);
     if (!res.ok) { setSaveError("Save failed"); return; }
@@ -989,13 +1373,10 @@ function CategoriesTab({
     onMutate();
   }
 
-  // Players registered for the selected category + year
-  const categoryPlayers = useMemo(() => {
+  const categoryTeams = useMemo(() => {
     if (!editRow) return [];
-    return registrations.filter(
-      (r) => r.tournamentYear === selectedYear && r.categoryId === editRow.id,
-    );
-  }, [registrations, selectedYear, editRow]);
+    return teams.filter((t) => t.tournamentYear === editRow.year && t.categoryId === editRow.id);
+  }, [teams, editRow]);
 
   const view: TableViewConfig<CategoryRow> = {
     type: "table",
@@ -1011,12 +1392,12 @@ function CategoriesTab({
         }),
       },
       {
-        header: a.categories.columns.players,
+        header: a.categories.columns.teams,
         sortKey: "players",
-        sortValue: (r) => regCountMap.get(r.id) ?? 0,
+        sortValue: (r) => r.regCount,
         renderCell: (r) => ({
           type: "number",
-          value: regCountMap.get(r.id) ?? 0,
+          value: r.regCount,
         }),
       },
       {
@@ -1039,13 +1420,11 @@ function CategoriesTab({
           managedFilters={([
             {
               type: "year" as const,
-              param: "catYear",
               years,
-              apply: (items: CategoryRow[]) => items, // mergedRows is already year-filtered
+              apply: (items: CategoryRow[], year: string) => (year ? items.filter((r) => String(r.year) === year) : items),
             },
             {
               type: "status" as const,
-              param: "catStatus",
               options: CATEGORY_YEAR_STATUSES.map((s) => ({ value: s, label: categoryStatusLabel(s, locale) })),
               apply: (items: CategoryRow[], status: string) => (status ? items.filter((r) => r.status === status) : items),
               allLabel: t.shared.labels.allStatuses,
@@ -1070,7 +1449,7 @@ function CategoriesTab({
             <Field
               variant="select"
               id="cat-status-edit"
-              label={`${a.categories.modal.statusLabel} (${selectedYear})`}
+              label={`${a.categories.modal.statusLabel} (${editRow.year})`}
               value={editStatus}
               onChange={(e) => setEditStatus((e.target as HTMLSelectElement).value)}
             >
@@ -1079,22 +1458,20 @@ function CategoriesTab({
               ))}
             </Field>
 
-            {/* Players list */}
+            {/* Teams list */}
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
                 {a.categories.modal.playersTitle}
               </p>
-              {categoryPlayers.length === 0 ? (
+              {categoryTeams.length === 0 ? (
                 <p className="text-sm text-[var(--color-text-tertiary)]">{a.categories.modal.noPlayers}</p>
               ) : (
                 <div className="flex flex-col gap-1">
-                  {categoryPlayers.map((r) => {
-                    const p1 = locale === "ko" ? (r.playerNameKo?.trim() || r.playerNameEn) : r.playerNameEn;
-                    const p2 = r.isDoubles && r.partnerNameEn
-                      ? (locale === "ko" ? (r.partnerNameKo?.trim() || r.partnerNameEn) : r.partnerNameEn)
-                      : null;
+                  {categoryTeams.map((t) => {
+                    const p1 = displayName(t.member1NameEn, t.member1NameKo, locale);
+                    const p2 = t.member2NameEn ? displayName(t.member2NameEn, t.member2NameKo, locale) : null;
                     return (
-                      <div key={r.id} className="text-sm">
+                      <div key={t.teamId} className="text-sm">
                         {p2 ? `${p1} / ${p2}` : p1}
                       </div>
                     );
@@ -1130,6 +1507,44 @@ function AdminUsersTab({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const [editUser, setEditUser] = useState<AdminUserRow | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editDeleting, setEditDeleting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function openEdit(u: AdminUserRow) {
+    setEditUser(u);
+    setEditEmail(u.email);
+    setEditActive(u.active);
+    setEditError(null);
+  }
+
+  async function saveAdmin() {
+    if (!editUser) return;
+    setEditSaving(true); setEditError(null);
+    const res = await fetch(`/api/admin-users/${editUser.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: editEmail, active: editActive }),
+    });
+    setEditSaving(false);
+    if (!res.ok) { setEditError("Failed to save"); return; }
+    setEditUser(null);
+    onMutate();
+  }
+
+  async function deleteAdmin() {
+    if (!editUser) return;
+    setEditDeleting(true); setEditError(null);
+    const res = await fetch(`/api/admin-users/${editUser.id}`, { method: "DELETE" });
+    setEditDeleting(false);
+    if (!res.ok) { setEditError("Failed to delete"); return; }
+    setEditUser(null);
+    onMutate();
+  }
+
   async function addAdmin() {
     setSaving(true); setSaveError(null);
     const res = await fetch("/api/admin-users", {
@@ -1163,13 +1578,8 @@ function AdminUsersTab({
           }],
         }),
       },
-      {
-        header: a.admins.columns.created,
-        sortKey: "date",
-        sortValue: (u) => u.createdAt,
-        renderCell: (u) => ({ type: "text", value: u.createdAt.slice(0, 10) }),
-      },
     ],
+    onRowClick: openEdit,
   };
 
   return (
@@ -1180,6 +1590,42 @@ function AdminUsersTab({
         emptyText={a.admins.empty}
       />
 
+      {/* Edit modal */}
+      <Modal
+        open={!!editUser}
+        onClose={() => setEditUser(null)}
+        title="Edit Admin User"
+        maxWidthClass="max-w-sm"
+        onDestructive={deleteAdmin}
+        destructiveDisabled={editDeleting}
+        destructiveLabel={a.actions.delete}
+        secondaryAction={{ label: a.actions.cancel, onClick: () => setEditUser(null) }}
+        primaryAction={{ label: editSaving ? a.actions.saving : a.actions.save, onClick: saveAdmin, disabled: editSaving || !editEmail.trim() }}
+      >
+        <div className="flex flex-col gap-4">
+          <Field
+            variant="email"
+            id="edit-admin-email"
+            label={t.shared.form.email}
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+            required
+          />
+          <Field
+            variant="select"
+            id="edit-admin-active"
+            label={a.admins.columns.active}
+            value={editActive ? "active" : "inactive"}
+            onChange={(e) => setEditActive((e.target as HTMLSelectElement).value === "active")}
+          >
+            <option value="active">{a.admins.activeLabel}</option>
+            <option value="inactive">{a.admins.inactiveLabel}</option>
+          </Field>
+          {editError && <p className="text-sm text-[var(--color-status-error)]">{editError}</p>}
+        </div>
+      </Modal>
+
+      {/* Add modal */}
       <Modal
         open={addOpen}
         onClose={() => { onCloseAdd(); setAddEmail(""); }}
@@ -1209,11 +1655,14 @@ function AdminUsersTab({
 
 export function AdminHub({
   registrations,
+  teams,
   matches,
   players,
   categories,
   categoryStatuses,
   adminUsers,
+  finalists,
+  prizes,
 }: AdminHubProps) {
   const router = useRouter();
   const { t } = useLocale();
@@ -1227,14 +1676,16 @@ export function AdminHub({
 
   const TABS = [
     { value: "registrations", label: a.tabs.registrations },
+    { value: "teams",         label: a.tabs.teams },
     { value: "matches",       label: a.tabs.matches },
     { value: "players",       label: a.tabs.players },
     { value: "categories",    label: a.tabs.categories },
+    { value: "prizes",        label: a.tabs.prizes },
     { value: "admins",        label: a.tabs.admins },
   ];
 
   function handleTabChange(v: string) {
-    setTabParam("tab", v, { clear: ["year", "cat", "round", "group", "status", "catStatus", "catYear", "q"] });
+    setTabParam("tab", v, { clear: ["year", "cat", "round", "group", "status", "q"] });
     setAddRegOpen(false);
     setAddPlayerOpen(false);
     setAddAdminOpen(false);
@@ -1245,9 +1696,7 @@ export function AdminHub({
   }
 
   const titleActions: ReactNode =
-    tab === "registrations" ? (
-      <Button variant="secondary" size="small" onClick={() => setAddRegOpen(true)}>{a.actions.addRegistration}</Button>
-    ) : tab === "players" ? (
+    tab === "players" ? (
       <Button variant="secondary" size="small" onClick={() => setAddPlayerOpen(true)}>{a.actions.addPlayer}</Button>
     ) : tab === "admins" ? (
       <Button variant="secondary" size="small" onClick={() => setAddAdminOpen(true)}>{a.actions.addAdminUser}</Button>
@@ -1271,6 +1720,9 @@ export function AdminHub({
           loading={refreshing}
         />
       )}
+      {tab === "teams" && (
+        <TeamsTab teams={teams} loading={refreshing} />
+      )}
       {tab === "matches" && (
         <MatchesTab matches={matches} onMutate={refresh} loading={refreshing} />
       )}
@@ -1278,6 +1730,7 @@ export function AdminHub({
         <PlayersTab
           players={players}
           registrations={registrations}
+          finalists={finalists}
           addOpen={addPlayerOpen}
           onCloseAdd={() => setAddPlayerOpen(false)}
           onMutate={refresh}
@@ -1288,7 +1741,16 @@ export function AdminHub({
         <CategoriesTab
           categories={categories}
           categoryStatuses={categoryStatuses}
-          registrations={registrations}
+          teams={teams}
+          onMutate={refresh}
+          loading={refreshing}
+        />
+      )}
+      {tab === "prizes" && (
+        <PrizesTab
+          categories={categories}
+          teams={teams}
+          prizes={prizes}
           onMutate={refresh}
           loading={refreshing}
         />

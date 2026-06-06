@@ -206,6 +206,7 @@ export function RegistrationForm({
     id: c.id,
     label: locale === "ko" ? (c.labelKo ?? c.label) : c.label,
     chipClassName: categoryChipClass(c.id),
+    group: (locale === "ko" ? (c.categoryKo ?? c.category) : c.category) ?? undefined,
   }));
 
   const selectedCategoryOptions = selectedCategoryIds.map((id) => {
@@ -286,7 +287,6 @@ export function RegistrationForm({
       }
     }
     if (!isAdminContext) {
-      if (!playerValues.fullNameKo.trim()) errs.fullNameKo = rf.errors.required;
       if (!playerValues.ntrp.trim()) errs.ntrp = rf.errors.required;
       if (selectedCategoryIds.length > 0 && (!isEdit || priceChanged) && !nameOnEtransfer.trim()) errs.nameOnEtransfer = rf.errors.required;
       if (!mediaConsent) errs.mediaConsent = rf.errors.mediaConsentRequired;
@@ -428,7 +428,7 @@ export function RegistrationForm({
             errors={errors}
             required={{
               fullNameEn: true,
-              fullNameKo: !isAdminContext,
+              fullNameKo: false,
               email: true,
               phone: true,
               ntrp: !isAdminContext,
@@ -537,6 +537,13 @@ export function RegistrationForm({
                 Payment Received
               </CheckboxField>
               <Field
+                variant="text"
+                id="reg-name-on-etransfer"
+                label={rf.fields.nameOnEtransfer}
+                value={nameOnEtransfer}
+                onChange={(e) => setNameOnEtransfer(e.target.value)}
+              />
+              <Field
                 variant="textarea"
                 id="reg-admin-comments"
                 label="Comments (admin only)"
@@ -548,8 +555,8 @@ export function RegistrationForm({
           )}
         </FormSection>
 
-        {/* Section 4: Payment details — new registration always; edit only when price changes */}
-        {selectedCategoryIds.length > 0 && !isAdminContext && (!isEdit || priceChanged) && (
+        {/* Section 4: Payment details — always visible for public; full payment fields only for new reg or price change */}
+        {selectedCategoryIds.length > 0 && !isAdminContext && (
           <FormSection title={rf.sections.paymentDetails}>
             {isEdit && priceChanged && (
               <div className="flex items-center justify-between gap-4 rounded-lg bg-[var(--color-surface-muted)] px-4 py-2 text-sm">
@@ -568,42 +575,46 @@ export function RegistrationForm({
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-              <span>{rf.summary.etransferTo}</span>
-              <span className="font-medium text-[var(--color-text-primary)]">
-                {t.etransfer.email}
-              </span>
-              <button
-                type="button"
-                onClick={copyEmail}
-                className="flex items-center rounded p-1 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
-                aria-label={copied ? rf.summary.emailCopied : rf.summary.copyEmail}
-                title={copied ? rf.summary.emailCopied : rf.summary.copyEmail}
-              >
-                {copied ? <CheckIcon /> : <CopyIcon />}
-              </button>
-            </div>
+            {(!isEdit || priceChanged) && (
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                <span>{rf.summary.etransferTo}</span>
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  {t.etransfer.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={copyEmail}
+                  className="flex items-center rounded p-1 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
+                  aria-label={copied ? rf.summary.emailCopied : rf.summary.copyEmail}
+                  title={copied ? rf.summary.emailCopied : rf.summary.copyEmail}
+                >
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                </button>
+              </div>
+            )}
             <Field
               variant="text"
               id="reg-name-on-etransfer"
-              label={<>{rf.fields.nameOnEtransfer} <span className="text-[var(--form-required-mark)]">*</span></>}
+              label={<>{rf.fields.nameOnEtransfer}{(!isEdit || priceChanged) && <> <span className="text-[var(--form-required-mark)]">*</span></>}</>}
               value={nameOnEtransfer}
               onChange={(e) => { setNameOnEtransfer(e.target.value); clearError("nameOnEtransfer"); }}
               aria-invalid={Boolean(errors.nameOnEtransfer)}
               error={errors.nameOnEtransfer ? <p className="form-field-error">{errors.nameOnEtransfer}</p> : undefined}
             />
-            <div>
-              <CheckboxField
-                checked={etransferSent}
-                onChange={(e) => { setEtransferSent(e.target.checked); clearError("etransferSent"); }}
-                required
-              >
-                {rf.helper.etransferSent}
-              </CheckboxField>
-              {errors.etransferSent && (
-                <p className="form-field-error mt-1">{errors.etransferSent}</p>
-              )}
-            </div>
+            {(!isEdit || priceChanged) && (
+              <div>
+                <CheckboxField
+                  checked={etransferSent}
+                  onChange={(e) => { setEtransferSent(e.target.checked); clearError("etransferSent"); }}
+                  required
+                >
+                  {rf.helper.etransferSent}
+                </CheckboxField>
+                {errors.etransferSent && (
+                  <p className="form-field-error mt-1">{errors.etransferSent}</p>
+                )}
+              </div>
+            )}
           </FormSection>
         )}
 

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Field } from "@/app/components/ui/Field";
 import { useLocale } from "@/lib/locale-context";
 import { clubChipClass } from "@/lib/clubs";
+import { formatPhone } from "@/lib/phone";
 
 import type { ClubRecord } from "@/lib/clubs";
 
@@ -13,6 +14,7 @@ export type PlayerFormValues = {
   email: string;
   phone: string;
   ntrp: string;
+  gender?: string;
   clubs: string[];
 };
 
@@ -29,6 +31,10 @@ type Props<TNameOption = never> = {
   onChange: (updates: Partial<PlayerFormValues>) => void;
   /** Pre-loaded club options. If omitted, the form fetches /api/clubs itself. */
   clubOptions?: string[];
+  /** Pre-loaded NTRP levels. If omitted, the form fetches /api/ntrp itself. */
+  ntrpLevels?: string[];
+  /** When true, shows admin-only fields (e.g. gender). */
+  isAdmin?: boolean;
   idPrefix?: string;
   /** Per-field error messages. */
   errors?: Record<string, string>;
@@ -46,6 +52,8 @@ export function PlayerForm<TNameOption = never>({
   values,
   onChange,
   clubOptions: clubOptionsProp,
+  ntrpLevels: ntrpLevelsProp,
+  isAdmin,
   idPrefix = "player",
   errors,
   required,
@@ -57,24 +65,35 @@ export function PlayerForm<TNameOption = never>({
   const rf = t.registrationForm;
   const f = t.shared.form;
 
-  const [ntrpLevels, setNtrpLevels] = useState<string[]>([]);
+  const [fetchedNtrpLevels, setFetchedNtrpLevels] = useState<string[]>([]);
   const [fetchedClubOptions, setFetchedClubOptions] = useState<string[]>([]);
 
   useEffect(() => {
+    if (ntrpLevelsProp != null) return;
     fetch("/api/ntrp")
       .then((r) => (r.ok ? r.json() : []))
-      .then((levels: string[]) => setNtrpLevels(levels))
+      .then((levels: string[]) => setFetchedNtrpLevels(levels))
       .catch(() => {});
-  }, []);
+  }, [ntrpLevelsProp]);
 
   useEffect(() => {
     if (clubOptionsProp != null) return;
     fetch("/api/clubs")
       .then((r) => (r.ok ? r.json() : []))
-      .then((clubs: ClubRecord[]) => setFetchedClubOptions(clubs.map((c) => c.code)))
+      .then((clubs: ClubRecord[]) => {
+          const codes = clubs.map((c) => c.code);
+          codes.sort((a, b) => {
+            const aN = a.toUpperCase() === "N/A";
+            const bN = b.toUpperCase() === "N/A";
+            if (aN !== bN) return aN ? 1 : -1;
+            return a.localeCompare(b);
+          });
+          setFetchedClubOptions(codes);
+        })
       .catch(() => {});
   }, [clubOptionsProp]);
 
+  const resolvedNtrpLevels = ntrpLevelsProp ?? fetchedNtrpLevels;
   const resolvedClubOptions = clubOptionsProp ?? fetchedClubOptions;
   const clubSelectedOptions = values.clubs.map((c) => ({ id: c, label: c, chipClassName: clubChipClass(c) }));
   const clubAvailableOptions = resolvedClubOptions.map((c) => ({ id: c, label: c }));
@@ -161,7 +180,7 @@ export function PlayerForm<TNameOption = never>({
         variant="tel"
         id={`${idPrefix}-phone`}
         value={values.phone}
-        onChange={(e) => onChange({ phone: e.target.value })}
+        onChange={(e) => onChange({ phone: formatPhone(e.target.value) })}
         onBlur={(e) => onFieldBlur?.("phone", e.target.value)}
         aria-invalid={Boolean(errors?.phone)}
         error={fieldError("phone")}
@@ -177,7 +196,7 @@ export function PlayerForm<TNameOption = never>({
         error={fieldError("ntrp")}
       >
         <option value="">{rf.options.selectLevel}</option>
-        {ntrpLevels.map((l) => (
+        {resolvedNtrpLevels.map((l) => (
           <option key={l} value={l}>{l}</option>
         ))}
       </Field>
@@ -193,6 +212,20 @@ export function PlayerForm<TNameOption = never>({
         searchable={false}
         error={fieldError("clubs")}
       />
+
+      {isAdmin && (
+        <Field
+          label="Gender"
+          variant="select"
+          id={`${idPrefix}-gender`}
+          value={values.gender ?? ""}
+          onChange={(e) => onChange({ gender: e.target.value })}
+        >
+          <option value="">Unknown</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </Field>
+      )}
     </div>
   );
 }

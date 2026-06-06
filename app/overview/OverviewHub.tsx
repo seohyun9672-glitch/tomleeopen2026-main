@@ -208,21 +208,41 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
         </Section>
 
         <Section title={venueAndCourts.title} id={venueAndCourts.id}>
-          <p className="text-body text-[var(--color-text-secondary)]">{venueAndCourts.description}</p>
-          <Table
-            variant="data"
-            headers={[...venueAndCourts.prelimHeaders]}
-            dataRows={venueAndCourts.prelimRows.map((row) => [
-              <span key={`${row.location}-cell`}>
-                <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
-                  {row.location}
-                </a>
-              </span>,
-              row.date,
-              row.day,
-              row.time,
-            ])}
-          />
+          <div className="flex flex-col gap-[var(--element-gap)]">
+            <h3>{venueAndCourts.preliminariesHeading}</h3>
+            <p className="text-body text-[var(--color-text-secondary)]">{venueAndCourts.description}</p>
+            <Table
+              variant="data"
+              headers={[...venueAndCourts.prelimHeaders]}
+              dataRows={venueAndCourts.prelimRows.map((row) => [
+                <span key={`${row.location}-cell`}>
+                  <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
+                    {row.location}
+                  </a>
+                </span>,
+                row.date,
+                row.day,
+                row.time,
+              ])}
+            />
+          </div>
+          <div className="flex flex-col gap-[var(--element-gap)]">
+            <h3>{venueAndCourts.finalHeading}</h3>
+            <Table
+              variant="data"
+              headers={[...venueAndCourts.prelimHeaders]}
+              dataRows={[[
+                <span key="final-location-cell">
+                  <a href={venueAndCourts.finals.href} target="_blank" rel="noreferrer" className="link-default">
+                    {venueAndCourts.finals.location}
+                  </a>
+                </span>,
+                venueAndCourts.finals.dateDisplay,
+                venueAndCourts.finals.day,
+                venueAndCourts.finals.time,
+              ]]}
+            />
+          </div>
         </Section>
 
         <Section title={resultReporting.title} id={resultReporting.id}>

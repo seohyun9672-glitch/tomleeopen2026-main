@@ -23,7 +23,7 @@ export type TableCellProps =
   | { type: "checkbox"; checked: boolean; onToggle?: (e: React.MouseEvent<HTMLButtonElement>) => void };
 
 const DATA_CHIP_SHELL =
-  "inline-flex max-w-full min-w-0 shrink items-center rounded-2xl border border-[color:var(--chip-palette-ring)] px-2.5 py-1 text-left text-inherit font-medium leading-snug whitespace-normal [overflow-wrap:break-word] [word-break:break-word]";
+  "inline-flex w-fit shrink-0 items-center rounded-2xl border border-[color:var(--chip-palette-ring)] px-2.5 py-1 text-left font-medium leading-snug whitespace-nowrap";
 
 function TableCell(props: TableCellProps): ReactNode {
   switch (props.type) {
@@ -92,6 +92,8 @@ export type TableViewConfig<T> = {
   stableColumnLayout?: boolean;
   columnFlexWeights?: readonly number[];
   columnNoWrap?: readonly boolean[];
+  /** Extra CSS classes applied to every cell (th + td) in the column at that index. */
+  columnClass?: readonly (string | undefined)[];
   onRowClick?: (item: T) => void;
 };
 
@@ -121,7 +123,8 @@ function DataTable({
   rowGroupBreakBefore,
   onRowClick,
   sortConfig,
-}: DataTableProps) {
+  columnClass,
+}: DataTableProps & { columnClass?: readonly (string | undefined)[] }) {
   const { shouldCenter, widthsCh } = computeColumnMeta(headers ?? [], dataRows ?? []);
 
   const colgroup =
@@ -161,7 +164,7 @@ function DataTable({
                   return (
                     <th
                       key={`h-${j}`}
-                      className={`${headerCell} sticky top-0 z-20 ${shouldCenter[j] ? "text-center" : "text-left"}`}
+                      className={`${headerCell} sticky top-0 z-20 ${shouldCenter[j] ? "text-center" : "text-left"} ${columnClass?.[j] ?? ""}`}
                       aria-sort={
                         sortKey != null && sortConfig
                           ? sortConfig.activeKey === sortKey
@@ -236,7 +239,7 @@ function DataTable({
                   return (
                     <td
                       key={j}
-                      className={`${cell} ${alignClass} ${nowrap ? "whitespace-nowrap" : "whitespace-normal break-words"}`}
+                      className={`${cell} ${alignClass} ${nowrap ? "whitespace-nowrap" : "whitespace-normal break-words"} ${columnClass?.[j] ?? ""}`}
                     >
                       {c}
                     </td>
@@ -329,6 +332,7 @@ export function TableView<T>({
   stableColumnLayout,
   columnFlexWeights,
   columnNoWrap,
+  columnClass,
   onRowClick,
 }: TableViewConfig<T> & { items: T[] }) {
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
@@ -363,6 +367,7 @@ export function TableView<T>({
       stableColumnLayout={stableColumnLayout}
       columnFlexWeights={columnFlexWeights}
       columnNoWrap={columnNoWrap}
+      columnClass={columnClass}
       sortConfig={
         sortKeys.some((k) => k !== null)
           ? { activeKey: activeSortKey, direction: sortDir, keys: sortKeys, onSort: handleSort }

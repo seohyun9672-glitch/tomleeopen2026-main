@@ -62,6 +62,7 @@ model Player {
   fullNameKo              String?
   phone                   String?
   ntrp                    String?
+  gender                  String?
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
   registrations           TournamentRegistration[] @relation("RegistrationPlayer")
@@ -123,6 +124,7 @@ model Team {
   matchesAsTeam2     Match[]     @relation("MatchTeam2")
 
   @@id([tournamentYear, id])
+  @@unique([tournamentYear, categoryId, member1PlayerId, member2PlayerId])
   @@index([categoryId])
   @@index([tournamentYear, categoryId])
   @@index([member1PlayerId])
@@ -165,6 +167,7 @@ model Match {
   set2ScoreTeam2   String?
   set3ScoreTeam2   String?
   comment          String?
+  ball             String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -251,4 +254,23 @@ model AdminUser {
 model Ntrp {
   level     String @id // e.g. "2.5", "5.0+"
   sortOrder Int    @default(0)
+}
+
+// Prize amounts per year, per category type (doubles/singles), per team-count bracket.
+// Brackets: "12+" = 12 or more teams, "6+" = 6–11 teams, "4-5" = 4–5 teams.
+// Categories with status Pending or Inactive display $0 (enforced in the UI).
+model CategoryPrize {
+  id               String   @id @default(cuid())
+  tournamentYear   Int
+  isDoubles        Boolean  // true = doubles categories, false = singles
+  teamCountBracket String   // "12+" | "6+" | "4-5"
+  first            Int      @default(0)
+  second           Int      @default(0)
+  third            Int      @default(0)
+  fourth           Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([tournamentYear, isDoubles, teamCountBracket])
+  @@index([tournamentYear])
 }

@@ -15,6 +15,7 @@ import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
 import type { CategoryRecord } from "@/lib/categories";
 import type { Match } from "@/lib/matches";
 import { isCancelledMatch, isoDateLocal } from "@/lib/matches";
+import type { TeamRecord } from "@/lib/teams";
 import { ROUND_PRE, ROUND_F } from "@/lib/round";
 import { useLocale } from "@/lib/locale-context";
 import { DatabaseLayout, type FilterConfig } from "@/app/components/database";
@@ -136,7 +137,22 @@ type LeaderboardRow = {
 
 type DisplayInfo = { group: string; player1: string; player2?: string; player1Ko?: string; player2Ko?: string };
 
-function buildDisplayMap(prelims: Match[]): Map<string, DisplayInfo> {
+function buildDisplayMapFromTeams(teams: TeamRecord[]): Map<string, DisplayInfo> {
+  const map = new Map<string, DisplayInfo>();
+  for (const t of teams) {
+    if (!t.seed) continue;
+    map.set(t.id, {
+      group: t.seed,
+      player1: t.member1NameEn || "—",
+      player2: t.member2NameEn ?? undefined,
+      player1Ko: t.member1NameKo ?? undefined,
+      player2Ko: t.member2NameKo ?? undefined,
+    });
+  }
+  return map;
+}
+
+function buildDisplayMapFromMatches(prelims: Match[]): Map<string, DisplayInfo> {
   const map = new Map<string, DisplayInfo>();
   for (const m of prelims) {
     for (const [teamId, groupCode, name, nameKo] of [
@@ -162,12 +178,37 @@ function buildDisplayMap(prelims: Match[]): Map<string, DisplayInfo> {
   return map;
 }
 
-function buildLeaderboard(categoryMatches: Match[]): LeaderboardRow[] | null {
+function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[]): LeaderboardRow[] | null {
+  const seededTeams = categoryTeams.filter((t) => t.seed);
+  const statsMap = computePrelimStats(categoryMatches);
+
+  // Primary: use team records as the authoritative source (shows teams with 0 matches)
+  if (seededTeams.length >= 2) {
+    const displayMap = buildDisplayMapFromTeams(seededTeams);
+    const allRows = seededTeams
+      .filter((t) => displayMap.has(t.id))
+      .map((t) => ({ teamId: t.id, rank: 0, ...displayMap.get(t.id)!, ...(statsMap.get(t.id) ?? { w: 0, l: 0, sd: 0, gd: 0 }) }));
+    if (allRows.length < 2) return null;
+    const sorted = [...allRows].sort((a, b) =>
+      b.w !== a.w ? b.w - a.w
+      : b.sd !== a.sd ? b.sd - a.sd
+      : b.gd !== a.gd ? b.gd - a.gd
+      : a.group.localeCompare(b.group) || a.player1.localeCompare(b.player1)
+    );
+    let currentRank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
+    return sorted.map((row, i) => {
+      if (!prev || row.w !== prev.w || row.sd !== prev.sd || row.gd !== prev.gd) {
+        currentRank = i + 1; prev = { w: row.w, sd: row.sd, gd: row.gd };
+      }
+      return { ...row, rank: currentRank };
+    });
+  }
+
+  // Fallback: derive from match data (legacy path when no team records have seeds)
   const prelims = categoryMatches.filter((m) => m.round?.code === ROUND_PRE);
   if (prelims.length === 0) return null;
-  const statsMap = computePrelimStats(categoryMatches);
   if (statsMap.size < 2) return null;
-  const displayMap = buildDisplayMap(prelims);
+  const displayMap = buildDisplayMapFromMatches(prelims);
   const allRows = [...statsMap.keys()]
     .filter((id) => displayMap.has(id))
     .map((teamId) => ({ teamId, rank: 0, ...displayMap.get(teamId)!, ...statsMap.get(teamId)! }));
@@ -511,11 +552,11 @@ function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale }: 
 
 // ─── Hub types ────────────────────────────────────────────────────────────────
 
-type Props = { categories: CategoryRecord[]; allMatches: Match[] };
+type Props = { categories: CategoryRecord[]; allMatches: Match[]; allTeams: TeamRecord[] };
 
 // ─── Hub state ────────────────────────────────────────────────────────────────
 
-function useDrawsState({ categories, allMatches }: Props) {
+function useDrawsState({ categories, allMatches, allTeams }: Props) {
   const { locale } = useLocale();
   const today = isoDateLocal();
 
@@ -546,6 +587,11 @@ function useDrawsState({ categories, allMatches }: Props) {
     [allMatches, year, categoryId],
   );
 
+  const categoryTeams = useMemo(
+    () => allTeams.filter((t) => t.tournamentYear === year && t.categoryId === categoryId),
+    [allTeams, year, categoryId],
+  );
+
   // Rounds derived entirely from Prisma match data
   const availableRounds = useMemo(() => buildAvailableRounds(categoryMatches), [categoryMatches]);
   const prelimMatches = useMemo(
@@ -554,7 +600,7 @@ function useDrawsState({ categories, allMatches }: Props) {
   );
   const knockoutRounds = useMemo(() => buildKnockoutRounds(categoryMatches), [categoryMatches]);
 
-  const hasPrelim = prelimMatches.length > 0;
+  const hasPrelim = prelimMatches.length > 0 || categoryTeams.some((t) => t.seed);
   const hasKnockout = knockoutRounds.length > 0;
 
   const defaultStageCode = useMemo(
@@ -585,16 +631,18 @@ function useDrawsState({ categories, allMatches }: Props) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Group filter — reads team1Seed/team2Seed which store the prelim group letter (A, B, C…)
+  // Group filter — primary source is team seeds; falls back to match seed fields
   const [rawGroupParam, setGroupParam] = useUrlParam("group");
   const groupOptions = useMemo(() => {
+    const fromTeams = categoryTeams.map((t) => t.seed).filter(Boolean) as string[];
+    if (fromTeams.length > 0) return [...new Set(fromTeams)].sort();
     const seen = new Set<string>();
     for (const m of prelimMatches) {
       if (m.team1Seed?.trim()) seen.add(m.team1Seed.trim());
       if (m.team2Seed?.trim()) seen.add(m.team2Seed.trim());
     }
     return [...seen].sort();
-  }, [prelimMatches]);
+  }, [categoryTeams, prelimMatches]);
   const activeGroup = groupOptions.includes(rawGroupParam ?? "") ? (rawGroupParam ?? "") : (groupOptions[0] ?? "");
 
   const teamRankById = useMemo(() => buildPrelimRankMap(categoryMatches), [categoryMatches]);
@@ -615,7 +663,7 @@ function useDrawsState({ categories, allMatches }: Props) {
     activeGroup, setGroupParam, groupOptions,
     teamRankById,
     orderedRoundCodes, mobilePrevCode, mobileNextCode,
-    categoryMatches, today,
+    categoryMatches, categoryTeams, today,
   };
 }
 
@@ -633,7 +681,7 @@ export function DrawsHub(props: Props) {
     activeGroup, setGroupParam, groupOptions,
     teamRankById,
     orderedRoundCodes, mobilePrevCode, mobileNextCode,
-    categoryMatches, today,
+    categoryMatches, categoryTeams, today,
   } = useDrawsState(props);
 
   const isPrelim = isPrelimRound(stageCode);
@@ -671,7 +719,7 @@ export function DrawsHub(props: Props) {
   }, [setStageCode, knockoutRounds, today]);
 
   // Prelim leaderboard
-  const allLeaderboardRows = useMemo(() => buildLeaderboard(categoryMatches), [categoryMatches]);
+  const allLeaderboardRows = useMemo(() => buildLeaderboard(categoryMatches, categoryTeams), [categoryMatches, categoryTeams]);
   const rankMap = useMemo(() => {
     const map = new Map<string, number>();
     (allLeaderboardRows ?? []).forEach((r) => map.set(r.teamId, r.rank));
