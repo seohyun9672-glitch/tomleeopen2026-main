@@ -13,8 +13,7 @@ import {
   StatusFilter,
 } from "./Filters";
 import { SearchBox } from "@/app/components/ui/SearchBox";
-import { ScheduleDatePicker } from "@/app/schedule/ScheduleDatePicker";
-import type { Match } from "@/lib/matches";
+import { DatePicker } from "@/app/components/ui/DatePicker";
 import { CardView } from "./CardView";
 import { TableView } from "@/app/components/ui/table/Table";
 import type { TableViewConfig } from "@/app/components/ui/table/Table";
@@ -27,7 +26,7 @@ export type DateFilterConfig = {
   type: "date";
   value: string;
   onChange: (v: string) => void;
-  matches: Match[];
+  enabledDates?: Set<string>;
 };
 
 export type YearFilterConfig = {
@@ -124,8 +123,8 @@ export type ManagedDateFilterConfig<T> = {
   type: "date";
   /** URL search param key. Defaults to {@link filterTypeParam}("date") = "date". */
   param?: string;
-  /** Passed to ScheduleDatePicker to show available dates. */
-  matches: Match[];
+  /** Dates that are selectable in the picker. When omitted, all dates are enabled. */
+  enabledDates?: Set<string>;
   /** Fallback when the URL param is absent. Receives the full dataset. */
   defaultValue?: (data: T[]) => string;
   apply: (items: T[], date: string) => T[];
@@ -310,10 +309,17 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
     case "date":
       return (
         <Filter control="date" htmlFor={id} label={t.shared.labels.date}>
-          <ScheduleDatePicker
+          <DatePicker
+            id={id}
             value={config.value}
             onChange={config.onChange}
-            matches={config.matches}
+            enabledDates={config.enabledDates}
+            placeholder={t.schedulePage.selectDatePlaceholder}
+            aria-label={t.schedulePage.chooseDateAria}
+            aria-label-dialog={t.schedulePage.calendarDialogAria}
+            aria-label-prev={t.schedulePage.previousMonth}
+            aria-label-next={t.schedulePage.nextMonth}
+            className="w-full md:w-fit"
           />
         </Filter>
       );
@@ -437,7 +443,7 @@ function computeManaged<T>(
         type: "date",
         value,
         onChange: (v) => set(f.param, v),
-        matches: f.matches,
+        enabledDates: f.enabledDates,
       });
       if (value) items = f.apply(items, value);
 

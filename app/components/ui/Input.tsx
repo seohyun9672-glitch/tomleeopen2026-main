@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
 /**
  * shadcn/ui-style {@link https://ui.shadcn.com/docs/components/input Input} mapped to this app’s form CSS variables.
  */
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+function Input({ className, type, style, ...props }: React.ComponentProps<"input">) {
+  const isDateOrTime = type === "date" || type === "time";
+  const isNumber = type === "number";
   return (
     <input
       type={type}
@@ -18,8 +20,11 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "focus-visible:border-[color:var(--input-focus-border)]",
         "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-[var(--input-text)]",
+        isDateOrTime && "overflow-hidden [&::-webkit-datetime-edit-fields-wrapper]:p-0 [&::-webkit-datetime-edit]:text-[var(--input-text)] [&::-webkit-inner-spin-button]:hidden",
+        isNumber && "[appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden",
         className
       )}
+      style={{ accentColor: isDateOrTime ? "var(--input-focus-border)" : undefined, ...style }}
       {...props}
     />
   );

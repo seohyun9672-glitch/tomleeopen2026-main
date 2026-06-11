@@ -385,7 +385,7 @@ type GroupFilterProps = {
 export function GroupFilter({ id, value, options, onChange, allLabel }: GroupFilterProps) {
   const { t } = useLocale();
   return (
-    <Filter control="round" htmlFor={id} label={t.shared.labels.group}>
+    <Filter control="round" htmlFor={id} label={t.shared.labels.seed}>
       <Filter.Select
         id={id}
         value={value}

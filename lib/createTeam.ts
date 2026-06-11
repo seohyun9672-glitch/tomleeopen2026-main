@@ -5,11 +5,32 @@ async function nextTeamId(tournamentYear: number, categoryId: string): Promise<s
     where: { tournamentYear, categoryId },
     select: { id: true },
   });
-  const max = existing.reduce((m, t) => {
-    const n = parseInt(t.id.match(/(\d+)$/)?.[1] ?? "0", 10);
-    return Math.max(m, n);
-  }, 0);
-  return `${tournamentYear}${categoryId}${max + 1}`;
+  const used = new Set(existing.map((t) => parseInt(t.id.match(/(\d+)$/)?.[1] ?? "0", 10)));
+  let n = 1;
+  while (used.has(n)) n++;
+  return `${tournamentYear}${categoryId}${n}`;
+}
+
+export async function renumberTeamsInCategory(tournamentYear: number, categoryId: string): Promise<void> {
+  const teams = await prisma.team.findMany({
+    where: { tournamentYear, categoryId },
+  });
+  teams.sort((a, b) => {
+    const na = parseInt(a.id.match(/(\d+)$/)?.[1] ?? "0", 10);
+    const nb = parseInt(b.id.match(/(\d+)$/)?.[1] ?? "0", 10);
+    return na - nb;
+  });
+  for (let i = 0; i < teams.length; i++) {
+    const team = teams[i];
+    const finalId = `${tournamentYear}${categoryId}${i + 1}`;
+    if (team.id === finalId) continue;
+    await prisma.match.updateMany({ where: { tournamentYear, team1Id: team.id }, data: { team1Id: finalId } });
+    await prisma.match.updateMany({ where: { tournamentYear, team2Id: team.id }, data: { team2Id: finalId } });
+    await prisma.team.delete({ where: { tournamentYear_id: { tournamentYear, id: team.id } } });
+    await prisma.team.create({
+      data: { id: finalId, tournamentYear, categoryId, seed: team.seed, member1PlayerId: team.member1PlayerId, member2PlayerId: team.member2PlayerId },
+    });
+  }
 }
 
 export async function createTeamFromRegistration({

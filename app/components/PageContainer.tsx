@@ -21,7 +21,8 @@ const PATH_TITLES: Partial<Record<string, (t: Messages) => string>> = {
   "/media":        (t) => t.mediaPage.heroTitle,
   "/honour-roll":  (t) => t.heroTitle,
   "/rules":        (t) => t.rulesPage.heroTitle,
-  "/overview":     (t) => t.overviewPage.heroTitle,
+  "/overview":      (t) => t.overviewPage.heroTitle,
+  "/court-booking": (t) => t.courtBookingPage.heroTitle,
 };
 
 export type PageContainerProps = {

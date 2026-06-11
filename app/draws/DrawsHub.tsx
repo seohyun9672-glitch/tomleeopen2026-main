@@ -12,11 +12,12 @@ import {
 } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
-import type { CategoryRecord } from "@/lib/categories";
+import type { CategoryRecord, CategoryYearStatusRow } from "@/lib/categories";
 import type { Match } from "@/lib/matches";
 import { isCancelledMatch, isoDateLocal } from "@/lib/matches";
 import type { TeamRecord } from "@/lib/teams";
-import { ROUND_PRE, ROUND_F } from "@/lib/round";
+import { ROUND_PRE, ROUND_F, ELIMINATION_ROUND_ORDER } from "@/lib/round";
+import type { RoundRecord } from "@/lib/round";
 import { useLocale } from "@/lib/locale-context";
 import { DatabaseLayout, type FilterConfig } from "@/app/components/database";
 import { StageHeader } from "@/app/components/tree/StageHeader";
@@ -37,6 +38,10 @@ type RoundInfo = { code: string; labelEn: string; labelKo: string; sortOrder: nu
 
 // ─── Round utilities ───────────────────────────────────────────────────────────
 
+const ELIMINATION_ROUND_INDEX: Record<string, number> = Object.fromEntries(
+  ELIMINATION_ROUND_ORDER.map((c, i) => [c, i])
+);
+
 function isPrelimRound(code: string): boolean {
   return code === ROUND_PRE;
 }
@@ -55,7 +60,49 @@ function buildKnockoutRounds(matches: Match[]): KnockoutRound[] {
     }
     map.get(r.code)!.matches.push(m);
   }
-  return [...map.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+  return [...map.values()].sort((a, b) => {
+    const ia = ELIMINATION_ROUND_INDEX[a.code] ?? a.sortOrder + 1000;
+    const ib = ELIMINATION_ROUND_INDEX[b.code] ?? b.sortOrder + 1000;
+    return ia - ib;
+  });
+}
+
+// For elimination: always show the full bracket skeleton (R16/R32 → QF → SF → F),
+// even if some rounds have no matches yet. Teams determine the first round.
+function buildEliminationKnockoutRounds(
+  matches: Match[],
+  teamCount: number,
+  allRounds: RoundRecord[],
+): KnockoutRound[] {
+  // Collect existing matches by round code
+  const matchesByRound = new Map<string, Match[]>();
+  for (const m of matches) {
+    const code = m.round?.code;
+    if (!code || isPrelimRound(code)) continue;
+    if (!matchesByRound.has(code)) matchesByRound.set(code, []);
+    matchesByRound.get(code)!.push(m);
+  }
+
+  // Determine which skeleton rounds to show: R32 only if ≥32 teams
+  const firstRoundCode = teamCount >= 32 ? "R32" : "R16";
+  const firstIdx = ELIMINATION_ROUND_ORDER.indexOf(firstRoundCode);
+  const expectedCodes = ELIMINATION_ROUND_ORDER.slice(firstIdx); // e.g. ["R16","QF","SF","F"]
+
+  const roundByCode = new Map(allRounds.map((r) => [r.code, r]));
+
+  return expectedCodes
+    .map((code) => {
+      const roundMeta = roundByCode.get(code);
+      if (!roundMeta) return null;
+      return {
+        code,
+        labelEn: roundMeta.labelEn,
+        labelKo: roundMeta.labelKo,
+        sortOrder: roundMeta.sortOrder,
+        matches: matchesByRound.get(code) ?? [],
+      };
+    })
+    .filter((r): r is KnockoutRound => r !== null);
 }
 
 function buildAvailableRounds(matches: Match[]): RoundInfo[] {
@@ -228,34 +275,28 @@ function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[])
   });
 }
 
-// ─── Group match sorting ───────────────────────────────────────────────────────
+// ─── Prelim match sorting ──────────────────────────────────────────────────────
 
-function groupTuple(code: string | null | undefined): [string, number] {
-  const v = (code ?? "").trim();
-  const an = /^([A-Za-z])(\d+)$/.exec(v);
-  if (an) return [an[1]!.toUpperCase(), parseInt(an[2]!, 10)];
-  const num = /^(\d+)$/.exec(v);
-  if (num) return ["￿", parseInt(num[1]!, 10)];
-  const alpha = /^([A-Za-z])/.exec(v);
-  return [alpha ? alpha[1]!.toUpperCase() : "￿", 9999];
+const PRELIM_STATUS_ORDER: Record<string, number> = {
+  Scheduled: 0,
+  Pending: 1,
+  Completed: 2,
+  Cancelled: 3,
+};
+
+function extractMatchSeq(id: string, roundCode = ROUND_PRE): number {
+  const idx = id.lastIndexOf(roundCode);
+  const after = idx !== -1 ? id.slice(idx + roundCode.length) : id;
+  return parseInt(/^[A-Za-z]?(\d+)$/.exec(after)?.[1] ?? "0", 10);
 }
 
-function cmpGroups(a: [string, number], b: [string, number]): number {
-  return a[0] !== b[0] ? a[0].localeCompare(b[0]) : a[1] - b[1];
-}
-
-function sortGroupMatches(matches: Match[]): Match[] {
+function sortPrelimMatches(matches: Match[]): Match[] {
   return [...matches].sort((a, b) => {
-    const t1a = groupTuple(a.team1Seed); const t2a = groupTuple(a.team2Seed);
-    const t1b = groupTuple(b.team1Seed); const t2b = groupTuple(b.team2Seed);
-    const [aLow, aHigh] = cmpGroups(t1a, t2a) <= 0 ? [t1a, t2a] : [t2a, t1a];
-    const [bLow, bHigh] = cmpGroups(t1b, t2b) <= 0 ? [t1b, t2b] : [t2b, t1b];
-    return cmpGroups(aLow, bLow) || cmpGroups(aHigh, bHigh)
-      || (a.matchNumber ?? 0) - (b.matchNumber ?? 0)
-      || (/^\d{4}-\d{2}-\d{2}$/.test(a.date ?? "") ? a.date! : "0000")
-          .localeCompare(/^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "") ? b.date! : "0000")
-      || (a.time ?? "").localeCompare(b.time ?? "")
-      || a.id.localeCompare(b.id);
+    const seqDiff = extractMatchSeq(a.id) - extractMatchSeq(b.id);
+    if (seqDiff !== 0) return seqDiff;
+    const statusDiff = (PRELIM_STATUS_ORDER[a.matchStatus] ?? 99) - (PRELIM_STATUS_ORDER[b.matchStatus] ?? 99);
+    if (statusDiff !== 0) return statusDiff;
+    return a.id.localeCompare(b.id);
   });
 }
 
@@ -280,8 +321,8 @@ function resolveBracketTeamDisplayRank(
 
 type RoundGeom = { centers: number[]; height: number };
 
-function sortByMatchNumber(matches: Match[]): Match[] {
-  return [...matches].sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0) || a.id.localeCompare(b.id));
+function sortByMatchId(matches: Match[]): Match[] {
+  return [...matches].sort((a, b) => a.id.localeCompare(b.id));
 }
 
 function mergeCentersToCount(centers: number[], target: number, H: number): number[] {
@@ -457,7 +498,7 @@ type BracketViewProps = {
 
 function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale }: BracketViewProps) {
   const sortedRounds = useMemo(
-    () => knockoutRounds.map((r) => ({ ...r, matches: sortByMatchNumber(r.matches) })),
+    () => knockoutRounds.map((r) => ({ ...r, matches: sortByMatchId(r.matches) })),
     [knockoutRounds],
   );
   const layoutKey = useMemo(
@@ -505,7 +546,7 @@ function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale }: 
     : "min-w-[var(--match-card-min-width)] flex-1 basis-0 shrink-0";
 
   const mobileRound = knockoutRounds.find((r) => r.code === activeRoundCode);
-  const mobileMatches = mobileRound ? sortByMatchNumber(mobileRound.matches) : null;
+  const mobileMatches = mobileRound ? sortByMatchId(mobileRound.matches) : null;
 
   const renderCol = (r: KnockoutRound & { matches: Match[] }) => (
     <div className={`flex flex-col self-start ${colClass}`}>
@@ -552,11 +593,11 @@ function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale }: 
 
 // ─── Hub types ────────────────────────────────────────────────────────────────
 
-type Props = { categories: CategoryRecord[]; allMatches: Match[]; allTeams: TeamRecord[] };
+type Props = { categories: CategoryRecord[]; allMatches: Match[]; allTeams: TeamRecord[]; allRounds: RoundRecord[]; categoryStatuses: CategoryYearStatusRow[] };
 
 // ─── Hub state ────────────────────────────────────────────────────────────────
 
-function useDrawsState({ categories, allMatches, allTeams }: Props) {
+function useDrawsState({ categories, allMatches, allTeams, allRounds, categoryStatuses }: Props) {
   const { locale } = useLocale();
   const today = isoDateLocal();
 
@@ -570,9 +611,19 @@ function useDrawsState({ categories, allMatches, allTeams }: Props) {
   const setYear = useCallback((y: number) => setYearParam(String(y), { clear: ["stage", "group"] }), [setYearParam]);
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
+  const activeCategories = useMemo(() => {
+    const active = new Set(
+      categoryStatuses.filter((s) => s.status === "Active").map((s) => `${s.tournamentYear}:${s.categoryId}`)
+    );
+    return active;
+  }, [categoryStatuses]);
+
   const categoriesToShow = useMemo(
-    () => categories.filter((c) => allMatches.some((m) => m.tournamentYear === year && m.categoryId === c.id)),
-    [categories, year, allMatches],
+    () => categories.filter((c) =>
+      activeCategories.has(`${year}:${c.id}`) &&
+      allMatches.some((m) => m.tournamentYear === year && m.categoryId === c.id)
+    ),
+    [categories, year, allMatches, activeCategories],
   );
   const [rawCatParam, setCatParam] = useUrlParam("cat");
   const categoryId = categoriesToShow.some((c) => c.id === rawCatParam) ? rawCatParam : (categoriesToShow[0]?.id ?? "");
@@ -586,21 +637,29 @@ function useDrawsState({ categories, allMatches, allTeams }: Props) {
     () => allMatches.filter((m) => m.tournamentYear === year && m.categoryId === categoryId),
     [allMatches, year, categoryId],
   );
-
   const categoryTeams = useMemo(
     () => allTeams.filter((t) => t.tournamentYear === year && t.categoryId === categoryId),
     [allTeams, year, categoryId],
   );
 
-  // Rounds derived entirely from Prisma match data
+  const isElimination = useMemo(
+    () => categories.find((c) => c.id === categoryId)?.prelimFormat === "ELIMINATION",
+    [categories, categoryId],
+  );
+
   const availableRounds = useMemo(() => buildAvailableRounds(categoryMatches), [categoryMatches]);
   const prelimMatches = useMemo(
     () => categoryMatches.filter((m) => m.round?.code === ROUND_PRE),
     [categoryMatches],
   );
-  const knockoutRounds = useMemo(() => buildKnockoutRounds(categoryMatches), [categoryMatches]);
+  const knockoutRounds = useMemo(() => {
+    if (isElimination) {
+      return buildEliminationKnockoutRounds(categoryMatches, categoryTeams.length, allRounds);
+    }
+    return buildKnockoutRounds(categoryMatches);
+  }, [isElimination, categoryMatches, categoryTeams, allRounds]);
 
-  const hasPrelim = prelimMatches.length > 0 || categoryTeams.some((t) => t.seed);
+  const hasPrelim = !isElimination && (prelimMatches.length > 0 || categoryTeams.some((t) => t.seed));
   const hasKnockout = knockoutRounds.length > 0;
 
   const defaultStageCode = useMemo(
@@ -610,14 +669,22 @@ function useDrawsState({ categories, allMatches, allTeams }: Props) {
   );
 
   const [stageParam, setStageParam] = useUrlParam("stage");
+
+  // For elimination, valid stages include the full skeleton (R16/R32–F), even rounds
+  // without matches yet. For other formats, only rounds with actual matches are valid.
+  const validStageCodes = useMemo(
+    () => new Set(isElimination ? knockoutRounds.map((r) => r.code) : availableRounds.map((r) => r.code)),
+    [isElimination, knockoutRounds, availableRounds],
+  );
+
   const stageCode: string = useMemo(() => {
-    const isValid = availableRounds.some((r) => r.code === stageParam);
+    const isValid = validStageCodes.has(stageParam ?? "");
     const resolved = isValid ? stageParam! : defaultStageCode;
     if (isPrelimRound(resolved) && !hasPrelim) {
-      return knockoutRounds[knockoutRounds.length - 1]?.code ?? resolved;
+      return knockoutRounds[0]?.code ?? resolved;
     }
     return resolved;
-  }, [stageParam, defaultStageCode, availableRounds, hasPrelim, knockoutRounds]);
+  }, [stageParam, defaultStageCode, validStageCodes, hasPrelim, knockoutRounds]);
 
   const setStageCode = useCallback(
     (code: string) => setStageParam(code, { clear: ["group"] }),
@@ -625,15 +692,15 @@ function useDrawsState({ categories, allMatches, allTeams }: Props) {
   );
 
   useLayoutEffect(() => {
-    const isValid = availableRounds.some((r) => r.code === stageParam);
+    const isValid = validStageCodes.has(stageParam ?? "");
     if (!isValid || (isPrelimRound(stageParam ?? "") && !hasPrelim)) {
       setStageParam(defaultStageCode);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Group filter — primary source is team seeds; falls back to match seed fields
   const [rawGroupParam, setGroupParam] = useUrlParam("group");
   const groupOptions = useMemo(() => {
+    if (isElimination) return [];
     const fromTeams = categoryTeams.map((t) => t.seed).filter(Boolean) as string[];
     if (fromTeams.length > 0) return [...new Set(fromTeams)].sort();
     const seen = new Set<string>();
@@ -642,13 +709,24 @@ function useDrawsState({ categories, allMatches, allTeams }: Props) {
       if (m.team2Seed?.trim()) seen.add(m.team2Seed.trim());
     }
     return [...seen].sort();
-  }, [categoryTeams, prelimMatches]);
+  }, [isElimination, categoryTeams, prelimMatches]);
   const activeGroup = groupOptions.includes(rawGroupParam ?? "") ? (rawGroupParam ?? "") : (groupOptions[0] ?? "");
 
-  const teamRankById = useMemo(() => buildPrelimRankMap(categoryMatches), [categoryMatches]);
+  const teamRankById = useMemo(
+    () => isElimination ? new Map<string, number>() : buildPrelimRankMap(categoryMatches),
+    [isElimination, categoryMatches],
+  );
 
-  // Mobile round navigation — all rounds in sortOrder
-  const orderedRoundCodes = useMemo(() => availableRounds.map((r) => r.code), [availableRounds]);
+  // For elimination: mobile nav uses only knockout rounds in canonical order (R16/R32 → QF → SF → F).
+  // For non-elimination: include all rounds (PRE first, then knockout) in DB sort order.
+  const orderedRoundCodes = useMemo(() => {
+    if (isElimination) {
+      return Object.keys(ELIMINATION_ROUND_INDEX)
+        .sort((a, b) => ELIMINATION_ROUND_INDEX[a]! - ELIMINATION_ROUND_INDEX[b]!)
+        .filter((code) => knockoutRounds.some((r) => r.code === code));
+    }
+    return availableRounds.map((r) => r.code);
+  }, [isElimination, knockoutRounds, availableRounds]);
   const navIndex = orderedRoundCodes.indexOf(stageCode);
   const mobilePrevCode = navIndex > 0 ? orderedRoundCodes[navIndex - 1] : null;
   const mobileNextCode = navIndex >= 0 && navIndex < orderedRoundCodes.length - 1 ? orderedRoundCodes[navIndex + 1] : null;
@@ -658,6 +736,7 @@ function useDrawsState({ categories, allMatches, allTeams }: Props) {
     categoryId, setCategoryId, categoryOptions,
     stageCode, setStageCode,
     availableRounds,
+    isElimination,
     prelimMatches, knockoutRounds,
     hasPrelim, hasKnockout,
     activeGroup, setGroupParam, groupOptions,
@@ -676,6 +755,7 @@ export function DrawsHub(props: Props) {
     categoryId, setCategoryId, categoryOptions,
     stageCode, setStageCode,
     availableRounds,
+    isElimination,
     prelimMatches, knockoutRounds,
     hasPrelim, hasKnockout,
     activeGroup, setGroupParam, groupOptions,
@@ -684,27 +764,25 @@ export function DrawsHub(props: Props) {
     categoryMatches, categoryTeams, today,
   } = useDrawsState(props);
 
-  const isPrelim = isPrelimRound(stageCode);
+  const isPrelim = !isElimination && isPrelimRound(stageCode);
   const showMobileStageNav = orderedRoundCodes.length > 1;
 
-  // Stage title for mobile — from match round data
   const stageTitle = useMemo(() => {
     const r = availableRounds.find((r) => r.code === stageCode);
     return r ? roundLabel(r, locale) : "";
   }, [availableRounds, stageCode, locale]);
 
-  // Desktop round filter: "Preliminary" | "Finals" — only shown if both exist
+  // Prelim toggle + group filter — GRR / RR only
   const roundFilterOptions = useMemo(() => {
+    if (isElimination) return [];
     const opts: { value: string; label: string }[] = [];
     if (hasPrelim) {
       const pr = availableRounds.find((r) => isPrelimRound(r.code));
       opts.push({ value: "prelim", label: pr ? roundLabel(pr, locale) : t.drawsPage.prelims.prelimsMatches });
     }
-    if (hasKnockout) {
-      opts.push({ value: "knockout", label: t.drawsPage.drawStageFinalsBracket });
-    }
+    if (hasKnockout) opts.push({ value: "knockout", label: t.drawsPage.drawStageFinalsBracket });
     return opts;
-  }, [hasPrelim, hasKnockout, availableRounds, locale, t.drawsPage.drawStageFinalsBracket, t.drawsPage.prelims.prelimsMatches]);
+  }, [isElimination, hasPrelim, hasKnockout, availableRounds, locale, t.drawsPage.drawStageFinalsBracket, t.drawsPage.prelims.prelimsMatches]);
 
   const handleRoundFilterChange = useCallback((value: string) => {
     if (value === "prelim") {
@@ -718,8 +796,11 @@ export function DrawsHub(props: Props) {
     }
   }, [setStageCode, knockoutRounds, today]);
 
-  // Prelim leaderboard
-  const allLeaderboardRows = useMemo(() => buildLeaderboard(categoryMatches, categoryTeams), [categoryMatches, categoryTeams]);
+  // Leaderboard — GRR / RR only
+  const allLeaderboardRows = useMemo(
+    () => isElimination ? null : buildLeaderboard(categoryMatches, categoryTeams),
+    [isElimination, categoryMatches, categoryTeams],
+  );
   const rankMap = useMemo(() => {
     const map = new Map<string, number>();
     (allLeaderboardRows ?? []).forEach((r) => map.set(r.teamId, r.rank));
@@ -727,9 +808,7 @@ export function DrawsHub(props: Props) {
   }, [allLeaderboardRows]);
   const leaderboardRows = useMemo(() => {
     if (!allLeaderboardRows) return null;
-    const filtered = activeGroup
-      ? allLeaderboardRows.filter((r) => r.group === activeGroup)
-      : allLeaderboardRows;
+    const filtered = activeGroup ? allLeaderboardRows.filter((r) => r.group === activeGroup) : allLeaderboardRows;
     let rank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
     return filtered.map((r, i) => {
       if (!prev || r.w !== prev.w || r.sd !== prev.sd || r.gd !== prev.gd) {
@@ -740,32 +819,30 @@ export function DrawsHub(props: Props) {
   }, [allLeaderboardRows, activeGroup]);
 
   const prelimMatchesFiltered = useMemo(() => {
+    if (isElimination) return [];
     const filtered = activeGroup
       ? prelimMatches.filter((m) => m.team1Seed?.trim() === activeGroup || m.team2Seed?.trim() === activeGroup)
       : prelimMatches;
-    return sortGroupMatches(filtered);
-  }, [prelimMatches, activeGroup]);
+    return sortPrelimMatches(filtered);
+  }, [isElimination, prelimMatches, activeGroup]);
 
   const drawsFilters: FilterConfig[] = [
     { type: "year", value: String(year), years, onChange: (v) => setYear(Number(v)) },
     { type: "category", value: categoryId, options: categoryOptions, onChange: setCategoryId },
   ];
-  if (hasPrelim || hasKnockout) {
-    drawsFilters.push({
-      type: "round",
-      value: isPrelim ? "prelim" : "knockout",
-      options: roundFilterOptions,
-      onChange: handleRoundFilterChange,
-      desktopOnly: true,
-    });
-  }
-  if (isPrelim && groupOptions.length > 0) {
-    drawsFilters.push({
-      type: "group",
-      value: activeGroup,
-      options: groupOptions,
-      onChange: setGroupParam,
-    });
+  if (!isElimination) {
+    if (hasPrelim || hasKnockout) {
+      drawsFilters.push({
+        type: "round",
+        value: isPrelim ? "prelim" : "knockout",
+        options: roundFilterOptions,
+        onChange: handleRoundFilterChange,
+        desktopOnly: true,
+      });
+    }
+    if (isPrelim && groupOptions.length > 0) {
+      drawsFilters.push({ type: "group", value: activeGroup, options: groupOptions, onChange: setGroupParam });
+    }
   }
 
   return (
@@ -793,67 +870,7 @@ export function DrawsHub(props: Props) {
           </div>
         )}
 
-        {isPrelim && hasPrelim && (
-          <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
-            {leaderboardRows && leaderboardRows.length > 0 && (
-              <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
-                <Table
-                  variant="data"
-                  headers={[
-                    t.drawsPage.prelims.tableRank,
-                    t.drawsPage.prelims.tablePlayers,
-                    t.drawsPage.prelims.tableW,
-                    t.drawsPage.prelims.tableL,
-                    t.drawsPage.prelims.tableSD,
-                    t.drawsPage.prelims.tableGD,
-                  ]}
-                  dataRows={leaderboardRows.map((r) => {
-                    const p1 = locale === "ko" ? (r.player1Ko ?? r.player1) : r.player1;
-                    const p2 = r.player2 ? (locale === "ko" ? (r.player2Ko ?? r.player2) : r.player2) : undefined;
-                    return [
-                      r.rank,
-                      p2 ? <span key={r.teamId} className="flex flex-col gap-0.5"><span>{p1}</span><span>{p2}</span></span> : p1,
-                      r.w, r.l, r.sd, r.gd,
-                    ];
-                  })}
-                  columnNoWrap={[true, true, true, true, true, true]}
-                />
-                {locale !== "ko" && (
-                  <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--foreground)]">
-                    {[
-                      `${t.drawsPage.prelims.tableW} - Wins`,
-                      `${t.drawsPage.prelims.tableL} - Losses`,
-                      `${t.drawsPage.prelims.tableSD} - Set difference`,
-                      `${t.drawsPage.prelims.tableGD} - Game difference`,
-                    ].map((item) => (
-                      <li key={item} className="flex items-center before:mr-2 before:content-['•']">{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
-              {prelimMatchesFiltered.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-tertiary)]">{t.drawsPage.prelims.noPrelimsMatches}</p>
-              ) : (
-                <ul className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
-                  {prelimMatchesFiltered.map((match) => (
-                    <li key={match.id}>
-                      <MatchCard
-                        match={match}
-                        omitCategoryInHeader
-                        team1Rank={match.team1Id ? (rankMap.get(match.team1Id) ?? null) : null}
-                        team2Rank={match.team2Id ? (rankMap.get(match.team2Id) ?? null) : null}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!isPrelim && (
+        {isElimination ? (
           knockoutRounds.length === 0 ? (
             <p className="text-sm text-[var(--color-text-tertiary)]">{t.drawsPage.drawNoMatches}</p>
           ) : (
@@ -864,6 +881,81 @@ export function DrawsHub(props: Props) {
               locale={locale}
             />
           )
+        ) : (
+          <>
+            {isPrelim && hasPrelim && (
+              <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
+                {leaderboardRows && leaderboardRows.length > 0 && (
+                  <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
+                    <Table
+                      variant="data"
+                      headers={[
+                        t.drawsPage.prelims.tableRank,
+                        t.drawsPage.prelims.tablePlayers,
+                        t.drawsPage.prelims.tableW,
+                        t.drawsPage.prelims.tableL,
+                        t.drawsPage.prelims.tableSD,
+                        t.drawsPage.prelims.tableGD,
+                      ]}
+                      dataRows={leaderboardRows.map((r) => {
+                        const p1 = locale === "ko" ? (r.player1Ko ?? r.player1) : r.player1;
+                        const p2 = r.player2 ? (locale === "ko" ? (r.player2Ko ?? r.player2) : r.player2) : undefined;
+                        return [
+                          r.rank,
+                          p2 ? <span key={r.teamId} className="flex flex-col gap-0.5"><span>{p1}</span><span>{p2}</span></span> : p1,
+                          r.w, r.l, r.sd, r.gd,
+                        ];
+                      })}
+                      columnNoWrap={[true, true, true, true, true, true]}
+                    />
+                    {locale !== "ko" && (
+                      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--foreground)]">
+                        {[
+                          `${t.drawsPage.prelims.tableW} - Wins`,
+                          `${t.drawsPage.prelims.tableL} - Losses`,
+                          `${t.drawsPage.prelims.tableSD} - Set difference`,
+                          `${t.drawsPage.prelims.tableGD} - Game difference`,
+                        ].map((item) => (
+                          <li key={item} className="flex items-center before:mr-2 before:content-['•']">{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
+                  {prelimMatchesFiltered.length === 0 ? (
+                    <p className="text-sm text-[var(--color-text-tertiary)]">{t.drawsPage.prelims.noPrelimsMatches}</p>
+                  ) : (
+                    <ul className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
+                      {prelimMatchesFiltered.map((match) => (
+                        <li key={match.id}>
+                          <MatchCard
+                            match={match}
+                            omitCategoryInHeader
+                            team1Rank={match.team1Id ? (rankMap.get(match.team1Id) ?? null) : null}
+                            team2Rank={match.team2Id ? (rankMap.get(match.team2Id) ?? null) : null}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!isPrelim && (
+              knockoutRounds.length === 0 ? (
+                <p className="text-sm text-[var(--color-text-tertiary)]">{t.drawsPage.drawNoMatches}</p>
+              ) : (
+                <BracketView
+                  knockoutRounds={knockoutRounds}
+                  teamRankById={teamRankById}
+                  activeRoundCode={stageCode}
+                  locale={locale}
+                />
+              )
+            )}
+          </>
         )}
 
       </div>

@@ -10,6 +10,7 @@ export const adminPage = {
         categories: "Category",
         prizes: "Prizes",
         admins: "Admin users",
+        courtBookings: "Court Bookings",
       },
       actions: {
         addRegistration: "Add Registration",
@@ -52,7 +53,6 @@ export const adminPage = {
           number: "#",
           player1: "Player 1",
           player2: "Player 2",
-          group: "Group",
         },
       },
       matches: {
@@ -63,7 +63,6 @@ export const adminPage = {
           score: "Score",
           time: "Time",
           location: "Location",
-          group: "Group",
         },
         modal: {
           title: "Edit Match",
@@ -136,6 +135,22 @@ export const adminPage = {
           note: "The admin will set their password on first login.",
         },
       },
+      courtBookings: {
+        dateLabel: "Date",
+        empty: "No courts",
+        bookedLabel: "Booked",
+        availableLabel: "Available",
+        notAvailableLabel: "Not available",
+        columns: {
+          court: "Court",
+          status: "Status",
+          team1: "Team 1",
+          team2: "Team 2",
+          matchId: "Match",
+        },
+        manageTitle: "Manage Booking",
+        courtBookingNotesLabel: "Notes (optional)",
+      },
     },
   },
   ko: {
@@ -149,6 +164,7 @@ export const adminPage = {
         categories: "카테고리",
         prizes: "상금",
         admins: "관리자 계정",
+        courtBookings: "코트 예약",
       },
       actions: {
         addRegistration: "등록 추가",
@@ -191,7 +207,6 @@ export const adminPage = {
           number: "#",
           player1: "선수 1",
           player2: "선수 2",
-          group: "조",
         },
       },
       matches: {
@@ -202,7 +217,6 @@ export const adminPage = {
           score: "점수",
           time: "시간",
           location: "장소",
-          group: "조",
         },
         modal: {
           title: "경기 편집",
@@ -274,6 +288,22 @@ export const adminPage = {
           addTitle: "관리자 추가",
           note: "관리자는 첫 로그인 시 비밀번호를 설정합니다.",
         },
+      },
+      courtBookings: {
+        dateLabel: "날짜",
+        empty: "코트 정보 없음",
+        bookedLabel: "예약됨",
+        availableLabel: "예약 가능",
+        notAvailableLabel: "해당 없음",
+        columns: {
+          court: "코트",
+          status: "상태",
+          team1: "팀 1",
+          team2: "팀 2",
+          matchId: "경기",
+        },
+        manageTitle: "코트 예약 관리",
+        courtBookingNotesLabel: "메모 (선택사항)",
       },
     },
   },

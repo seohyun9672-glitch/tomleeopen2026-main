@@ -21,14 +21,6 @@ const CALENDAR_ACCENT_BG = [
 const CALENDAR_CELL_TEXT = "text-[var(--color-text-primary)]";
 const CALENDAR_EXCLUDED_LABELS = new Set(["Tournament"]);
 
-const CALENDAR_ACCENT_BY_LABEL: Record<string, number> = {
-  Tournament: 0,
-  Registration: 1,
-  Preliminaries: 2,
-  Quarterfinals: 3,
-  Semifinals: 4,
-  Final: 5,
-};
 
 type CalendarSourceEntry = Extract<ImportantDateEntry, { type: "date" } | { type: "range" }>;
 
@@ -65,8 +57,8 @@ function getHighlightedCellClass(index: number): string {
   return `${getAccentClass(index)} ${CALENDAR_CELL_TEXT}`;
 }
 
-function getAccentIndex(entry: CalendarSourceEntry, orderIndex: number): number {
-  return CALENDAR_ACCENT_BY_LABEL[entry.label] ?? orderIndex % CALENDAR_ACCENT_BG.length;
+function getAccentIndex(_entry: CalendarSourceEntry, orderIndex: number): number {
+  return orderIndex % CALENDAR_ACCENT_BG.length;
 }
 
 function getDaysInMonth(year: number, month: number): number {

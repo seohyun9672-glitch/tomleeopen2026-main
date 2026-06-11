@@ -3,6 +3,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { ComboboxProps } from "@/app/components/ui/Combobox";
 import { Combobox } from "@/app/components/ui/Combobox";
+import { DatePicker } from "@/app/components/ui/DatePicker";
+import type { DatePickerProps } from "@/app/components/ui/DatePicker";
+import { TimePicker } from "@/app/components/ui/TimePicker";
+import type { TimePickerProps } from "@/app/components/ui/TimePicker";
 import { Input } from "@/app/components/ui/Input";
 import { MultiSelect } from "@/app/components/ui/MultiSelect";
 import { Select } from "@/app/components/ui/Select";
@@ -28,7 +32,9 @@ export type FieldProps<TOption = unknown> =
   | ({ variant: "textarea" } & ComponentProps<typeof Textarea>)
   | ({ variant: "select" } & ComponentProps<typeof Select>)
   | ({ variant: "combobox" } & ComboboxProps<TOption>)
-  | ({ variant: "multiselect" } & ComponentProps<typeof MultiSelect>);
+  | ({ variant: "multiselect" } & ComponentProps<typeof MultiSelect>)
+  | ({ variant: "datepicker" } & DatePickerProps)
+  | ({ variant: "timepicker" } & TimePickerProps);
 
 type FieldWrapProps = {
   /** Renders a label above the input. */
@@ -85,6 +91,14 @@ function renderInput<TOption>(props: FieldProps<TOption>): ReactNode {
     case "multiselect": {
       const { variant: _v, ...rest } = props;
       return <MultiSelect {...rest} />;
+    }
+    case "datepicker": {
+      const { variant: _v, ...rest } = props;
+      return <DatePicker {...rest} />;
+    }
+    case "timepicker": {
+      const { variant: _v, ...rest } = props;
+      return <TimePicker {...rest} />;
     }
     case "text":
     case "email":

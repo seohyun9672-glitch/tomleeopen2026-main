@@ -8,101 +8,101 @@ datasource db {
 }
 
 model Club {
-  id          String   @id @default(cuid())
-  code        String   @unique // e.g. "CTC", "VKTC"
-  name        String?  // display name e.g. "Coquitlam Tennis Club"
-  nameKo      String?  // Korean name
-  description String?  // about the club
-  logo        String?  // path from public e.g. /clubs/ctc.png
-  sortOrder   Int      @default(0) // lower first
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String?
+  nameKo      String?
+  description String?
+  logo        String?
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   players     PlayerClub[]
 }
 
 model Category {
-  id            String                 @id // e.g. "MD-B", "MS-S"
-  label         String                 // full display e.g. "Men's Doubles – Bronze"
-  labelKo       String?                // full display e.g. "남자 복식 – 동배"
-  category      String?                // e.g. "Men's Doubles", "Men's Singles"
-  categoryKo    String?                // e.g. "남자 복식", "남자 단식"
-  tier          String?                // e.g. "Bronze", "Silver", "Gold", "Open"
-  tierKo        String?                // e.g. "동배", "은배", "금배", "오픈"
-  isDoubles     Boolean                @default(false) // true for MD, WD, XD doubles categories
-  ntrp          String?                // e.g. "7.5–8.0", "6.5–7.0"
-  sortOrder     Int                    @default(0)
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  registrations TournamentRegistration[]
-  teams         Team[]
-  matches       Match[]
-  media         Media[]
-  /// Per-year status for this category (Pending | Confirmed | Cancelled); see `CategoryYearStatus`.
+  id                   String                   @id
+  label                String
+  labelKo              String?
+  ntrp                 String?
+  sortOrder            Int                      @default(0)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  isDoubles            Boolean                  @default(false)
+  category             String?
+  tier                 String?
+  categoryKo           String?
+  tierKo               String?
+  prelimFormat         String?                  // "GROUP_ROUND_ROBIN" | "ROUND_ROBIN" | "ELIMINATION"
+  matches              Match[]
+  media                Media[]
+  teams                Team[]
   categoryYearStatuses CategoryYearStatus[]
+  registrations        TournamentRegistration[]
 }
 
+/// Round table comment in schema refers to "Pre" code — updated to "PRE" via fix-match-ids script.
 /// SQLite table kept as `TournamentCategoryYear` for existing DBs; Prisma model name is clearer in code.
 model CategoryYearStatus {
   tournamentYear Int
   categoryId     String
-  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   status         String   @default("Pending")
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([tournamentYear, categoryId])
   @@index([tournamentYear])
   @@map("TournamentCategoryYear")
 }
 
-
 model Player {
-  id                      Int                     @id @default(autoincrement())
-  email                   String
-  fullNameEn              String
-  fullNameKo              String?
-  phone                   String?
-  ntrp                    String?
-  gender                  String?
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
-  registrations           TournamentRegistration[] @relation("RegistrationPlayer")
-  registrationsAsPartner  TournamentRegistration[] @relation("RegistrationPartner")
-  teamsAsMember1          Team[]                  @relation("TeamMember1")
-  teamsAsMember2          Team[]                  @relation("TeamMember2")
-  clubs                   PlayerClub[]
+  id                     Int                      @id @default(autoincrement())
+  email                  String
+  fullNameEn             String
+  fullNameKo             String?
+  phone                  String?
+  ntrp                   String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  gender                 String?
+  clubs                  PlayerClub[]
+  teamsAsMember1         Team[]                   @relation("TeamMember1")
+  teamsAsMember2         Team[]                   @relation("TeamMember2")
+  registrationsAsPartner TournamentRegistration[] @relation("RegistrationPartner")
+  registrations          TournamentRegistration[] @relation("RegistrationPlayer")
 
   @@index([email])
 }
 
 model PlayerClub {
-  playerId  Int
-  clubCode  String
-  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  club      Club   @relation(fields: [clubCode], references: [code], onDelete: Cascade)
+  playerId Int
+  clubCode String
+  club     Club   @relation(fields: [clubCode], references: [code], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@id([playerId, clubCode])
   @@index([clubCode])
 }
 
 model TournamentRegistration {
-  id                 String    @id @default(cuid())
-  tournamentYear     Int       @default(2026)
-  playerId           Int
-  categoryId         String
-  player             Player    @relation("RegistrationPlayer", fields: [playerId], references: [id], onDelete: Cascade)
-  category           Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  nameOnEtransfer    String?
-  partnerName        String?
-  partnerId          Int?
-  partner            Player?   @relation("RegistrationPartner", fields: [partnerId], references: [id], onDelete: SetNull)
-  photoVideoConsent  Boolean   @default(false)
-  notes              String?
-  adminComments      String?
-  paymentReceived    Boolean   @default(false)
+  id                String   @id @default(cuid())
+  tournamentYear    Int      @default(2026)
+  playerId          Int
+  categoryId        String
+  nameOnEtransfer   String?
+  partnerName       String?
+  partnerId         Int?
+  photoVideoConsent Boolean  @default(false)
+  engraving         String?
+  notes             String?
   /// Pending | Confirmed | Cancelled — derived from paymentReceived + category status
-  status             String    @default("Pending")
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  status            String   @default("Confirmed")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  paymentReceived   Boolean  @default(false)
+  adminComments     String?
+  category          Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  partner           Player?  @relation("RegistrationPartner", fields: [partnerId], references: [id])
+  player            Player   @relation("RegistrationPlayer", fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentYear, playerId, categoryId])
   @@index([playerId])
@@ -111,20 +111,20 @@ model TournamentRegistration {
 }
 
 model Team {
-  id                String    // display id: categoryId + number e.g. "MD-B1", "MD-B2"
-  tournamentYear    Int
-  categoryId        String
-  category          Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  seed              String?   // e.g. "A", "B", "C", "D" for seeded teams
-  member1PlayerId   Int       // FK to Player; for singles this is the only player
-  member2PlayerId   Int?      // FK to Player; null for singles
-  member1           Player    @relation("TeamMember1", fields: [member1PlayerId], references: [id], onDelete: Cascade)
-  member2           Player?   @relation("TeamMember2", fields: [member2PlayerId], references: [id], onDelete: SetNull)
-  matchesAsTeam1     Match[]     @relation("MatchTeam1")
-  matchesAsTeam2     Match[]     @relation("MatchTeam2")
+  id              String
+  tournamentYear  Int
+  categoryId      String
+  seed            String?
+  member1PlayerId Int
+  member2PlayerId Int?
+  matchesAsTeam1  Match[]  @relation("MatchTeam1")
+  matchesAsTeam2  Match[]  @relation("MatchTeam2")
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  member1         Player   @relation("TeamMember1", fields: [member1PlayerId], references: [id], onDelete: Cascade)
+  member2         Player?  @relation("TeamMember2", fields: [member2PlayerId], references: [id])
 
   @@id([tournamentYear, id])
-  @@unique([tournamentYear, categoryId, member1PlayerId, member2PlayerId])
+  @@unique([tournamentYear, categoryId, member1PlayerId, member2PlayerId], map: "Team_tournamentYear_categoryId_member1PlayerId_member2PlayerId_")
   @@index([categoryId])
   @@index([tournamentYear, categoryId])
   @@index([member1PlayerId])
@@ -132,138 +132,145 @@ model Team {
 }
 
 /// Round lookup table — single source of truth for round codes, labels, and sort order.
-/// Codes: "Pre" | "R16" | "QF" | "SF" | "F". Seeded via prisma/seed.ts.
+/// Codes: "PRE" | "R16" | "R32" | "QF" | "SF" | "F". Seeded via prisma/seed.ts.
 model Round {
   id        Int     @id @default(autoincrement())
-  code      String  @unique  // "Pre" | "R16" | "QF" | "SF" | "F"
+  code      String  @unique
   labelEn   String
   labelKo   String
   sortOrder Int
   matches   Match[]
 }
 
-// Match: canonical id — see `lib/matchId.ts` (prelims: `YY`+cat+`PRE`+pool letter+`n`).
 model Match {
-  /// Id: `{YY}{categoryId}PRE{seedLetter}{n}` for prelims (e.g. `25MSBPREA1`), else `{YY}{categoryId}{ROUND}{n}`. See `lib/matchId.ts`.
-  id               String      @id
-  tournamentYear   Int
-  categoryId       String
-  category         Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  roundId          Int?
-  round            Round?      @relation(fields: [roundId], references: [id])
-  matchNumber      Int?
-  team1Id          String?
-  team2Id          String?
-  team1            Team?    @relation("MatchTeam1", fields: [tournamentYear, team1Id], references: [tournamentYear, id], onDelete: Cascade)
-  team2            Team?    @relation("MatchTeam2", fields: [tournamentYear, team2Id], references: [tournamentYear, id], onDelete: Cascade)
-  matchStatus      String   @default("Scheduled") // Completed, Cancelled, etc.
-  date             String?
-  time             String?
-  location         String?
-  set1ScoreTeam1   String?
-  set2ScoreTeam1   String?
-  set3ScoreTeam1   String?
-  set1ScoreTeam2   String?
-  set2ScoreTeam2   String?
-  set3ScoreTeam2   String?
-  comment          String?
-  ball             String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  /// Id pattern: `{YY}{catId}{roundCode}{group}{n}` — Finals omit `{n}`. See `lib/generateMatches.ts`.
+  id             String   @id
+  tournamentYear Int
+  categoryId     String
+  round          String?
+  team1Id        String?
+  team2Id        String?
+  matchStatus    String   @default("Scheduled")
+  date           String?
+  time           String?
+  location       String?
+  set1ScoreTeam1 String?
+  set2ScoreTeam1 String?
+  set3ScoreTeam1 String?
+  set1ScoreTeam2 String?
+  set2ScoreTeam2 String?
+  set3ScoreTeam2 String?
+  comment        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ball           String?
+  category       Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  roundRef       Round?        @relation(fields: [round], references: [code])
+  courtBooking   CourtBooking?
+  team1          Team?         @relation("MatchTeam1", fields: [tournamentYear, team1Id], references: [tournamentYear, id], onDelete: Cascade)
+  team2          Team?         @relation("MatchTeam2", fields: [tournamentYear, team2Id], references: [tournamentYear, id], onDelete: Cascade)
 
   @@index([tournamentYear])
   @@index([categoryId])
-  @@index([roundId])
   @@index([tournamentYear, categoryId])
-  @@index([tournamentYear, date])
+}
+
+model CourtBooking {
+  id             String   @id @default(cuid())
+  tournamentYear Int
+  courtId        String
+  date           String
+  teamId         String?
+  matchId        String?  @unique
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  status         String   @default("Available")
+  match          Match?   @relation(fields: [matchId], references: [id])
+
+  @@unique([courtId, date])
+  @@index([date])
+  @@index([tournamentYear])
+  @@index([teamId])
 }
 
 model Sponsor {
   id        String   @id @default(cuid())
   name      String
+  image     String
   website   String?
-  image     String?  // path from public e.g. /sponsors/sedation-dental.png
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model CommunityPartner {
-  id        String   @id @default(cuid())
+  id        String   @id(map: "SupportingBusiness_pkey") @default(cuid())
   name      String
+  image     String
   website   String?
-  image     String?  // path from public e.g. /community-partners/dc-skin.png
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// Coaches for lessons section; store images in public/coaches/
 model Coach {
   id         String   @id @default(cuid())
-  name       String   // English display name
-  fullNameKo String?  // Korean name e.g. 진혁, 최석철
+  name       String
+  fullNameKo String?
   phone      String?
-  image      String?  // path from public, e.g. /coaches/harry-jin.png
+  image      String?
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
 
-// Media: articles, videos, photos. type = "articles" | "videos" | "photos"
-// For type "photos": categoryId + tournamentYear group gallery by category (e.g. 2025 Tomlee Open Final).
 model Media {
-  id              String    @id @default(cuid())
-  type            String    // "articles" | "videos" | "photos"
-  title           String
-  subtitle        String?
-  date            DateTime?
-  image           String?   // card thumbnail path/URL (e.g. /media/articles/foo.png)
+  id                 String    @id @default(cuid())
+  type               String
+  title              String
+  subtitle           String?
+  date               DateTime?
+  image              String?
   /// When there is no cover image, shown in the card image area (overrides default “No image” copy).
-  imagePlaceholder String?
+  imagePlaceholder   String?
   imagePlaceholderKo String?
-  media           String?   // URL or path to the media / article link (for photos: image URL)
-  outlet          String?   // source name e.g. "The Joong Ang", "Vanchosun"
-  outletKo        String?   // Korean name of the outlet
-  titleKo         String?   // Korean title override
-  subtitleKo      String?   // Korean subtitle override
-  sortOrder       Int       @default(0)
-  categoryId      String?
-  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  tournamentYear  Int?      // for photos: e.g. 2025
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  media              String?
+  outlet             String?
+  sortOrder          Int       @default(0)
+  categoryId         String?
+  tournamentYear     Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  titleKo            String?
+  subtitleKo         String?
+  outletKo           String?
+  category           Category? @relation(fields: [categoryId], references: [id])
 
   @@index([type])
   @@index([type, tournamentYear, categoryId])
   @@index([categoryId])
 }
 
-// Admin users: whitelist emails can register once with a password. Used for /admin access.
 model AdminUser {
   id           String   @id @default(cuid())
-  email        String   @unique // lowercase, must be in allowed list
-  passwordHash String?  // null = stub created by superadmin; user sets password on first login
-  active       Boolean  @default(true) // false = cannot log in
+  email        String   @unique
+  passwordHash String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  active       Boolean  @default(true)
 }
 
-// NTRP skill levels available as dropdown options in registration.
-// Seeded values: "2.5", "3.0", "3.5", "4.0", "4.5", "5.0", "5.0+"
 model Ntrp {
-  level     String @id // e.g. "2.5", "5.0+"
+  level     String @id
   sortOrder Int    @default(0)
 }
 
-// Prize amounts per year, per category type (doubles/singles), per team-count bracket.
-// Brackets: "12+" = 12 or more teams, "6+" = 6–11 teams, "4-5" = 4–5 teams.
-// Categories with status Pending or Inactive display $0 (enforced in the UI).
 model CategoryPrize {
   id               String   @id @default(cuid())
   tournamentYear   Int
-  isDoubles        Boolean  // true = doubles categories, false = singles
-  teamCountBracket String   // "12+" | "6+" | "4-5"
+  isDoubles        Boolean
+  teamCountBracket String
   first            Int      @default(0)
   second           Int      @default(0)
   third            Int      @default(0)

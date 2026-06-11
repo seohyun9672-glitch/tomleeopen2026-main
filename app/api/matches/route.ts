@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       },
       include: {
         category: { select: { label: true, labelKo: true } },
-        round: { select: { code: true, labelEn: true } },
+        roundRef: { select: { code: true, labelEn: true } },
         team1: {
           include: {
             member1: { select: { fullNameEn: true, fullNameKo: true } },
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
           },
         },
       },
-      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { matchNumber: "asc" }],
+      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { id: "asc" }],
     });
 
     return NextResponse.json(
@@ -44,8 +44,8 @@ export async function GET(request: Request) {
         categoryId: r.categoryId,
         categoryLabel: r.category.label,
         categoryLabelKo: r.category.labelKo,
-        roundCode: r.round?.code ?? null,
-        roundLabel: r.round?.labelEn ?? null,
+        roundCode: r.roundRef?.code ?? null,
+        roundLabel: r.roundRef?.labelEn ?? null,
         group: extractGroup(r.id),
         team1Names: r.team1
           ? [r.team1.member1.fullNameEn, r.team1.member2?.fullNameEn ?? null].filter(Boolean)

@@ -42,7 +42,8 @@ export type IconButtonProps = {
   title?: string;
   variant?: ButtonVariant;
   className?: string;
-  children: ReactNode;
+  icon?: ReactNode;
+  children?: ReactNode;
 } & Omit<ComponentProps<"button">, "className" | "children" | "type">;
 
 const BUTTON_BASE_CLASS = [
@@ -75,7 +76,7 @@ export const buttonVariants = cva(BUTTON_BASE_CLASS, {
       transparent: [
         "border-2 border-transparent bg-transparent",
         // text + icon use same foreground
-        "text-[var(  --icon-button-text)] [&_svg]:text-current",
+        "text-[var(--icon-button-text)] [&_svg]:text-current",
         // interaction
         "hover:bg-[var(--color-surface-hover)] active:bg-[var(--color-surface-hover)]",
         // focus (match primary)
@@ -198,6 +199,7 @@ export function Button(props: ButtonProps) {
 export function IconButton({
   variant,
   className,
+  icon,
   children,
   title,
   ...rest
@@ -214,7 +216,7 @@ export function IconButton({
       )}
       {...rest}
     >
-      {children}
+      {icon ?? children}
     </button>
   );
 }

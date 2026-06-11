@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateMatches } from "@/lib/generateMatches";
 
 /** PATCH /api/categoryStatus/[id] — upsert status for a category + year.
  *  Cascades to registrations:

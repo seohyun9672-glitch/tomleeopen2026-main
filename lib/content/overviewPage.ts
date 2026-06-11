@@ -1,6 +1,29 @@
 import { importantDates } from "@/lib/importantDatesData";
 import { EXTERNAL_LINKS } from "@/lib/externalLinks";
 import { contactData } from "@/lib/contactData";
+import { VENUES } from "@/lib/content/courts";
+import { formatDateDisplay } from "@/lib/matches";
+
+// Jan 2 2000 was a Sunday; offset by dayOfWeek to get the right weekday
+function weekdayLabel(dayOfWeek: number, locale: "en" | "ko"): string {
+  const d = new Date(2000, 0, 2 + dayOfWeek);
+  const name = d.toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", { weekday: "long" });
+  return locale === "ko" ? `매주 ${name}` : `${name}s`;
+}
+
+function venuePrelimRow(v: typeof VENUES[number], locale: "en" | "ko") {
+  // Gates Park name already ends with "Courts" — no extra "Court" word needed
+  const courtSuffix = v.id === "gates-park"
+    ? ` ${v.courts.join(", ")}`
+    : ` Court ${v.courts.join(", ")}`;
+  return {
+    location: v.name + courtSuffix,
+    href: v.href,
+    date: `${formatDateDisplay(v.startDate, locale)} – ${formatDateDisplay(v.endDate, locale)}`,
+    day: weekdayLabel(v.dayOfWeek, locale),
+    time: v.timeSlot,
+  };
+}
 
 const _finalEntry = importantDates.find((e) => e.label === "Final");
 const finalDateEn =
@@ -104,29 +127,7 @@ export const overviewPage = {
           dateDisplay: finalDateEn,
         },
         prelimHeaders: ["Location", "Date", "Day", "Time"],
-        prelimRows: [
-          {
-            location: "Fraser Heights Court 1, 2",
-            href: EXTERNAL_LINKS.fraserHeightsCourt12,
-            date: "June 27 – Aug 18",
-            day: "Tuesdays",
-            time: "7:00 – 9:00 PM",
-          },
-          {
-            location: "Fraser Heights Court North",
-            href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
-            date: "June 27 – Aug 16",
-            day: "Sundays",
-            time: "5:00 – 7:00 PM",
-          },
-          {
-            location: "Gates Park Tennis Courts 1, 2",
-            href: EXTERNAL_LINKS.gatesParkTennisCourts,
-            date: "July 4 – Aug 15",
-            day: "Saturdays",
-            time: "6:00 – 8:00 PM",
-          },
-        ],
+        prelimRows: VENUES.map((v) => venuePrelimRow(v, "en")),
       },
       resultReporting: {
         id: "result-reporting",
@@ -256,29 +257,7 @@ export const overviewPage = {
           dateDisplay: finalDateKo,
         },
         prelimHeaders: ["장소", "날짜", "요일", "시간"],
-        prelimRows: [
-          {
-            location: "Fraser Heights Court 1, 2",
-            href: EXTERNAL_LINKS.fraserHeightsCourt12,
-            date: "6월 27일 – 8월 18일",
-            day: "매주 화요일",
-            time: "오후 7:00 – 9:00",
-          },
-          {
-            location: "Fraser Heights Court North",
-            href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
-            date: "6월 27일 – 8월 16일",
-            day: "매주 일요일",
-            time: "오후 5:00 – 7:00",
-          },
-          {
-            location: "Gates Park Tennis Courts 1, 2",
-            href: EXTERNAL_LINKS.gatesParkTennisCourts,
-            date: "7월 4일 – 8월 15일",
-            day: "매주 토요일",
-            time: "오후 6:00 – 8:00",
-          },
-        ],
+        prelimRows: VENUES.map((v) => venuePrelimRow(v, "ko")),
       },
       resultReporting: {
         id: "result-reporting",

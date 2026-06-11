@@ -5,6 +5,7 @@ import { Divider } from "@/app/components/ui/Divider";
 import { Label } from "@/app/components/ui/Label";
 import { useLocale } from "@/lib/locale-context";
 import { clubChipClass } from "@/lib/clubs";
+import { formatNtrp } from "@/lib/utils";
 import { categoryChipClass } from "@/lib/categories";
 import type { PlayerRow } from "@/app/admin/AdminHub";
 
@@ -26,13 +27,6 @@ function PhoneIcon() {
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatNtrp(ntrp: string): string {
-  const num = parseFloat(ntrp);
-  if (isNaN(num)) return ntrp;
-  return num % 1 === 0 ? num.toFixed(1) : ntrp;
-}
 
 // ─── PlayerCard ───────────────────────────────────────────────────────────────
 
@@ -61,15 +55,11 @@ export function PlayerCard({ player, tournaments, onClick }: PlayerCardProps) {
   }
   const yearEntries = [...byYear.entries()].sort((a, b) => b[0] - a[0]);
 
-  const genderColor =
-    player.gender === "F"
-      ? "var(--color-gender-female)"
-      : player.gender === "M"
-      ? "var(--color-gender-male)"
-      : undefined;
-
   const genderSymbol =
     player.gender === "F" ? "♀" : player.gender === "M" ? "♂" : null;
+
+  const genderChipClass =
+    player.gender === "F" ? "chip-gender-female" : player.gender === "M" ? "chip-gender-male" : "";
 
   return (
     <button
@@ -85,16 +75,12 @@ export function PlayerCard({ player, tournaments, onClick }: PlayerCardProps) {
               {displayName}
             </span>
             {genderSymbol && (
-              <span
-                className="shrink-0 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium leading-none"
-                style={{
-                  color: genderColor,
-                  backgroundColor: `color-mix(in srgb, ${genderColor} 12%, white)`,
-                }}
+              <Chip
+                label={genderSymbol}
+                size="sm"
+                className={`shrink-0 border-0 ${genderChipClass}`}
                 aria-label={player.gender === "F" ? "Female" : "Male"}
-              >
-                {genderSymbol}
-              </span>
+              />
             )}
           </div>
           {player.ntrp && (

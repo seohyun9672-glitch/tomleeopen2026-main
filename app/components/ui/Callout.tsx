@@ -6,19 +6,28 @@ type CalloutProps = {
   message: string;
   linkLabel?: string;
   href?: string;
+  variant?: "info" | "success" | "warning";
   className?: string;
 };
 
-export function Callout({ title, message, linkLabel, href, className }: CalloutProps) {
+const VARIANT_STYLES = {
+  info:    { wrap: "border-[var(--outline-blue-soft)] bg-[var(--color-primary-blue-50)]",             icon: "text-[var(--color-primary)]" },
+  success: { wrap: "border-[color:var(--status-success-fg)]/30 bg-[color:var(--status-success-bg)]", icon: "text-[var(--color-status-success)]" },
+  warning: { wrap: "border-[color:var(--status-warning-fg)]/30 bg-[color:var(--status-warning-bg)]",  icon: "text-[var(--status-warning-fg)]" },
+} as const;
+
+export function Callout({ title, message, linkLabel, href, variant = "info", className }: CalloutProps) {
+  const styles = VARIANT_STYLES[variant];
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-xl border border-[var(--outline-blue-soft)] bg-[var(--color-primary-blue-50)] px-4 py-3.5",
+        "flex items-start gap-3 rounded-xl border px-4 py-3.5",
+        styles.wrap,
         className,
       )}
     >
       <svg
-        className="mt-0.5 shrink-0 text-[var(--color-primary)]"
+        className={cn("mt-0.5 shrink-0", styles.icon)}
         width={16}
         height={16}
         viewBox="0 0 16 16"

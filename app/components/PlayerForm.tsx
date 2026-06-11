@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Field } from "@/app/components/ui/Field";
 import { useLocale } from "@/lib/locale-context";
 import { clubChipClass } from "@/lib/clubs";
-import { formatPhone } from "@/lib/phone";
+import { formatPhone } from "@/lib/utils";
 
 import type { ClubRecord } from "@/lib/clubs";
 
@@ -18,15 +18,17 @@ export type PlayerFormValues = {
   clubs: string[];
 };
 
-type NameComboboxProps<TOption> = {
-  loadOptions: (q: string) => Promise<TOption[]>;
-  onSelect: (option: TOption) => void;
-  getOptionKey: (option: TOption) => string | number;
-  getOptionLabelEn: (option: TOption) => string;
-  getOptionLabelKo: (option: TOption) => string;
+export type PlayerSearchResult = {
+  id: number;
+  fullNameEn: string;
+  fullNameKo: string | null;
+  email: string;
+  phone: string | null;
+  ntrp: string | null;
+  clubs: string[];
 };
 
-type Props<TNameOption = never> = {
+type Props = {
   values: PlayerFormValues;
   onChange: (updates: Partial<PlayerFormValues>) => void;
   /** Pre-loaded club options. If omitted, the form fetches /api/clubs itself. */
@@ -40,15 +42,15 @@ type Props<TNameOption = never> = {
   errors?: Record<string, string>;
   /** Fields that show a required (*) marker on their label. */
   required?: Partial<Record<keyof PlayerFormValues, boolean>>;
-  /** When provided, name fields render as comboboxes for player search. */
-  nameCombobox?: NameComboboxProps<TNameOption>;
+  /** Called when a player is selected from the name lookup combobox, after form values are updated. */
+  onPlayerSelect?: (player: PlayerSearchResult) => void;
   /** Called on blur for any field with the current raw value. */
   onFieldBlur?: (field: keyof PlayerFormValues, value: string) => void;
   /** Extra props forwarded to the phone input (e.g. inputMode, autoComplete). */
   phoneInputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 };
 
-export function PlayerForm<TNameOption = never>({
+export function PlayerForm({
   values,
   onChange,
   clubOptions: clubOptionsProp,
@@ -57,11 +59,11 @@ export function PlayerForm<TNameOption = never>({
   idPrefix = "player",
   errors,
   required,
-  nameCombobox,
+  onPlayerSelect,
   onFieldBlur,
   phoneInputProps,
-}: Props<TNameOption>) {
-  const { t } = useLocale();
+}: Props) {
+  const { t, locale } = useLocale();
   const rf = t.registrationForm;
   const f = t.shared.form;
 
@@ -81,26 +83,37 @@ export function PlayerForm<TNameOption = never>({
     fetch("/api/clubs")
       .then((r) => (r.ok ? r.json() : []))
       .then((clubs: ClubRecord[]) => {
-          const codes = clubs.map((c) => c.code);
-          codes.sort((a, b) => {
-            const aN = a.toUpperCase() === "N/A";
-            const bN = b.toUpperCase() === "N/A";
-            if (aN !== bN) return aN ? 1 : -1;
-            return a.localeCompare(b);
-          });
-          setFetchedClubOptions(codes);
-        })
+        const codes = clubs.map((c) => c.code);
+        codes.sort((a, b) => {
+          const aN = a.toUpperCase() === "N/A";
+          const bN = b.toUpperCase() === "N/A";
+          if (aN !== bN) return aN ? 1 : -1;
+          return a.localeCompare(b);
+        });
+        setFetchedClubOptions(codes);
+      })
       .catch(() => {});
   }, [clubOptionsProp]);
 
   const resolvedNtrpLevels = ntrpLevelsProp ?? fetchedNtrpLevels;
   const resolvedClubOptions = clubOptionsProp ?? fetchedClubOptions;
-  const clubSelectedOptions = values.clubs.map((c) => ({ id: c, label: c, chipClassName: clubChipClass(c) }));
-  const clubAvailableOptions = resolvedClubOptions.map((c) => ({ id: c, label: c }));
+  const clubSelectedOptions = values.clubs.map((c) => ({
+    id: c,
+    label: c,
+    chipClassName: clubChipClass(c),
+  }));
+  const clubAvailableOptions = resolvedClubOptions.map((c) => ({
+    id: c,
+    label: c,
+  }));
 
   function fieldLabel(key: keyof PlayerFormValues, text: string): ReactNode {
     if (!required?.[key]) return text;
-    return <>{text} <span className="text-[var(--form-required-mark)]">*</span></>;
+    return (
+      <>
+        {text} <span className="text-[var(--form-required-mark)]">*</span>
+      </>
+    );
   }
 
   function fieldError(key: keyof PlayerFormValues): ReactNode {
@@ -108,61 +121,60 @@ export function PlayerForm<TNameOption = never>({
     return msg ? <p className="form-field-error">{msg}</p> : undefined;
   }
 
-  const nc = nameCombobox as NameComboboxProps<TNameOption> | undefined;
+  async function loadPlayerOptions(
+    query: string,
+  ): Promise<PlayerSearchResult[]> {
+    if (!query.trim()) return [];
+    const res = await fetch(`/api/players?name=${encodeURIComponent(query)}`);
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  function handlePlayerSelect(player: PlayerSearchResult) {
+    onChange({
+      fullNameEn: player.fullNameEn,
+      fullNameKo: player.fullNameKo ?? "",
+      email: player.email,
+      phone: player.phone ?? "",
+      ntrp: player.ntrp ?? "",
+      clubs: player.clubs,
+    });
+    onPlayerSelect?.(player);
+  }
 
   return (
     <div className="space-y-4">
-      {nc ? (
-        <Field<TNameOption>
-          label={fieldLabel("fullNameEn", f.fullNameEn)}
-          variant="combobox"
-          id={`${idPrefix}-name-en`}
-          value={values.fullNameEn}
-          onValueChange={(v) => onChange({ fullNameEn: v })}
-          loadOptions={nc.loadOptions}
-          onSelect={nc.onSelect}
-          getOptionKey={nc.getOptionKey}
-          getOptionLabel={nc.getOptionLabelEn}
-          aria-invalid={Boolean(errors?.fullNameEn)}
-          onBlur={(e) => onFieldBlur?.("fullNameEn", e.target.value)}
-          error={fieldError("fullNameEn")}
-        />
-      ) : (
-        <Field
-          label={fieldLabel("fullNameEn", f.fullNameEn)}
-          variant="text"
-          id={`${idPrefix}-name-en`}
-          value={values.fullNameEn}
-          onChange={(e) => onChange({ fullNameEn: e.target.value })}
-          onBlur={(e) => onFieldBlur?.("fullNameEn", e.target.value)}
-          aria-invalid={Boolean(errors?.fullNameEn)}
-          error={fieldError("fullNameEn")}
-        />
-      )}
+      <Field<PlayerSearchResult>
+        label={fieldLabel("fullNameEn", f.fullNameEn)}
+        variant="combobox"
+        id={`${idPrefix}-name-en`}
+        value={values.fullNameEn}
+        onValueChange={(v) => onChange({ fullNameEn: v })}
+        loadOptions={loadPlayerOptions}
+        onSelect={handlePlayerSelect}
+        getOptionKey={(p) => p.id}
+        getOptionLabel={(p) => p.fullNameEn}
+        aria-invalid={Boolean(errors?.fullNameEn)}
+        onBlur={(e) => onFieldBlur?.("fullNameEn", e.target.value)}
+        error={fieldError("fullNameEn")}
+      />
 
-      {nc ? (
-        <Field<TNameOption>
-          label={fieldLabel("fullNameKo", f.fullNameKo)}
-          variant="combobox"
-          id={`${idPrefix}-name-ko`}
-          value={values.fullNameKo}
-          onValueChange={(v) => onChange({ fullNameKo: v })}
-          loadOptions={nc.loadOptions}
-          onSelect={nc.onSelect}
-          getOptionKey={nc.getOptionKey}
-          getOptionLabel={nc.getOptionLabelKo}
-          error={fieldError("fullNameKo")}
-        />
-      ) : (
-        <Field
-          label={fieldLabel("fullNameKo", f.fullNameKo)}
-          variant="text"
-          id={`${idPrefix}-name-ko`}
-          value={values.fullNameKo}
-          onChange={(e) => onChange({ fullNameKo: e.target.value })}
-          error={fieldError("fullNameKo")}
-        />
-      )}
+      <Field<PlayerSearchResult>
+        label={fieldLabel("fullNameKo", f.fullNameKo)}
+        variant="combobox"
+        id={`${idPrefix}-name-ko`}
+        value={values.fullNameKo}
+        onValueChange={(v) => onChange({ fullNameKo: v })}
+        loadOptions={loadPlayerOptions}
+        onSelect={handlePlayerSelect}
+        getOptionKey={(p) => p.id}
+        getOptionLabel={(p) =>
+          locale === "ko"
+            ? (p.fullNameKo ?? p.fullNameEn)
+            : (p.fullNameKo ?? p.fullNameEn)
+        }
+        error={fieldError("fullNameKo")}
+      />
 
       <Field
         label={fieldLabel("email", f.email)}
@@ -197,7 +209,9 @@ export function PlayerForm<TNameOption = never>({
       >
         <option value="">{rf.options.selectLevel}</option>
         {resolvedNtrpLevels.map((l) => (
-          <option key={l} value={l}>{l}</option>
+          <option key={l} value={l}>
+            {l}
+          </option>
         ))}
       </Field>
 

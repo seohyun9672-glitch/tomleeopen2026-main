@@ -21,7 +21,16 @@ export function Hero() {
   const { title, navLinks } = t.homePage.hero;
   const localePrefix = locale === "ko" ? "/ko" : "";
 
-  const dateRange = (() => {
+  const { status } = getRegistrationStatus();
+  const registrationOpen = status === "open";
+
+  const subtitle = (() => {
+    if (registrationOpen) {
+      const entry = importantDates.find((e) => e.label === "Registration" && e.type === "range");
+      if (!entry || entry.type === "text") return "";
+      const period = locale === "ko" ? (entry.valueDisplayKo ?? entry.valueDisplay) : entry.valueDisplay;
+      return locale === "ko" ? `등록 접수 기간: ${period}` : `Registrations open: ${period}`;
+    }
     const entry = importantDates.find((e) => e.label === "Tournament");
     if (!entry || entry.type === "text") return "";
     return locale === "ko" ? (entry.valueDisplayKo ?? entry.valueDisplay) : entry.valueDisplay;
@@ -29,8 +38,6 @@ export function Hero() {
 
   const { line1, line2 } = splitHeroTitle(title);
   const isKorean = locale === "ko";
-  const { status } = getRegistrationStatus();
-  const registrationOpen = status === "open";
 
   return (
     <section className="bg-hero-with-grid flex items-center py-16 md:py-20 relative overflow-hidden min-h-[520px] md:min-h-[540px]">
@@ -56,7 +63,7 @@ export function Hero() {
           <h1 className="hero-title">
             {isKorean ? `${line1} ${line2}` : <>{line1} <br />{line2}</>}
           </h1>
-          <h2 className="hero-subtitle">{dateRange}</h2>
+          <h2 className="hero-subtitle">{subtitle}</h2>
           {registrationOpen ? (
             <div className="flex flex-col gap-[var(--content-gap)] md:flex-row">
               <Button

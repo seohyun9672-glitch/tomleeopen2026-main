@@ -17,6 +17,7 @@ import { clubs } from "./clubs";
 import { registrationPage } from "./registrationPage";
 import { rulesPage } from "./rulesPage";
 import { adminPage } from "./adminPage";
+import { courtBookingPage } from "./courtBookingPage";
 
 /** Full bilingual site content. Use `siteContent[locale]` in locale-context. */
 export const siteContent = {
@@ -35,6 +36,7 @@ export const siteContent = {
     ...registrationPage.en,
     ...rulesPage.en,
     ...adminPage.en,
+    ...courtBookingPage.en,
   },
   ko: {
     ...header.ko,
@@ -51,6 +53,7 @@ export const siteContent = {
     ...registrationPage.ko,
     ...rulesPage.ko,
     ...adminPage.ko,
+    ...courtBookingPage.ko,
   },
 } as const;
 
@@ -69,4 +72,4 @@ export function resolveLocale(localeParam: string): Locale {
 }
 
 // Named exports for direct per-domain imports
-export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, rulesPage, adminPage };
+export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, rulesPage, adminPage, courtBookingPage };

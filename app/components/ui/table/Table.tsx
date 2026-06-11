@@ -23,7 +23,7 @@ export type TableCellProps =
   | { type: "checkbox"; checked: boolean; onToggle?: (e: React.MouseEvent<HTMLButtonElement>) => void };
 
 const DATA_CHIP_SHELL =
-  "inline-flex w-fit shrink-0 items-center rounded-2xl border border-[color:var(--chip-palette-ring)] px-2.5 py-1 text-left font-medium leading-snug whitespace-nowrap";
+  "inline-flex w-fit shrink-0 items-center rounded-2xl border border-[color:var(--palette-ring)] px-2.5 py-1 text-left font-medium leading-snug whitespace-nowrap";
 
 function TableCell(props: TableCellProps): ReactNode {
   switch (props.type) {

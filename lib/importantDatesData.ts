@@ -33,7 +33,7 @@ export const importantDates: ImportantDateEntry[] = [
   },
   {
     type: "date",
-    label: "Draw published",
+    label: "Draw publish",
     date: "2026-06-26",
     labelKo: "대진표 발표",
     valueDisplay: "June 26",  

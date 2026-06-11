@@ -388,25 +388,27 @@ export function MatchCard({
   const team1Name = getLocalizedTeamName(match, 1, locale);
   const team2Name = getLocalizedTeamName(match, 2, locale);
 
-  const categoryPart = match.categoryId;
+  const categoryPart =
+    locale === "ko"
+      ? (match.categoryDisplayLabelKo ?? match.categoryDisplayLabel ?? match.categoryId)
+      : (match.categoryDisplayLabel ?? match.categoryId);
   const roundPart =
     locale === "ko"
-      ? (match.round?.labelKo ?? match.round?.labelEn ?? "—")
-      : (match.round?.labelEn ?? "—");
-  // Match number shown for all rounds except Final
-  const matchNumberPart =
-    match.round?.code !== "F" && match.matchNumber != null
-      ? `#${match.matchNumber}`
-      : null;
-
+      ? (match.round?.labelKo ?? match.round?.labelEn ?? match.round?.code ?? "—")
+      : (match.round?.labelEn ?? match.round?.code ?? "—");
+  const matchSeq = (() => {
+    const code = match.round?.code;
+    if (!code) return null;
+    const idx = match.id.lastIndexOf(code);
+    if (idx === -1) return null;
+    const after = match.id.slice(idx + code.length);
+    return /^[A-Za-z]?(\d+)$/.exec(after)?.[1] ?? null;
+  })();
   const headerLine = omitCategoryInHeader
-    ? [roundPart, group ?? matchNumberPart].filter(Boolean).join(" ")
+    ? [roundPart, group ?? (matchSeq ? `#${matchSeq}` : null)].filter(Boolean).join(" ")
     : group != null
     ? [categoryPart, roundPart, group].filter(Boolean).join(" · ")
-    : [categoryPart, roundPart, matchNumberPart]
-        .filter(Boolean)
-        .join(" · ")
-        .replace(" · #", " #");
+    : [categoryPart, roundPart, matchSeq ? `#${matchSeq}` : null].filter(Boolean).join(" · ");
 
   const displayLocation = match.location?.trim() || null;
   const displayDate = formatDateDisplay(match.date ?? null, locale);

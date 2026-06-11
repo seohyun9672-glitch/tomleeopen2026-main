@@ -217,22 +217,22 @@ export function MatchForm({
         />
 
         {/* Date & Time */}
-        <div className="grid grid-cols-2 gap-3 overflow-hidden">
+        <div className="grid grid-cols-2 gap-3">
           <Field
-            variant="date"
+            variant="datepicker"
             id={`${idPrefix}-date`}
             label={mo.date}
             value={values.date}
-            onChange={(e) => update({ date: e.target.value })}
-            wrapperClassName="min-w-0"
+            onChange={(date) => update({ date })}
+            wrapperClassName="min-w-0 overflow-hidden"
           />
           <Field
-            variant="time"
+            variant="timepicker"
             id={`${idPrefix}-time`}
             label={mo.time}
             value={values.time}
-            onChange={(e) => update({ time: e.target.value })}
-            wrapperClassName="min-w-0"
+            onChange={(time) => update({ time })}
+            wrapperClassName="min-w-0 overflow-hidden"
           />
         </div>
 
@@ -259,7 +259,7 @@ export function MatchForm({
       <Divider />
       {/* Scores */}
       <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+        <p className="mb-2 text-sm font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
           {mo.scoresSection}
         </p>
         <div className="grid grid-cols-[auto_1fr_1fr] gap-x-3 gap-y-2 items-center">

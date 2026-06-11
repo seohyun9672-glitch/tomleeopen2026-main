@@ -2,13 +2,13 @@ import { unstable_cache } from "next/cache";
 import type { Prisma, Round } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { orderTeamMembersForDisplay } from "@/lib/utils";
 
 export type Match = {
   id: string;
   tournamentYear: number;
   categoryId: string;
   round: Round | null;
-  matchNumber: number | null;
   team1Id: string | null;
   team2Id: string | null;
   team1Seed: string | null;
@@ -44,6 +44,7 @@ type TeamMember = {
   id: number;
   fullNameEn: string;
   fullNameKo: string | null;
+  gender?: string | null;
 };
 
 type TeamShape = {
@@ -57,23 +58,23 @@ const matchInclude = {
   category: {
     select: { id: true, label: true, labelKo: true, isDoubles: true },
   },
-  round: {
+  roundRef: {
     select: { id: true, code: true, labelEn: true, labelKo: true, sortOrder: true },
   },
   team1: {
     select: {
       id: true,
       seed: true,
-      member1: { select: { id: true, fullNameEn: true, fullNameKo: true } },
-      member2: { select: { id: true, fullNameEn: true, fullNameKo: true } },
+      member1: { select: { id: true, fullNameEn: true, fullNameKo: true, gender: true } },
+      member2: { select: { id: true, fullNameEn: true, fullNameKo: true, gender: true } },
     },
   },
   team2: {
     select: {
       id: true,
       seed: true,
-      member1: { select: { id: true, fullNameEn: true, fullNameKo: true } },
-      member2: { select: { id: true, fullNameEn: true, fullNameKo: true } },
+      member1: { select: { id: true, fullNameEn: true, fullNameKo: true, gender: true } },
+      member2: { select: { id: true, fullNameEn: true, fullNameKo: true, gender: true } },
     },
   },
 } as const;
@@ -96,12 +97,10 @@ function formatTeamSeed(team: TeamShape): string | null {
 
 function formatTeamName(team: TeamShape, locale: "en" | "ko"): string | null {
   if (!team) return null;
-  const first =
-    locale === "ko" ? getPreferredNameKo(team.member1) : getPreferredNameEn(team.member1);
-  const second = team.member2
-    ? locale === "ko"
-      ? getPreferredNameKo(team.member2)
-      : getPreferredNameEn(team.member2)
+  const [m1, m2] = orderTeamMembersForDisplay(team.member1, team.member2);
+  const first = locale === "ko" ? getPreferredNameKo(m1) : getPreferredNameEn(m1);
+  const second = m2
+    ? locale === "ko" ? getPreferredNameKo(m2) : getPreferredNameEn(m2)
     : null;
   return second ? `${first} / ${second}` : first;
 }
@@ -150,13 +149,11 @@ function computeWinner(match: {
 }
 
 function comparePublicMatchOrder(
-  a: Pick<Match, "round" | "matchNumber" | "id">,
-  b: Pick<Match, "round" | "matchNumber" | "id">
+  a: Pick<Match, "round" | "id">,
+  b: Pick<Match, "round" | "id">
 ): number {
   const roundDiff = (a.round?.sortOrder ?? -1) - (b.round?.sortOrder ?? -1);
   if (roundDiff !== 0) return roundDiff;
-  const matchNumberDiff = (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
-  if (matchNumberDiff !== 0) return matchNumberDiff;
   return a.id.localeCompare(b.id, undefined, { sensitivity: "base" });
 }
 
@@ -165,8 +162,7 @@ function mapMatchRow(match: MatchRow): Match {
     id: match.id,
     tournamentYear: match.tournamentYear,
     categoryId: match.categoryId,
-    round: match.round ?? null,
-    matchNumber: match.matchNumber,
+    round: match.roundRef ?? null,
     team1Id: match.team1Id,
     team2Id: match.team2Id,
     team1Seed: formatTeamSeed(match.team1 as TeamShape),
@@ -197,9 +193,9 @@ function mapMatchRow(match: MatchRow): Match {
 export const getAllMatches = unstable_cache(
   async (): Promise<Match[]> => {
     const rows = await prisma.match.findMany({ include: matchInclude });
-    return [...rows]
-      .sort(comparePublicMatchOrder)
-      .map(mapMatchRow);
+    return rows
+      .map(mapMatchRow)
+      .sort(comparePublicMatchOrder);
   },
   ["all-matches"],
   { revalidate: 60 }
@@ -217,7 +213,7 @@ export function isoDateLocal(d = new Date()): string {
 /** Returns a set of "playerId:year:categoryId" keys for the winning team of each final match. */
 export async function getFinalistPlayerKeys(): Promise<Set<string>> {
   const rows = await prisma.match.findMany({
-    where: { round: { code: "F" } },
+    where: { roundRef: { code: "F" } },
     select: {
       tournamentYear: true,
       categoryId: true,

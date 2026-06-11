@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition, useEffect } from "react";
+import { useState, useMemo, useTransition, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { TableView } from "@/app/components/ui/table/Table";
@@ -18,7 +18,10 @@ import { PlayerCard } from "@/app/components/PlayerCard";
 import { RegistrationForm } from "@/app/registration/RegistrationForm";
 import { registrationStatusChipClass, registrationStatusLabel, REGISTRATION_STATUSES } from "@/lib/registration";
 import type { Match } from "@/lib/matches";
+import { formatDateDisplay } from "@/lib/matches";
 import { categoryStatusChipClass, categoryStatusLabel, CATEGORY_YEAR_STATUSES } from "@/lib/categories";
+import { derivePrelimFormat } from "@/lib/generateMatches";
+import { getToday } from "@/lib/utils";
 import { useLocale } from "@/lib/locale-context";
 import { displayName } from "@/lib/names";
 import type { CategoryRecord } from "@/lib/categories";
@@ -144,6 +147,7 @@ export type AdminHubProps = {
   adminUsers: AdminUserRow[];
   finalists: string[];
   prizes: PrizeBracketRow[];
+  courtBookings: CourtBookingAdminRow[];
 };
 
 // ─── Chip helpers ─────────────────────────────────────────────────────────────
@@ -388,8 +392,14 @@ function RegistrationsTab({
               onSavingChange={setRegSaving}
               onSaveOverride={async (data) => {
                 const originalCatIds = new Set(allCategoryIds);
-                const newCatIds = data.selectedCategoryIds.filter((id) => !originalCatIds.has(id));
-                const removedCatIds = allCategoryIds.filter((id) => !data.selectedCategoryIds.includes(id));
+                // Determine which existing registration will be patched in-place
+                const primaryCatId = data.selectedCategoryIds.includes(editReg.categoryId)
+                  ? editReg.categoryId
+                  : (data.selectedCategoryIds[0] ?? editReg.categoryId);
+                // Exclude primaryCatId from newCatIds (it's handled by the PATCH, not a new registration)
+                const newCatIds = data.selectedCategoryIds.filter((id) => !originalCatIds.has(id) && id !== primaryCatId);
+                // Exclude editReg.categoryId from removedCatIds (it's being patched, not deleted)
+                const removedCatIds = allCategoryIds.filter((id) => !data.selectedCategoryIds.includes(id) && id !== editReg.categoryId);
 
                 // Update player info
                 await fetch(`/api/players/${editReg.playerId}`, {
@@ -406,9 +416,6 @@ function RegistrationsTab({
                 });
 
                 // Update this registration (status/notes/nameOnEtransfer/category/partner)
-                const primaryCatId = data.selectedCategoryIds.includes(editReg.categoryId)
-                  ? editReg.categoryId
-                  : (data.selectedCategoryIds[0] ?? editReg.categoryId);
                 const partnerId = data.partnerIds[primaryCatId] !== undefined ? data.partnerIds[primaryCatId] : undefined;
                 const partnerName = data.partnerNames[primaryCatId] ?? null;
                 const regRes = await fetch(`/api/registrations/${editReg.id}`, {
@@ -521,13 +528,43 @@ function RegistrationsTab({
 
 function TeamsTab({
   teams,
+  categories,
+  onMutate,
   loading,
 }: {
   teams: TeamRow[];
+  categories: CategoryRecord[];
+  onMutate: () => void;
   loading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const a = t.adminPage;
+  const [editTeam, setEditTeam] = useState<TeamRow | null>(null);
+  const [editSeed, setEditSeed] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  function openEdit(row: TeamRow) {
+    setEditTeam(row);
+    setEditSeed(row.seed ?? "");
+    setSaveError(null);
+  }
+
+  async function saveSeed() {
+    if (!editTeam) return;
+    setSaving(true); setSaveError(null);
+    const res = await fetch(`/api/teams/${editTeam.teamId}?year=${editTeam.tournamentYear}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: editSeed.trim().toUpperCase() || null }),
+    });
+    setSaving(false);
+    if (!res.ok) { setSaveError("Save failed"); return; }
+    setEditTeam(null);
+    onMutate();
+  }
 
   const years = useMemo(
     () => [...new Set(teams.map((r) => r.tournamentYear))].sort((a, b) => b - a),
@@ -565,75 +602,110 @@ function TeamsTab({
       },
       apply: (items, group) => (group ? items.filter((r) => r.seed === group) : items),
       allLabel: t.shared.labels.allGroups,
-      visibleWhen: (v) => !!v.cat,
+      visibleWhen: (v) => !!v.cat && categoryMap.get(v.cat)?.prelimFormat !== "ELIMINATION",
     },
   ];
 
+  const editFormat = editTeam ? (categoryMap.get(editTeam.categoryId)?.prelimFormat ?? null) : null;
+  const editP1 = editTeam ? displayName(editTeam.member1NameEn, editTeam.member1NameKo, locale) : "";
+  const editP2 = editTeam?.member2NameEn ? displayName(editTeam.member2NameEn, editTeam.member2NameKo, locale) : null;
+
   return (
-    <DatabaseLayout<TeamRow>
-      data={teams}
-      managedFilters={managedFilters}
-      emptyText={a.teams.empty}
-      loading={loading}
-      rowCountLabel={locale === "ko" ? ["팀", "팀"] : ["team", "teams"]}
-    >
-      {(filteredTeams) => {
-        type IndexedTeamRow = TeamRow & { rowNum: number };
-        const hasGroupData = filteredTeams.some((r) => r.seed);
-        const sortedTeams = [...filteredTeams].sort((a, b) => {
-          if (hasGroupData) {
-            const ga = a.seed ?? "";
-            const gb = b.seed ?? "";
-            if (ga !== gb) return ga.localeCompare(gb);
-          }
-          const na = parseInt(a.teamId.match(/(\d+)$/)![1], 10);
-          const nb = parseInt(b.teamId.match(/(\d+)$/)![1], 10);
-          return na - nb;
-        });
-        const indexedTeams: IndexedTeamRow[] = sortedTeams.map((r, i) => ({ ...r, rowNum: i + 1 }));
-        const hasDoubles = filteredTeams.some((r) => r.isDoubles);
-        return (
-          <TableView<IndexedTeamRow>
-            type="table"
-            items={indexedTeams}
-            columns={[
-              {
-                header: a.teams.columns.number,
-                sortKey: "num",
-                sortValue: (r) => r.rowNum,
-                renderCell: (r) => ({ type: "number", value: parseInt(r.teamId.match(/(\d+)$/)![1], 10) }),
-              },
-              {
-                header: a.teams.columns.player1,
-                sortKey: "player1",
-                sortValue: (r) => r.member1NameEn,
-                renderCell: (r) => ({
-                  type: "text",
-                  value: displayName(r.member1NameEn, r.member1NameKo, locale),
-                }),
-              },
-              ...(hasDoubles ? [{
-                header: a.teams.columns.player2,
-                sortKey: "player2",
-                sortValue: (r: IndexedTeamRow) => r.member2NameEn ?? "",
-                renderCell: (r: IndexedTeamRow) => ({
-                  type: "text" as const,
-                  value: r.member2NameEn ? displayName(r.member2NameEn, r.member2NameKo, locale) : null,
-                }),
-              }] : []),
-              ...(hasGroupData ? [{
-                header: a.teams.columns.group,
-                sortKey: "group",
-                sortValue: (r: IndexedTeamRow) => r.seed ?? "",
-                renderCell: (r: IndexedTeamRow) => r.seed
-                  ? { type: "chips" as const, items: [{ label: r.seed, className: `group-chip-${r.seed.toLowerCase()}` }] }
-                  : { type: "text" as const, value: null },
-              }] : []),
-            ]}
-          />
-        );
-      }}
-    </DatabaseLayout>
+    <>
+      <DatabaseLayout<TeamRow>
+        data={teams}
+        managedFilters={managedFilters}
+        emptyText={a.teams.empty}
+        loading={loading}
+        rowCountLabel={locale === "ko" ? ["팀", "팀"] : ["team", "teams"]}
+      >
+        {(filteredTeams) => {
+          type IndexedTeamRow = TeamRow & { rowNum: number };
+          const hasGroupData = filteredTeams.some((r) => r.seed);
+          const sortedTeams = [...filteredTeams].sort((a, b) => {
+            if (hasGroupData) {
+              const ga = a.seed ?? "";
+              const gb = b.seed ?? "";
+              if (ga !== gb) return ga.localeCompare(gb);
+            }
+            const na = parseInt(a.teamId.match(/(\d+)$/)![1], 10);
+            const nb = parseInt(b.teamId.match(/(\d+)$/)![1], 10);
+            return na - nb;
+          });
+          const indexedTeams: IndexedTeamRow[] = sortedTeams.map((r, i) => ({ ...r, rowNum: i + 1 }));
+          const hasDoubles = filteredTeams.some((r) => r.isDoubles);
+          return (
+            <TableView<IndexedTeamRow>
+              type="table"
+              items={indexedTeams}
+              onRowClick={openEdit}
+              columns={[
+                {
+                  header: a.teams.columns.number,
+                  sortKey: "number",
+                  sortValue: (r) => parseInt(r.teamId.match(/(\d+)$/)![1], 10),
+                  renderCell: (r) => ({ type: "number", value: parseInt(r.teamId.match(/(\d+)$/)![1], 10) }),
+                },
+                {
+                  header: a.teams.columns.player1,
+                  sortKey: "player1",
+                  sortValue: (r) => r.member1NameEn,
+                  renderCell: (r) => ({
+                    type: "text",
+                    value: displayName(r.member1NameEn, r.member1NameKo, locale),
+                  }),
+                },
+                ...(hasDoubles ? [{
+                  header: a.teams.columns.player2,
+                  sortKey: "player2",
+                  sortValue: (r: IndexedTeamRow) => r.member2NameEn ?? "",
+                  renderCell: (r: IndexedTeamRow) => ({
+                    type: "text" as const,
+                    value: r.member2NameEn ? displayName(r.member2NameEn, r.member2NameKo, locale) : null,
+                  }),
+                }] : []),
+                ...(hasGroupData ? [{
+                  header: t.shared.labels.seed,
+                  sortKey: "seed",
+                  sortValue: (r: IndexedTeamRow) => r.seed ?? "",
+                  renderCell: (r: IndexedTeamRow) => r.seed
+                    ? { type: "chips" as const, items: [{ label: r.seed, className: `group-chip-${r.seed.toLowerCase()}` }] }
+                    : { type: "text" as const, value: null },
+                }] : []),
+              ]}
+            />
+          );
+        }}
+      </DatabaseLayout>
+
+      <Modal
+        open={!!editTeam}
+        onClose={() => setEditTeam(null)}
+        title={editP2 ? `${editP1} / ${editP2}` : editP1}
+        maxWidthClass="max-w-sm"
+        secondaryAction={{ label: "Cancel", onClick: () => setEditTeam(null) }}
+        primaryAction={{ label: saving ? "Saving…" : "Save", onClick: saveSeed, disabled: saving }}
+      >
+        <div className="flex flex-col gap-5">
+          {editFormat === "ROUND_ROBIN" ? (
+            <p className="text-sm text-[var(--color-text-secondary)]">No seed required for Round Robin format.</p>
+          ) : (
+            <Field
+              variant="text"
+              id="team-seed-edit"
+              label={editFormat === "ELIMINATION" ? "Seed (number)" : "Group (A / B / C…)"}
+              value={editSeed}
+              onChange={(e) => {
+                const v = e.target.value;
+                setEditSeed(editFormat === "ELIMINATION" ? v.replace(/\D/g, "") : v.slice(0, 1).toUpperCase());
+              }}
+              placeholder={editFormat === "ELIMINATION" ? "1" : "A"}
+            />
+          )}
+          {saveError && <p className="text-sm text-[var(--color-status-error)]">{saveError}</p>}
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -653,7 +725,6 @@ function matchRowToMatch(m: MatchRow): Match {
           sortOrder: 0,
         }
       : null,
-    matchNumber: null,
     team1Id: null,
     team2Id: null,
     team1Seed: null,
@@ -1099,8 +1170,12 @@ function buildPrizeRows(
   categories: CategoryRecord[],
   teams: TeamRow[],
   prizes: PrizeBracketRow[],
+  categoryStatuses: CategoryStatusRow[],
   years: number[],
 ): PrizeDisplayRow[] {
+  const activeSet = new Set(
+    categoryStatuses.filter((s) => s.status === "Active").map((s) => `${s.tournamentYear}:${s.categoryId}`)
+  );
   const rows: PrizeDisplayRow[] = [];
   for (const year of years) {
     const teamCounts = new Map<string, number>();
@@ -1113,8 +1188,8 @@ function buildPrizeRows(
       if (p.tournamentYear === year) prizeMap.set(`${p.isDoubles}::${p.teamCountBracket}`, p);
     }
     for (const cat of categories) {
+      if (!activeSet.has(`${year}:${cat.id}`)) continue;
       const teamCount = teamCounts.get(cat.id) ?? 0;
-      if (teamCount < 4) continue; // only categories with a valid bracket
       const bracket = teamCount >= 12 ? "12+" : teamCount >= 6 ? "6+" : "4-5";
       const prize = prizeMap.get(`${cat.isDoubles}::${bracket}`);
       rows.push({
@@ -1138,12 +1213,14 @@ function buildPrizeRows(
 
 function PrizesTab({
   categories,
+  categoryStatuses,
   teams,
   prizes,
   onMutate,
   loading,
 }: {
   categories: CategoryRecord[];
+  categoryStatuses: CategoryStatusRow[];
   teams: TeamRow[];
   prizes: PrizeBracketRow[];
   onMutate: () => void;
@@ -1153,13 +1230,13 @@ function PrizesTab({
   const a = t.adminPage;
 
   const years = useMemo(
-    () => [...new Set(teams.map((t) => t.tournamentYear))].sort((a, b) => b - a),
-    [teams],
+    () => [...new Set(categoryStatuses.map((s) => s.tournamentYear))].sort((a, b) => b - a),
+    [categoryStatuses],
   );
 
   const prizeRows = useMemo(
-    () => buildPrizeRows(categories, teams, prizes, years),
-    [categories, teams, prizes, years],
+    () => buildPrizeRows(categories, teams, prizes, categoryStatuses, years),
+    [categories, teams, prizes, categoryStatuses, years],
   );
 
   const [editRow, setEditRow] = useState<PrizeDisplayRow | null>(null);
@@ -1327,6 +1404,7 @@ function CategoriesTab({
   const currentYear = new Date().getFullYear();
   const [editRow, setEditRow] = useState<CategoryRow | null>(null);
   const [editStatus, setEditStatus] = useState("Pending");
+  const [editPrelimFormat, setEditPrelimFormat] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -1356,19 +1434,27 @@ function CategoriesTab({
   function openEdit(row: CategoryRow) {
     setEditRow(row);
     setEditStatus(row.status);
+    setEditPrelimFormat(row.prelimFormat ?? derivePrelimFormat(row.regCount));
     setSaveError(null);
   }
 
   async function saveCategory() {
     if (!editRow) return;
     setSaving(true); setSaveError(null);
-    const res = await fetch(`/api/categoryStatus/${editRow.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ year: editRow.year, status: editStatus }),
-    });
+    const [statusRes, formatRes] = await Promise.all([
+      fetch(`/api/categoryStatus/${editRow.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: editRow.year, status: editStatus }),
+      }),
+      fetch(`/api/categories/${editRow.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prelimFormat: editPrelimFormat || null }),
+      }),
+    ]);
     setSaving(false);
-    if (!res.ok) { setSaveError("Save failed"); return; }
+    if (!statusRes.ok || !formatRes.ok) { setSaveError("Save failed"); return; }
     setEditRow(null);
     onMutate();
   }
@@ -1457,6 +1543,20 @@ function CategoriesTab({
                 <option key={s} value={s}>{s}</option>
               ))}
             </Field>
+
+            {editStatus === "Active" && (
+              <Field
+                variant="select"
+                id="cat-format-edit"
+                label="Prelim Format"
+                value={editPrelimFormat}
+                onChange={(e) => setEditPrelimFormat((e.target as HTMLSelectElement).value)}
+              >
+                <option value="ROUND_ROBIN">Round Robin</option>
+                <option value="GROUP_ROUND_ROBIN">Group Round Robin</option>
+                <option value="ELIMINATION">Elimination</option>
+              </Field>
+            )}
 
             {/* Teams list */}
             <div>
@@ -1651,6 +1751,284 @@ function AdminUsersTab({
   );
 }
 
+// ─── Court Bookings Tab ───────────────────────────────────────────────────────
+
+export type BookingMember = { fullNameEn: string; fullNameKo: string | null };
+export type BookingSide = { member1: BookingMember; member2: BookingMember | null } | null;
+
+export type BookingMatch = {
+  id?: string;
+  myTeamId?: string | null;
+  team1Id: string | null;
+  team2Id: string | null;
+  team1: BookingSide;
+  team2: BookingSide;
+  category: { label: string; labelKo: string | null } | null;
+  courtBooking?: { courtId: string; date: string } | null;
+};
+
+export type CourtBookingAdminRow = {
+  id: string;
+  courtId: string;
+  date: string;
+  teamId: string | null;
+  matchId: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  court: { name: string; nameKo: string; timeSlot: string } | null;
+  team: { id: string; member1: BookingMember; member2: BookingMember | null; category: { label: string; labelKo: string | null } } | null;
+  match: BookingMatch | null;
+};
+
+function sideLabel(
+  side: BookingSide,
+  loc: "en" | "ko"
+): string | null {
+  if (!side) return null;
+  const m1 = displayName(side.member1.fullNameEn, side.member1.fullNameKo, loc);
+  const m2 = side.member2 ? displayName(side.member2.fullNameEn, side.member2.fullNameKo, loc) : null;
+  return m2 ? `${m1} / ${m2}` : m1;
+}
+
+function matchDisplayLabel(match: BookingMatch | null, loc: "en" | "ko"): string | null {
+  if (!match) return null;
+  const cat = match.category ? displayName(match.category.label, match.category.labelKo, loc) : null;
+  const t1 = sideLabel(match.team1, loc);
+  const t2 = sideLabel(match.team2, loc);
+  const teams = [t1, t2].filter(Boolean).join(" vs ");
+  return cat ? `${cat} · ${teams}` : teams;
+}
+
+function CourtBookingsTab({ initialBookings, onMutate }: { initialBookings: CourtBookingAdminRow[]; onMutate: () => void }) {
+  const { t, locale } = useLocale();
+  const a = t.adminPage;
+  const year = new Date().getFullYear();
+
+  const [date, setDate] = useState(() => getToday());
+  const [allBookings, setAllBookings] = useState<CourtBookingAdminRow[]>(initialBookings);
+
+  // Sync when server refreshes props
+  useEffect(() => { setAllBookings(initialBookings); }, [initialBookings]);
+
+  // Manage modal state
+  const [managingId, setManagingId] = useState<string | null>(null);
+  const [modalStatus, setModalStatus] = useState("Available");
+  const [modalMatchQuery, setModalMatchQuery] = useState("");
+  const [modalMatch, setModalMatch] = useState<BookingMatch | null>(null);
+  const [modalNotes, setModalNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const managingBooking = allBookings.find((b) => b.id === managingId) ?? null;
+
+  const courtEnabledDates = useMemo(
+    () => new Set(allBookings.map((b) => b.date)),
+    [allBookings]
+  );
+
+  const tableRows = useMemo(
+    () => allBookings
+      .filter((b) => b.date === date)
+      .map((b) => ({
+        id: b.id,
+        courtName: b.court ? displayName(b.court.name, b.court.nameKo, locale) : b.courtId,
+        timeSlot: b.court?.timeSlot ?? "",
+        status: b.status,
+        matchLabel: matchDisplayLabel(b.match, locale),
+        team1Label: sideLabel(b.match?.team1 ?? null, locale),
+        team2Label: sideLabel(b.match?.team2 ?? null, locale),
+      })),
+    [allBookings, date, locale]
+  );
+
+  function openManage(id: string) {
+    const b = allBookings.find((x) => x.id === id);
+    if (!b) return;
+    setManagingId(id);
+    setModalStatus(b.status);
+    setModalMatch(b.match);
+    setModalMatchQuery(matchDisplayLabel(b.match, locale) ?? "");
+    setModalNotes(b.notes ?? "");
+  }
+
+  function closeManage() {
+    setManagingId(null);
+    setModalMatch(null);
+    setModalMatchQuery("");
+  }
+
+  const loadMatchOptions = useCallback(async (query: string): Promise<BookingMatch[]> => {
+    if (!query.trim()) return [];
+    const res = await fetch(`/api/court-bookings?playerName=${encodeURIComponent(query)}&year=${year}`);
+    if (!res.ok) return [];
+    return res.json();
+  }, [year]);
+
+  async function handleSave() {
+    if (!managingId) return;
+    setSaving(true);
+    const teamId = modalStatus === "Available" ? null : (modalMatch?.myTeamId ?? modalMatch?.team1Id ?? null);
+    const matchId = modalStatus === "Available" ? null : (modalMatch?.id ?? null);
+    const res = await fetch(`/api/court-bookings/${managingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: modalStatus, teamId, matchId, notes: modalNotes.trim() || null }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setAllBookings((prev) =>
+        prev.map((b) =>
+          b.id === managingId
+            ? { ...b, status: modalStatus, teamId, matchId: matchId ?? null,
+                notes: modalNotes.trim() || null,
+                match: modalStatus === "Available" ? null : (modalMatch ?? b.match) }
+            : b
+        )
+      );
+      closeManage();
+      onMutate();
+    }
+  }
+
+  type CourtRow = typeof tableRows[number];
+  const cb = a.courtBookings;
+
+  const courtView: TableViewConfig<CourtRow> = {
+    type: "table",
+    onRowClick: (r) => openManage(r.id),
+    columns: [
+      {
+        header: cb.columns.court,
+        sortKey: "court",
+        sortValue: (r) => r.courtName,
+        renderCell: (r) => ({ type: "stack" as const, lines: [r.courtName, r.timeSlot] }),
+      },
+      {
+        header: cb.columns.status,
+        renderCell: (r) => ({
+          type: "chips" as const,
+          items: [
+            r.status === "Booked"
+              ? { label: cb.bookedLabel, className: "court-chip-booked" }
+              : { label: cb.availableLabel, className: "court-chip-available" },
+          ],
+        }),
+      },
+      {
+        header: cb.columns.matchId,
+        renderCell: (r) => ({ type: "text" as const, value: r.matchLabel }),
+      },
+      {
+        header: cb.columns.team1,
+        renderCell: (r) => ({ type: "text" as const, value: r.team1Label }),
+      },
+      {
+        header: cb.columns.team2,
+        renderCell: (r) => ({ type: "text" as const, value: r.team2Label }),
+      },
+    ],
+  };
+
+  return (
+    <>
+      <div className="mb-[var(--content-gap)] max-w-xs">
+        <Field
+          variant="datepicker"
+          id="court-booking-date"
+          label={cb.dateLabel}
+          value={date}
+          onChange={setDate}
+          enabledDates={courtEnabledDates}
+        />
+      </div>
+
+      <DatabaseLayout<CourtRow>
+        data={tableRows}
+        emptyText={cb.empty}
+        loading={false}
+        view={courtView}
+      />
+
+      <Modal
+        open={Boolean(managingId)}
+        onClose={closeManage}
+        title={cb.manageTitle}
+        maxWidthClass="max-w-lg"
+        primaryAction={{ label: saving ? a.actions.saving : a.actions.save, onClick: handleSave, disabled: saving }}
+        secondaryAction={{ label: a.actions.cancel, onClick: closeManage }}
+      >
+        <div className="flex flex-col gap-4">
+          {/* Court + date info in body */}
+          {managingBooking && (
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">
+              {managingBooking.court
+                ? displayName(managingBooking.court.name, managingBooking.court.nameKo, locale)
+                : managingBooking.courtId}
+              {" · "}
+              {formatDateDisplay(managingBooking.date, locale)}
+              {managingBooking.court?.timeSlot ? ` · ${managingBooking.court.timeSlot}` : ""}
+            </p>
+          )}
+
+          <Field
+            variant="select"
+            id="manage-status"
+            label={cb.columns.status}
+            value={modalStatus}
+            onChange={(e) => {
+              const v = (e.target as HTMLSelectElement).value;
+              setModalStatus(v);
+              if (v === "Available") { setModalMatch(null); setModalMatchQuery(""); }
+            }}
+          >
+            <option value="Available">{cb.availableLabel}</option>
+            <option value="Booked">{cb.bookedLabel}</option>
+          </Field>
+
+          <Field
+            variant="combobox"
+            id="manage-match"
+            label={cb.columns.matchId}
+            placeholder={locale === "ko" ? "이름을 입력하여 경기를 검색하세요" : "Enter player name to find match"}
+            value={modalMatchQuery}
+            onValueChange={(v) => { setModalMatchQuery(v); if (!v.trim()) setModalMatch(null); }}
+            loadOptions={loadMatchOptions}
+            onSelect={(m: BookingMatch) => {
+              setModalMatch(m);
+              setModalMatchQuery(matchDisplayLabel(m, locale) ?? "");
+            }}
+            getOptionKey={(m: BookingMatch) => m.id ?? ""}
+            getOptionLabel={(m: BookingMatch) => matchDisplayLabel(m, locale) ?? ""}
+          />
+
+          {/* Teams auto-populated from match — read-only */}
+          {modalMatch && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-[var(--color-border-ui)] bg-[var(--color-surface-muted)] px-3 py-2.5 text-sm">
+              <div>
+                <p className="text-xs text-[var(--color-text-secondary)] mb-0.5">{cb.columns.team1}</p>
+                <p className="font-medium">{sideLabel(modalMatch.team1, locale) ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--color-text-secondary)] mb-0.5">{cb.columns.team2}</p>
+                <p className="font-medium">{sideLabel(modalMatch.team2, locale) ?? "—"}</p>
+              </div>
+            </div>
+          )}
+
+          <Field
+            variant="textarea"
+            id="manage-notes"
+            label={cb.courtBookingNotesLabel}
+            value={modalNotes}
+            onChange={(e) => setModalNotes((e.target as HTMLTextAreaElement).value)}
+            rows={2}
+          />
+        </div>
+      </Modal>
+    </>
+  );
+}
+
 // ─── AdminHub ─────────────────────────────────────────────────────────────────
 
 export function AdminHub({
@@ -1663,6 +2041,7 @@ export function AdminHub({
   adminUsers,
   finalists,
   prizes,
+  courtBookings,
 }: AdminHubProps) {
   const router = useRouter();
   const { t } = useLocale();
@@ -1681,7 +2060,8 @@ export function AdminHub({
     { value: "players",       label: a.tabs.players },
     { value: "categories",    label: a.tabs.categories },
     { value: "prizes",        label: a.tabs.prizes },
-    { value: "admins",        label: a.tabs.admins },
+    { value: "admins",         label: a.tabs.admins },
+    { value: "courtBookings",  label: a.tabs.courtBookings },
   ];
 
   function handleTabChange(v: string) {
@@ -1721,7 +2101,7 @@ export function AdminHub({
         />
       )}
       {tab === "teams" && (
-        <TeamsTab teams={teams} loading={refreshing} />
+        <TeamsTab teams={teams} categories={categories} onMutate={refresh} loading={refreshing} />
       )}
       {tab === "matches" && (
         <MatchesTab matches={matches} onMutate={refresh} loading={refreshing} />
@@ -1749,6 +2129,7 @@ export function AdminHub({
       {tab === "prizes" && (
         <PrizesTab
           categories={categories}
+          categoryStatuses={categoryStatuses}
           teams={teams}
           prizes={prizes}
           onMutate={refresh}
@@ -1762,6 +2143,9 @@ export function AdminHub({
           onCloseAdd={() => setAddAdminOpen(false)}
           onMutate={refresh}
         />
+      )}
+      {tab === "courtBookings" && (
+        <CourtBookingsTab initialBookings={courtBookings} onMutate={refresh} />
       )}
     </PageContainer>
   );

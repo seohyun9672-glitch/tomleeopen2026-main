@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { AdminHub } from "@/app/admin/AdminHub";
 import { prisma } from "@/lib/prisma";
-import { createTeamFromRegistration } from "@/lib/createTeam";
+import { COURT_OPTIONS } from "@/lib/content/courts";
+import { renumberTeamsInCategory } from "@/lib/createTeam";
 import { getFinalistPlayerKeys } from "@/lib/matches";
 
 function extractGroup(matchId: string): string | null {
@@ -15,7 +16,7 @@ export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session || session.user?.role !== "admin") redirect("/admin/login");
 
-  const [regRows, teamRows, matchRows, playerRows, catRows, statusRows, adminRows, finalistKeys] = await Promise.all([
+  const [regRows, teamRowsInitial, matchRows, playerRows, catRows, statusRows, adminRows, finalistKeys] = await Promise.all([
     prisma.tournamentRegistration.findMany({
       include: {
         player: {
@@ -55,9 +56,9 @@ export default async function AdminPage() {
     prisma.match.findMany({
       include: {
         category: { select: { label: true, labelKo: true } },
-        round: { select: { code: true, labelEn: true, labelKo: true } },
+        roundRef: { select: { code: true, labelEn: true, labelKo: true } },
       },
-      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { matchNumber: "asc" }],
+      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { id: "asc" }],
     }),
     prisma.player.findMany({
       select: {
@@ -83,9 +84,58 @@ export default async function AdminPage() {
     getFinalistPlayerKeys(),
   ]);
 
-  const prizeRows = await prisma.categoryPrize.findMany({
-    orderBy: [{ tournamentYear: "desc" }, { isDoubles: "desc" }, { teamCountBracket: "asc" }],
+  const [prizeRows, rawCourtBookings] = await Promise.all([
+    prisma.categoryPrize.findMany({
+      orderBy: [{ tournamentYear: "desc" }, { isDoubles: "desc" }, { teamCountBracket: "asc" }],
+    }),
+    prisma.courtBooking.findMany({
+      orderBy: [{ date: "asc" }, { courtId: "asc" }],
+    }),
+  ]);
+
+  // Build the set of active (non-cancelled) player+category+year keys from registrations.
+  // Use this to detect stale teams whose members no longer have any registration.
+  const activePlayerCatYear = new Set<string>();
+  for (const reg of regRows) {
+    if (reg.status !== "Cancelled") {
+      activePlayerCatYear.add(`${reg.tournamentYear}|${reg.categoryId}|${reg.playerId}`);
+      if (reg.partnerId) {
+        activePlayerCatYear.add(`${reg.tournamentYear}|${reg.categoryId}|${reg.partnerId}`);
+      }
+    }
+  }
+
+  const staleTeams = teamRowsInitial.filter((team) => {
+    const m1Active = activePlayerCatYear.has(`${team.tournamentYear}|${team.categoryId}|${team.member1PlayerId}`);
+    const m2Active = team.member2PlayerId
+      ? activePlayerCatYear.has(`${team.tournamentYear}|${team.categoryId}|${team.member2PlayerId}`)
+      : false;
+    return !m1Active && !m2Active;
   });
+
+  let teamRows = teamRowsInitial;
+  if (staleTeams.length > 0) {
+    const affectedCats = new Set<string>();
+    for (const team of staleTeams) {
+      await prisma.team.delete({
+        where: { tournamentYear_id: { tournamentYear: team.tournamentYear, id: team.id } },
+      });
+      affectedCats.add(`${team.tournamentYear}|${team.categoryId}`);
+    }
+    for (const key of affectedCats) {
+      const [yearStr, catId] = key.split("|");
+      await renumberTeamsInCategory(parseInt(yearStr, 10), catId);
+    }
+    // Re-fetch teams so IDs reflect any renumbering
+    teamRows = await prisma.team.findMany({
+      include: {
+        category: { select: { label: true, labelKo: true, isDoubles: true } },
+        member1: { select: { fullNameEn: true, fullNameKo: true } },
+        member2: { select: { fullNameEn: true, fullNameKo: true } },
+      },
+      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
+    });
+  }
 
   const registrations = regRows.map((r) => ({
     id: r.id,
@@ -166,9 +216,9 @@ export default async function AdminPage() {
     categoryId: r.categoryId,
     categoryLabel: r.category.label,
     categoryLabelKo: r.category.labelKo,
-    roundCode: r.round?.code ?? null,
-    roundLabel: r.round?.labelEn ?? null,
-    roundLabelKo: r.round?.labelKo ?? null,
+    roundCode: r.roundRef?.code ?? null,
+    roundLabel: r.roundRef?.labelEn ?? null,
+    roundLabelKo: r.roundRef?.labelKo ?? null,
     group: extractGroup(r.id),
     team1Names: t1?.namesEn ?? [],
     team1NamesKo: t1?.namesKo ?? [],
@@ -211,46 +261,14 @@ export default async function AdminPage() {
     isDoubles: c.isDoubles,
     ntrp: c.ntrp,
     sortOrder: c.sortOrder,
+    prelimFormat: c.prelimFormat ?? null,
   }));
 
-  // Auto-confirm categories that have reached 4+ teams
-  const teamCountByYearCat = new Map<string, { year: number; categoryId: string; count: number }>();
-  for (const team of teams) {
-    const key = `${team.tournamentYear}::${team.categoryId}`;
-    if (!teamCountByYearCat.has(key)) {
-      teamCountByYearCat.set(key, { year: team.tournamentYear, categoryId: team.categoryId, count: 0 });
-    }
-    teamCountByYearCat.get(key)!.count++;
-  }
-  const existingStatusMap = new Map(statusRows.map((s) => [`${s.tournamentYear}::${s.categoryId}`, s.status]));
-  const autoConfirmEntries = [...teamCountByYearCat.values()].filter(
-    ({ year, categoryId, count }) =>
-      count >= 4 && existingStatusMap.get(`${year}::${categoryId}`) !== "Active"
-  );
-  if (autoConfirmEntries.length > 0) {
-    await Promise.all(
-      autoConfirmEntries.map(({ year, categoryId }) =>
-        prisma.categoryYearStatus.upsert({
-          where: { tournamentYear_categoryId: { tournamentYear: year, categoryId } },
-          update: { status: "Active" },
-          create: { tournamentYear: year, categoryId, status: "Active" },
-        })
-      )
-    );
-  }
-  const autoConfirmedSet = new Set(autoConfirmEntries.map((e) => `${e.year}::${e.categoryId}`));
-
-  const categoryStatuses = [
-    ...statusRows.map((s) => ({
-      tournamentYear: s.tournamentYear,
-      categoryId: s.categoryId,
-      status: autoConfirmedSet.has(`${s.tournamentYear}::${s.categoryId}`) ? "Active" : s.status,
-    })),
-    // Newly created rows for categories that had no record yet
-    ...autoConfirmEntries
-      .filter(({ year, categoryId }) => !existingStatusMap.has(`${year}::${categoryId}`))
-      .map(({ year, categoryId }) => ({ tournamentYear: year, categoryId, status: "Active" })),
-  ];
+  const categoryStatuses = statusRows.map((s) => ({
+    tournamentYear: s.tournamentYear,
+    categoryId: s.categoryId,
+    status: s.status,
+  }));
 
   const adminUsers = adminRows.map((u) => ({
     id: u.id,
@@ -270,6 +288,62 @@ export default async function AdminPage() {
     fourth: p.fourth,
   }));
 
+  // ─── Court bookings enrichment ───────────────────────────────────────────────
+  const bookingMatchIds: string[] = [...new Set((rawCourtBookings as Array<{ matchId: string | null }>).map((b) => b.matchId).filter((id): id is string => id !== null))];
+  const bookingTeamIds: string[] = [...new Set((rawCourtBookings as Array<{ teamId: string | null }>).map((b) => b.teamId).filter((id): id is string => id !== null))];
+
+  const [bookingMatchRows, bookingTeamRows] = await Promise.all([
+    bookingMatchIds.length > 0
+      ? prisma.match.findMany({
+          where: { id: { in: bookingMatchIds } },
+          include: {
+            team1: { include: { member1: { select: { fullNameEn: true, fullNameKo: true } }, member2: { select: { fullNameEn: true, fullNameKo: true } } } },
+            team2: { include: { member1: { select: { fullNameEn: true, fullNameKo: true } }, member2: { select: { fullNameEn: true, fullNameKo: true } } } },
+            category: { select: { label: true, labelKo: true } },
+          },
+        })
+      : Promise.resolve([]),
+    bookingTeamIds.length > 0
+      ? prisma.team.findMany({
+          where: { id: { in: bookingTeamIds } },
+          include: {
+            member1: { select: { fullNameEn: true, fullNameKo: true } },
+            member2: { select: { fullNameEn: true, fullNameKo: true } },
+            category: { select: { label: true, labelKo: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const bookingMatchMap = new Map(bookingMatchRows.map((m) => [m.id, m]));
+  const bookingTeamMap = new Map(bookingTeamRows.map((t) => [t.id, t]));
+  const courtMap = new Map(COURT_OPTIONS.map((c) => [c.id, c]));
+
+  const courtBookings = rawCourtBookings.map((b) => {
+    const court = courtMap.get(b.courtId) ?? null;
+    const match = b.matchId ? (bookingMatchMap.get(b.matchId) ?? null) : null;
+    const team = b.teamId ? (bookingTeamMap.get(b.teamId) ?? null) : null;
+    return {
+      id: b.id,
+      courtId: b.courtId,
+      date: b.date,
+      teamId: b.teamId,
+      matchId: b.matchId,
+      status: b.status,
+      notes: b.notes,
+      createdAt: b.createdAt.toISOString(),
+      court: court ? { name: court.name, nameKo: court.nameKo, timeSlot: court.timeSlot } : null,
+      team: team ? { id: team.id, member1: team.member1, member2: team.member2 ?? null, category: team.category } : null,
+      match: match ? {
+        team1Id: match.team1Id,
+        team2Id: match.team2Id,
+        team1: match.team1 ? { member1: match.team1.member1, member2: match.team1.member2 ?? null } : null,
+        team2: match.team2 ? { member1: match.team2.member1, member2: match.team2.member2 ?? null } : null,
+        category: match.category,
+      } : null,
+    };
+  });
+
   return (
     <AdminHub
       registrations={registrations}
@@ -281,6 +355,7 @@ export default async function AdminPage() {
       adminUsers={adminUsers}
       finalists={[...finalistKeys]}
       prizes={prizes}
+      courtBookings={courtBookings}
     />
   );
 }

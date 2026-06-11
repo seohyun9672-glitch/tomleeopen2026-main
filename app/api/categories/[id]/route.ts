@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateMatches } from "@/lib/generateMatches";
 
 /** PATCH /api/categories/[id] — update category fields (admin). */
 export async function PATCH(
@@ -9,6 +10,14 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+
+    const VALID_FORMATS = ["GROUP_ROUND_ROBIN", "ROUND_ROBIN", "ELIMINATION"];
+    const prelimFormat =
+      typeof body.prelimFormat === "string" && VALID_FORMATS.includes(body.prelimFormat)
+        ? body.prelimFormat
+        : body.prelimFormat === null
+        ? null
+        : undefined;
 
     await prisma.category.update({
       where: { id },
@@ -21,8 +30,18 @@ export async function PATCH(
         tierKo: typeof body.tierKo === "string" ? body.tierKo.trim() || null : undefined,
         ntrp: typeof body.ntrp === "string" ? body.ntrp.trim() || null : undefined,
         isDoubles: typeof body.isDoubles === "boolean" ? body.isDoubles : undefined,
+        ...(prelimFormat !== undefined ? { prelimFormat } : {}),
       },
     });
+
+    // Trigger match generation for each year this category is active in
+    if (prelimFormat !== undefined && prelimFormat !== null) {
+      const activeYears = await prisma.categoryYearStatus.findMany({
+        where: { categoryId: id, status: "Active" },
+        select: { tournamentYear: true },
+      });
+      await Promise.all(activeYears.map((r) => generateMatches(r.tournamentYear, id)));
+    }
 
     return NextResponse.json({ id });
   } catch (e) {

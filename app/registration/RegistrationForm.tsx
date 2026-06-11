@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { PlayerForm, type PlayerFormValues } from "@/app/components/PlayerForm";
+import { PlayerForm, type PlayerFormValues, type PlayerSearchResult } from "@/app/components/PlayerForm";
 import { Field } from "@/app/components/ui/Field";
 import { CheckboxField } from "@/app/components/ui/Checkbox";
 import { Button } from "@/app/components/ui/Button";
@@ -16,15 +16,6 @@ import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PlayerSearchResult = {
-  id: number;
-  fullNameEn: string;
-  fullNameKo: string | null;
-  email: string;
-  phone: string | null;
-  ntrp: string | null;
-  clubs: string[];
-};
 
 type CreatedEntry = { id: string; categoryId: string };
 
@@ -243,23 +234,8 @@ export function RegistrationForm({
 
   // ─── Player combobox ───────────────────────────────────────────────────────
 
-  const loadPlayerOptions = useCallback(async (query: string): Promise<PlayerSearchResult[]> => {
-    if (!query.trim()) return [];
-    const res = await fetch(`/api/players?name=${encodeURIComponent(query)}`);
-    if (!res.ok) return [];
-    return res.json();
-  }, []);
-
   const onPlayerSelect = useCallback((player: PlayerSearchResult) => {
     setPlayerId(player.id);
-    setPlayerValues({
-      fullNameEn: player.fullNameEn,
-      fullNameKo: player.fullNameKo ?? "",
-      email: player.email,
-      phone: player.phone ?? "",
-      ntrp: player.ntrp ?? "",
-      clubs: player.clubs,
-    });
   }, []);
 
   // ─── Partner combobox ──────────────────────────────────────────────────────
@@ -433,13 +409,7 @@ export function RegistrationForm({
               phone: true,
               ntrp: !isAdminContext,
             }}
-            nameCombobox={{
-              loadOptions: loadPlayerOptions,
-              onSelect: onPlayerSelect,
-              getOptionKey: (p) => p.id,
-              getOptionLabelEn: (p) => p.fullNameEn,
-              getOptionLabelKo: (p) => p.fullNameKo ?? p.fullNameEn,
-            }}
+            onPlayerSelect={onPlayerSelect}
           />
         </FormSection>
 

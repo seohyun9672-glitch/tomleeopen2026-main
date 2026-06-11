@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { RegistrationStatus } from "@/lib/registration";
 import { parseClubCodesFromBody } from "@/lib/clubs";
 import { createTeamFromRegistration } from "@/lib/createTeam";
+import { resolveOrCreatePartner } from "@/lib/resolvePartner";
 
 const NEW_REGISTRATION_STATUS: RegistrationStatus = "Pending";
 
@@ -145,25 +146,43 @@ export async function POST(request: Request) {
       });
       await setPlayerClubs(playerId, clubCodes);
     } else {
-      const existingByEmail = await prisma.player.findFirst({ where: { email } });
-      if (existingByEmail) {
-        playerId = existingByEmail.id;
+      const phone = body.phone?.trim() || null;
+      const fullNameKo = body.fullNameKo?.trim() || null;
+
+      // Match by name+phone first — catches players who re-register with a new email
+      const existingByNameAndPhone = phone
+        ? await prisma.player.findFirst({
+            where: {
+              phone,
+              OR: [
+                { fullNameEn: { equals: fullNameEn, mode: "insensitive" as Prisma.QueryMode } },
+                ...(fullNameKo
+                  ? [{ fullNameKo: { equals: fullNameKo, mode: "insensitive" as Prisma.QueryMode } }]
+                  : []),
+              ],
+            },
+          })
+        : null;
+
+      const existingByEmail = existingByNameAndPhone
+        ? null
+        : await prisma.player.findFirst({ where: { email } });
+
+      const existingPlayer = existingByNameAndPhone ?? existingByEmail;
+
+      if (existingPlayer) {
+        playerId = existingPlayer.id;
         await prisma.player.update({
           where: { id: playerId },
-          data: {
-            fullNameEn: fullNameEn || existingByEmail.fullNameEn,
-            fullNameKo: body.fullNameKo?.trim() || existingByEmail.fullNameKo,
-            phone: (body.phone?.trim() || existingByEmail.phone) ?? undefined,
-            ntrp: (body.ntrp?.trim() || null || existingByEmail.ntrp) ?? undefined,
-          },
+          data: { email, fullNameEn, fullNameKo, phone, ntrp: body.ntrp?.trim() || null },
         });
         await setPlayerClubs(playerId, clubCodes);
       } else {
         const player = await createPlayerRow({
           email,
           fullNameEn,
-          fullNameKo: body.fullNameKo?.trim() || null,
-          phone: body.phone?.trim() || null,
+          fullNameKo,
+          phone,
           ntrp: body.ntrp?.trim() || null,
         });
         playerId = player.id;
@@ -174,36 +193,6 @@ export async function POST(request: Request) {
     const partnerNames = typeof body.partnerNames === "object" && body.partnerNames !== null ? body.partnerNames : {};
     const partnerIdsFromBody: Record<string, number> =
       typeof body.partnerIds === "object" && body.partnerIds !== null ? body.partnerIds : {};
-
-    async function resolveOrCreatePartnerId(
-      partnerName: string | null,
-      excludePlayerId: number
-    ): Promise<{ id: number | null; stubError?: string }> {
-      const name = partnerName?.trim();
-      if (!name) return { id: null };
-      const existing = await prisma.player.findFirst({
-        where: {
-          id: { not: excludePlayerId },
-          OR: [
-            { fullNameEn: { equals: name, mode: "insensitive" } },
-            { fullNameKo: { equals: name, mode: "insensitive" } },
-          ],
-        },
-        select: { id: true },
-      });
-      if (existing) return { id: existing.id };
-      try {
-        const stub = await createPlayerRow({
-          fullNameEn: name,
-          email: `partner-stub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@placeholder.tomlee-open`,
-        });
-        return { id: stub.id };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("resolveOrCreatePartnerId: stub creation failed:", msg);
-        return { id: null, stubError: msg };
-      }
-    }
 
     const created: { id: string; categoryId: string }[] = [];
     for (const categoryId of categories) {
@@ -226,11 +215,7 @@ export async function POST(request: Request) {
           resolvedPartnerId = partnerIdsFromBody[categoryId];
         } else {
           const partnerName = partnerNames[categoryId]?.trim() || body.partnerName?.trim() || null;
-          const partnerResult = await resolveOrCreatePartnerId(partnerName, playerId);
-          resolvedPartnerId = partnerResult.id;
-          if (partnerResult.stubError) {
-            console.error(`[registration] stub creation error for "${partnerName}":`, partnerResult.stubError);
-          }
+          resolvedPartnerId = await resolveOrCreatePartner(partnerName, playerId);
         }
       }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { autoFillKnockoutSlots } from "@/lib/generateMatches";
 
 export async function PATCH(
   request: Request,
@@ -22,7 +23,23 @@ export async function PATCH(
     if ("set2ScoreTeam2" in body) data.set2ScoreTeam2 = body.set2ScoreTeam2 || null;
     if ("set3ScoreTeam2" in body) data.set3ScoreTeam2 = body.set3ScoreTeam2 || null;
 
-    await prisma.match.update({ where: { id }, data });
+    const updated = await prisma.match.update({
+      where: { id },
+      data,
+      select: { tournamentYear: true, categoryId: true, round: true, matchStatus: true },
+    });
+
+    // Auto-fill knockout slots when a prelim match is marked Completed
+    if (updated.round === "PRE" && updated.matchStatus === "Completed") {
+      const category = await prisma.category.findUnique({
+        where: { id: updated.categoryId },
+        select: { prelimFormat: true },
+      });
+      if (category?.prelimFormat) {
+        await autoFillKnockoutSlots(updated.tournamentYear, updated.categoryId, category.prelimFormat);
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("PATCH /api/matches/[id]", e);
