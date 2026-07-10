@@ -1,42 +1,42 @@
 import { PrismaClient } from "@prisma/client";
+import { PRIZE_BRACKETS, getPrizeAmounts } from "../lib/prizes";
 
 const prisma = new PrismaClient();
 
-const ROUNDS = [
-  { id: 1, code: "Pre", labelEn: "Preliminaries", labelKo: "예선", sortOrder: 0 },
-  { id: 2, code: "R16", labelEn: "Round of 16",   labelKo: "16강", sortOrder: 1 },
-  { id: 3, code: "QF",  labelEn: "Quarterfinals",  labelKo: "8강",  sortOrder: 2 },
-  { id: 4, code: "SF",  labelEn: "Semifinals",     labelKo: "준결승", sortOrder: 3 },
-  { id: 5, code: "F",   labelEn: "Final",          labelKo: "결승",  sortOrder: 4 },
-];
+async function seedPrizesForYear(year: number) {
+  const activeStatuses = await prisma.categoryYearStatus.findMany({
+    where: { tournamentYear: year, status: "Active" },
+    include: { category: { select: { id: true, isDoubles: true } } },
+  });
+  if (activeStatuses.length === 0) return 0;
 
-const PRIZES_2025 = [
-  { tournamentYear: 2025, isDoubles: true,  teamCountBracket: "12+", first: 700, second: 400, third: 100, fourth: 100 },
-  { tournamentYear: 2025, isDoubles: true,  teamCountBracket: "6+",  first: 500, second: 300, third: 100, fourth: 100 },
-  { tournamentYear: 2025, isDoubles: true,  teamCountBracket: "4-5", first: 200, second: 0,   third: 0,   fourth: 0   },
-  { tournamentYear: 2025, isDoubles: false, teamCountBracket: "12+", first: 500, second: 300, third: 50,  fourth: 50  },
-  { tournamentYear: 2025, isDoubles: false, teamCountBracket: "6+",  first: 300, second: 200, third: 50,  fourth: 50  },
-  { tournamentYear: 2025, isDoubles: false, teamCountBracket: "4-5", first: 200, second: 0,   third: 0,   fourth: 0   },
-];
+  const teamCounts = await prisma.team.groupBy({
+    by: ["categoryId"],
+    where: { tournamentYear: year },
+    _count: { id: true },
+  });
+  const countMap = new Map(teamCounts.map((r) => [r.categoryId, r._count.id]));
+
+  let seeded = 0;
+  for (const s of activeStatuses) {
+    const teamCount = countMap.get(s.categoryId) ?? 0;
+    const amounts = getPrizeAmounts(teamCount, year, s.category.isDoubles);
+    if (!amounts) continue;
+    await prisma.categoryPrize.upsert({
+      where: { tournamentYear_categoryId: { tournamentYear: year, categoryId: s.categoryId } },
+      update: amounts,
+      create: { tournamentYear: year, categoryId: s.categoryId, ...amounts },
+    });
+    seeded++;
+  }
+  return seeded;
+}
 
 async function main() {
-  for (const round of ROUNDS) {
-    await prisma.round.upsert({
-      where: { code: round.code },
-      update: { labelEn: round.labelEn, labelKo: round.labelKo, sortOrder: round.sortOrder },
-      create: round,
-    });
+  for (const year of Object.keys(PRIZE_BRACKETS).map(Number).sort()) {
+    const n = await seedPrizesForYear(year);
+    if (n > 0) console.log(`Seeded ${year} prizes: ${n} categories`);
   }
-  console.log("Seeded rounds:", ROUNDS.map((r) => r.code).join(", "));
-
-  for (const p of PRIZES_2025) {
-    await prisma.categoryPrize.upsert({
-      where: { tournamentYear_isDoubles_teamCountBracket: { tournamentYear: p.tournamentYear, isDoubles: p.isDoubles, teamCountBracket: p.teamCountBracket } },
-      update: { first: p.first, second: p.second, third: p.third, fourth: p.fourth },
-      create: p,
-    });
-  }
-  console.log("Seeded 2025 prizes");
 }
 
 main()

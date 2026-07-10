@@ -3,6 +3,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { ComboboxProps } from "@/app/components/ui/Combobox";
 import { Combobox } from "@/app/components/ui/Combobox";
+import { DatePicker } from "@/app/components/ui/DatePicker";
+import type { DatePickerProps } from "@/app/components/ui/DatePicker";
+import { TimePicker } from "@/app/components/ui/TimePicker";
+import type { TimePickerProps } from "@/app/components/ui/TimePicker";
 import { Input } from "@/app/components/ui/Input";
 import { MultiSelect } from "@/app/components/ui/MultiSelect";
 import { Select } from "@/app/components/ui/Select";
@@ -28,7 +32,9 @@ export type FieldProps<TOption = unknown> =
   | ({ variant: "textarea" } & ComponentProps<typeof Textarea>)
   | ({ variant: "select" } & ComponentProps<typeof Select>)
   | ({ variant: "combobox" } & ComboboxProps<TOption>)
-  | ({ variant: "multiselect" } & ComponentProps<typeof MultiSelect>);
+  | ({ variant: "multiselect" } & ComponentProps<typeof MultiSelect>)
+  | ({ variant: "datepicker" } & DatePickerProps)
+  | ({ variant: "timepicker" } & TimePickerProps);
 
 type FieldWrapProps = {
   /** Renders a label above the input. */
@@ -39,6 +45,8 @@ type FieldWrapProps = {
   error?: ReactNode;
   /** className applied to the wrapper div (only used when label is provided). */
   wrapperClassName?: string;
+  /** Renders label inline to the left instead of stacked above. */
+  horizontal?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -46,12 +54,28 @@ type FieldWrapProps = {
 // ---------------------------------------------------------------------------
 
 export function Field<TOption = unknown>(props: FieldProps<TOption> & FieldWrapProps) {
-  const { label, required, error, wrapperClassName, ...rest } = props as FieldWrapProps & Record<string, unknown>;
+  const { label, required, error, wrapperClassName, horizontal, ...rest } = props as FieldWrapProps & Record<string, unknown>;
   const id = (props as { id?: string }).id;
 
   const input = renderInput(rest as FieldProps<TOption>);
 
   if (!label) return input;
+
+  if (horizontal) {
+    return (
+      <div className={`flex items-center gap-3 ${wrapperClassName ?? ""}`}>
+        <label htmlFor={id} className="w-16 shrink-0 text-sm font-medium [color:var(--section-text)]">
+          {label}
+          {required && <span className="text-[var(--form-required-mark)]"> *</span>}
+        </label>
+        <div className="flex-1 min-w-0">
+          {input}
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={wrapperClassName}>
       <label htmlFor={id} className="block mb-1.5 text-sm font-medium [color:var(--section-text)]">
@@ -85,6 +109,14 @@ function renderInput<TOption>(props: FieldProps<TOption>): ReactNode {
     case "multiselect": {
       const { variant: _v, ...rest } = props;
       return <MultiSelect {...rest} />;
+    }
+    case "datepicker": {
+      const { variant: _v, ...rest } = props;
+      return <DatePicker {...rest} />;
+    }
+    case "timepicker": {
+      const { variant: _v, ...rest } = props;
+      return <TimePicker {...rest} />;
     }
     case "text":
     case "email":

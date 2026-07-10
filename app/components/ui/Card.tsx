@@ -146,7 +146,7 @@ export function Card({
     <article
       className={joinClasses(
         "flex w-full min-w-0 flex-col overflow-hidden border border-[color:var(--outline-blue-soft)] bg-white transition-colors hover:border-[color:var(--color-primary-blue-300)]",
-        imageOnly && "h-[100px] md:h-[150px]",
+        imageOnly && "h-[140px] md:h-[200px]",
         !outerLink && className
       )}
     >

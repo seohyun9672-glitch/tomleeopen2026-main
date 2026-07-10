@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTabParam } from "@/lib/hooks/useTabParam";
 import type { MediaRecord } from "@/lib/media";
 import type { CategoryRecord } from "@/lib/categories";
@@ -10,6 +10,7 @@ import { DatabaseLayout } from "@/app/components/database";
 import { Card } from "@/app/components/ui/Card";
 import { useLocale } from "@/lib/locale-context";
 import { PhotoGalleryLightbox } from "./PhotoGalleryLightbox";
+import { GroupedList } from "@/app/components/GroupedList";
 import { extractYouTubeVideoId, youtubeThumbnailHqUrl } from "@/lib/media";
 
 const VIDEO_HIGHLIGHT_ID = "media-video-2025-recap";
@@ -273,34 +274,6 @@ function MediaCardItem({
   );
 }
 
-// ─── Section wrapper ──────────────────────────────────────────────────────────
-
-function YearSection({
-  sectionId,
-  heading,
-  capText,
-  children,
-}: {
-  sectionId: string;
-  heading: string;
-  capText?: string | null;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      aria-labelledby={sectionId}
-      className="flex flex-col gap-[var(--content-gap)]"
-    >
-      <h2 id={sectionId} className="text-h2 m-0 text-[var(--color-text-primary)]">
-        {heading}
-      </h2>
-      {capText && (
-        <p className="text-body m-0 text-[var(--text-secondary)]">{capText}</p>
-      )}
-      {children}
-    </section>
-  );
-}
 
 // ─── Featured video embed ─────────────────────────────────────────────────────
 
@@ -384,15 +357,13 @@ function PhotosContent({
 
   return (
     <div className="flex flex-col gap-[var(--section-gap)]">
-      {sections.map(({ year, items: sectionItems }, index) => (
-        <Fragment key={year}>
-          {index > 0 && (
-            <hr className="m-0 border-t border-[color:var(--color-border-ui)]" />
-          )}
-          <YearSection
-            sectionId={`media-photos-year-${year}`}
-            heading={finalYearSectionTitle(year)}
-          >
+      <GroupedList
+        headingLevel="h2"
+        separator
+        groups={sections.map(({ year, items: sectionItems }) => ({
+          key: String(year),
+          label: finalYearSectionTitle(year),
+          children: (
             <ul className={cardGridClass}>
               {sectionItems.map((item) => (
                 <li key={item.id}>
@@ -404,9 +375,9 @@ function PhotosContent({
                 </li>
               ))}
             </ul>
-          </YearSection>
-        </Fragment>
-      ))}
+          ),
+        }))}
+      />
       {orphans.length > 0 && (
         <ul className={cardGridClass}>
           {orphans.map((item) => (
@@ -455,58 +426,58 @@ function VideosContent({
 
   return (
     <div className="flex flex-col gap-[var(--section-gap)]">
-      {sections.map(({ year, items: sectionItems }, index) => {
-        const highlightEffectiveYear =
-          highlight?.tournamentYear ?? VIDEO_FALLBACK_YEAR;
-        const showFeatured =
-          highlight != null &&
-          highlightEffectiveYear === year &&
-          sectionItems.some((m) => m.id === VIDEO_HIGHLIGHT_ID);
-        const highlightYoutubeId =
-          showFeatured && highlight?.media
-            ? extractYouTubeVideoId(highlight.media)
-            : null;
-        const highlightTitle =
-          showFeatured && highlight != null
-            ? resolveItemTitle(highlight, categoriesById, locale)
-            : "";
-        const gridItems = showFeatured
-          ? sectionItems.filter((m) => m.id !== VIDEO_HIGHLIGHT_ID)
-          : sectionItems;
+      <GroupedList
+        headingLevel="h2"
+        separator
+        groups={sections.map(({ year, items: sectionItems }) => {
+          const highlightEffectiveYear =
+            highlight?.tournamentYear ?? VIDEO_FALLBACK_YEAR;
+          const showFeatured =
+            highlight != null &&
+            highlightEffectiveYear === year &&
+            sectionItems.some((m) => m.id === VIDEO_HIGHLIGHT_ID);
+          const highlightYoutubeId =
+            showFeatured && highlight?.media
+              ? extractYouTubeVideoId(highlight.media)
+              : null;
+          const highlightTitle =
+            showFeatured && highlight != null
+              ? resolveItemTitle(highlight, categoriesById, locale)
+              : "";
+          const gridItems = showFeatured
+            ? sectionItems.filter((m) => m.id !== VIDEO_HIGHLIGHT_ID)
+            : sectionItems;
 
-        return (
-          <Fragment key={year}>
-            {index > 0 && (
-              <hr className="m-0 border-t border-[color:var(--color-border-ui)]" />
-            )}
-            {showFeatured && (
-              <FeaturedVideoBlock
-                youtubeId={highlightYoutubeId}
-                title={highlightTitle}
-                description={featuredVideoDescription}
-              />
-            )}
-            <YearSection
-              sectionId={`media-videos-year-${year}`}
-              heading={finalYearSectionTitle(year)}
-            >
-              {gridItems.length > 0 && (
-                <ul className={cardGridClass}>
-                  {gridItems.map((item) => (
-                    <li key={item.id}>
-                      <MediaCardItem
-                        item={item}
-                        galleryUrls={galleryUrlsForItem(item)}
-                        opts={cardOpts}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </YearSection>
-          </Fragment>
-        );
-      })}
+          return {
+            key: String(year),
+            label: finalYearSectionTitle(year),
+            children: (
+              <>
+                {showFeatured && (
+                  <FeaturedVideoBlock
+                    youtubeId={highlightYoutubeId}
+                    title={highlightTitle}
+                    description={featuredVideoDescription}
+                  />
+                )}
+                {gridItems.length > 0 && (
+                  <ul className={cardGridClass}>
+                    {gridItems.map((item) => (
+                      <li key={item.id}>
+                        <MediaCardItem
+                          item={item}
+                          galleryUrls={galleryUrlsForItem(item)}
+                          opts={cardOpts}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ),
+          };
+        })}
+      />
       {orphans.length > 0 && (
         <ul className={cardGridClass}>
           {orphans.map((item) => (

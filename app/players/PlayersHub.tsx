@@ -1,65 +1,145 @@
 "use client";
 
 import { useLocale } from "@/lib/locale-context";
-import { DatabaseLayout, createSearchMatcher } from "@/app/components/database";
-import type { TableCellProps } from "@/app/components/database";
-import { clubChipClass } from "@/lib/clubs";
+import { DatabaseLayout } from "@/app/components/database";
+import { TableView } from "@/app/components/ui/table/Table";
+import { useUrlParams } from "@/lib/hooks/useUrlParams";
+import { displayName } from "@/lib/names";
+import { makeGroupBreakBefore } from "@/lib/utils";
+import type { ManagedFilterConfig } from "@/app/components/database";
+import type { TeamRow } from "@/app/admin/AdminHub";
+import { deriveYearOptions } from "@/app/components/database";
 
 export type PlayerRow = {
   id: number;
   fullNameEn: string;
   fullNameKo: string | null;
   clubs: { code: string; name: string; nameKo: string | null }[];
+  registrations: {
+    year: number;
+    categoryId: string;
+    label: string;
+    labelKo: string | null;
+  }[];
 };
 
-export function PlayersHub({ rows }: { rows: PlayerRow[] }) {
+export function PlayersHub({ teams }: { rows: PlayerRow[]; teams: TeamRow[] }) {
   const { t, locale } = useLocale();
+  const p = t.playersPage;
+  const a = t.adminPage;
+
+  const teamYears = deriveYearOptions(teams.map((r) => r.tournamentYear));
+
+  const [teamCatParams] = useUrlParams(["cat"] as const);
+
+  const categoryMap = new Map(
+    teams.map((r) => [r.categoryId, { label: r.categoryLabel, labelKo: r.categoryLabelKo }])
+  );
+
+  const teamManagedFilters: ManagedFilterConfig<TeamRow>[] = [
+    {
+      type: "year" as const,
+      years: teamYears,
+      apply: (items: TeamRow[], year: string) => (year ? items.filter((r) => String(r.tournamentYear) === year) : items),
+      clearParams: ["seed"],
+    },
+    {
+      type: "category" as const,
+      options: (prevItems: TeamRow[]) => {
+        const map = new Map<string, { id: string; label: string; labelKo: string | null }>();
+        for (const r of prevItems) {
+          if (!map.has(r.categoryId))
+            map.set(r.categoryId, { id: r.categoryId, label: r.categoryLabel, labelKo: r.categoryLabelKo ?? null });
+        }
+        return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+      },
+      apply: (items: TeamRow[], catId: string) => (catId ? items.filter((r) => r.categoryId === catId) : items),
+      allLabel: t.shared.labels.allCategories,
+    },
+    {
+      type: "seed" as const,
+      options: (prevItems: TeamRow[]) => {
+        const seen = new Set<string>();
+        for (const tm of prevItems) { if (tm.seed) seen.add(tm.seed); }
+        return [...seen].sort();
+      },
+      apply: (items: TeamRow[], seed: string) => (seed ? items.filter((r) => r.seed === seed) : items),
+      allLabel: t.shared.labels.seed,
+      visibleWhen: (v) => !!v.cat,
+    },
+  ];
 
   return (
-    <DatabaseLayout<PlayerRow>
-      data={rows}
-      managedFilters={[
-        {
-          type: "search" as const,
-          param: "q",
-          apply: createSearchMatcher((r: PlayerRow) => [
-            r.fullNameEn,
-            r.fullNameKo,
-            ...r.clubs.map((c) => c.code),
-            ...r.clubs.map((c) => c.name),
-          ]),
-        },
-      ]}
-      view={{
-        type: "table" as const,
-        variant: "data" as const,
-        columns: [
-          {
-            header: t.shared.labels.name,
-            sortKey: "name",
-            sortValue: (p: PlayerRow) =>
-              locale === "ko" ? p.fullNameKo || p.fullNameEn : p.fullNameEn,
-            renderCell: (p: PlayerRow): TableCellProps => ({
-              type: "text",
-              value:
-                locale === "ko" ? p.fullNameKo || p.fullNameEn : p.fullNameEn,
-            }),
-          },
-          {
-            header: t.shared.labels.club,
-            sortKey: "club",
-            sortValue: (p: PlayerRow) => p.clubs[0]?.code ?? "",
-            renderCell: (p: PlayerRow): TableCellProps => ({
-              type: "chips",
-              items: p.clubs.map((c) => ({
-                label: c.code,
-                className: clubChipClass(c.code),
-              })),
-            }),
-          },
-        ],
+    <DatabaseLayout<TeamRow>
+      data={teams}
+      managedFilters={teamManagedFilters}
+      emptyText={p.emptyStateNoTeams}
+      rowCountLabel={locale === "ko" ? ["팀", "팀"] : ["team", "teams"]}
+    >
+      {(filteredTeams: TeamRow[]) => {
+        const isCatFiltered = !!teamCatParams.cat;
+        const hasGroupData = filteredTeams.some((r) => r.seed);
+        const sortedTeams = [...filteredTeams].sort((a, b) => {
+          if (!isCatFiltered) {
+            const aOrder = categoryMap.get(a.categoryId) ? a.categoryId : "zzz";
+            const bOrder = categoryMap.get(b.categoryId) ? b.categoryId : "zzz";
+            if (aOrder !== bOrder) return aOrder.localeCompare(bOrder);
+          }
+          if (hasGroupData) {
+            const ga = a.seed ?? ""; const gb = b.seed ?? "";
+            if (ga !== gb) return ga.localeCompare(gb);
+          }
+          return parseInt(a.teamId.match(/(\d+)$/)![1], 10) - parseInt(b.teamId.match(/(\d+)$/)![1], 10);
+        });
+        const hasDoubles = filteredTeams.some((r) => r.isDoubles);
+        return (
+          <TableView<TeamRow>
+            type="table"
+            items={sortedTeams}
+            rowGroupBreakBefore={!isCatFiltered ? makeGroupBreakBefore(sortedTeams, (r) => r.categoryId) : undefined}
+            columns={[
+              {
+                header: a.teams.columns.number,
+                ...(isCatFiltered
+                  ? {
+                      sortKey: "number",
+                      sortValue: (r: TeamRow) => parseInt(r.teamId.match(/(\d+)$/)![1], 10),
+                      renderCell: (r: TeamRow) => ({ type: "number" as const, value: parseInt(r.teamId.match(/(\d+)$/)![1], 10) }),
+                    }
+                  : {
+                      renderCell: (_r: TeamRow, i: number) => ({ type: "number" as const, value: i + 1 }),
+                    }),
+              },
+              ...(!isCatFiltered ? [{
+                header: t.shared.labels.category,
+                sortKey: "category",
+                sortValue: (r: TeamRow) => r.categoryLabel,
+                renderCell: (r: TeamRow) => ({ type: "text" as const, value: locale === "ko" ? (r.categoryLabelKo ?? r.categoryLabel) : r.categoryLabel }),
+              }] : []),
+              {
+                header: a.teams.columns.player1,
+                sortKey: "player1",
+                sortValue: (r: TeamRow) => r.member1NameEn,
+                renderCell: (r: TeamRow) => ({ type: "text" as const, value: displayName(r.member1NameEn, r.member1NameKo, locale) }),
+              },
+              ...(hasDoubles ? [{
+                header: a.teams.columns.player2,
+                sortKey: "player2",
+                sortValue: (r: TeamRow) => r.member2NameEn ?? "",
+                renderCell: (r: TeamRow) => ({ type: "text" as const, value: r.member2NameEn ? displayName(r.member2NameEn, r.member2NameKo, locale) : null }),
+              }] : []),
+              ...(hasGroupData ? [{
+                header: t.shared.labels.seed,
+                sortKey: "seed",
+                sortValue: (r: TeamRow) => r.seed ?? "",
+                renderCell: (r: TeamRow) => r.seed
+                  ? { type: "chips" as const, items: [{ label: r.seed, className: `group-chip-${r.seed.toLowerCase()}` }] }
+                  : { type: "text" as const, value: null },
+              }] : []),
+            ]}
+          />
+        );
       }}
-      emptyText={t.playersPage.emptyStateNoMatch}
-    />
+    </DatabaseLayout>
   );
 }

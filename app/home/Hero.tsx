@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { Button } from "@/app/components/ui/Button";
 import { useLocale } from "@/lib/locale-context";
-import { importantDates } from "@/lib/importantDatesData";
+import { getImportantDates } from "@/lib/importantDatesData";
+import { getYear } from "@/lib/utils";
 import { getRegistrationStatus } from "@/lib/registrationStatus";
 
 function splitHeroTitle(title: string) {
@@ -21,16 +22,24 @@ export function Hero() {
   const { title, navLinks } = t.homePage.hero;
   const localePrefix = locale === "ko" ? "/ko" : "";
 
-  const dateRange = (() => {
-    const entry = importantDates.find((e) => e.label === "Tournament");
+  const { status } = getRegistrationStatus();
+  const registrationOpen = status === "open";
+  const registrationClosed = status === "closed";
+
+  const subtitle = (() => {
+    if (registrationOpen) {
+      const entry = getImportantDates(getYear()).find((e) => e.label === "Registration" && e.type === "range");
+      if (!entry || entry.type === "text") return "";
+      const period = locale === "ko" ? (entry.valueDisplayKo ?? entry.valueDisplay) : entry.valueDisplay;
+      return locale === "ko" ? `등록 접수 기간: ${period}` : `Registrations open: ${period}`;
+    }
+    const entry = getImportantDates(getYear()).find((e) => e.label === "Tournament");
     if (!entry || entry.type === "text") return "";
     return locale === "ko" ? (entry.valueDisplayKo ?? entry.valueDisplay) : entry.valueDisplay;
   })();
 
   const { line1, line2 } = splitHeroTitle(title);
   const isKorean = locale === "ko";
-  const { status } = getRegistrationStatus();
-  const registrationOpen = status === "open";
 
   return (
     <section className="bg-hero-with-grid flex items-center py-16 md:py-20 relative overflow-hidden min-h-[520px] md:min-h-[540px]">
@@ -56,7 +65,7 @@ export function Hero() {
           <h1 className="hero-title">
             {isKorean ? `${line1} ${line2}` : <>{line1} <br />{line2}</>}
           </h1>
-          <h2 className="hero-subtitle">{dateRange}</h2>
+          <h2 className="hero-subtitle">{subtitle}</h2>
           {registrationOpen ? (
             <div className="flex flex-col gap-[var(--content-gap)] md:flex-row">
               <Button
@@ -70,11 +79,11 @@ export function Hero() {
             </div>
           ) : navLinks.length > 0 && (
             <div className="flex flex-col gap-[var(--content-gap)] md:flex-row">
-              {navLinks.map(({ href, label }) => (
+              {navLinks.map(({ href, label }, i) => (
                 <Button
                   key={href}
                   href={href}
-                  variant="secondary"
+                  variant={i === 0 ? "primary" : "secondary"}
                   size="medium"
                   className="w-fit"
                 >

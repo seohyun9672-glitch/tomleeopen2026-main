@@ -3,19 +3,35 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { AdminHub } from "@/app/admin/AdminHub";
 import { prisma } from "@/lib/prisma";
-import { createTeamFromRegistration } from "@/lib/createTeam";
+import { renumberTeamsInCategory } from "@/lib/createTeam";
 import { getFinalistPlayerKeys } from "@/lib/matches";
+import { orderTeamMembersForDisplay, getYear } from "@/lib/utils";
+import { getPrizeAmounts, PRIZE_BRACKETS } from "@/lib/prizes";
+import { applyPostCloseCategoryRules, hasDrawPublishDatePassed } from "@/lib/registrationStatus";
 
 function extractGroup(matchId: string): string | null {
   const m = matchId.match(/PRE([A-Z])(\d+)$/i);
   return m ? m[1].toUpperCase() : null;
 }
 
+function naturalMatchIdSort(a: string, b: string): number {
+  const splitId = (id: string): [string, number] => {
+    const m = /^(.*?)(\d+)$/.exec(id);
+    return m ? [m[1]!, parseInt(m[2]!, 10)] : [id, 0];
+  };
+  const [ap, an] = splitId(a);
+  const [bp, bn] = splitId(b);
+  const prefixCmp = ap.localeCompare(bp);
+  return prefixCmp !== 0 ? prefixCmp : an - bn;
+}
+
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session || session.user?.role !== "admin") redirect("/admin/login");
 
-  const [regRows, teamRows, matchRows, playerRows, catRows, statusRows, adminRows, finalistKeys] = await Promise.all([
+  await applyPostCloseCategoryRules(getYear());
+
+  const [regRows, teamRowsInitial, matchRows, playerRows, catRows, statusRows, adminRows, finalistKeys, rawGiveaways, tumblerOptionRows] = await Promise.all([
     prisma.tournamentRegistration.findMany({
       include: {
         player: {
@@ -26,6 +42,7 @@ export default async function AdminPage() {
             email: true,
             phone: true,
             ntrp: true,
+            gender: true,
             clubs: { select: { clubCode: true } },
           },
         },
@@ -47,17 +64,17 @@ export default async function AdminPage() {
     prisma.team.findMany({
       include: {
         category: { select: { label: true, labelKo: true, isDoubles: true } },
-        member1: { select: { fullNameEn: true, fullNameKo: true } },
-        member2: { select: { fullNameEn: true, fullNameKo: true } },
+        member1: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
+        member2: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
       },
       orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
     }),
     prisma.match.findMany({
       include: {
         category: { select: { label: true, labelKo: true } },
-        round: { select: { code: true, labelEn: true, labelKo: true } },
+        roundRef: { select: { code: true, labelEn: true, labelKo: true } },
       },
-      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { matchNumber: "asc" }],
+      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { id: "asc" }],
     }),
     prisma.player.findMany({
       select: {
@@ -81,10 +98,78 @@ export default async function AdminPage() {
       select: { id: true, email: true, active: true, createdAt: true },
     }),
     getFinalistPlayerKeys(),
+    prisma.giveaway.findMany({
+      include: { player: { select: { id: true, fullNameEn: true, fullNameKo: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.tumblerOption.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { optionId: true, label: true, imageSrc: true, stock: true },
+    }),
   ]);
 
+  // Build the set of active (non-cancelled) player+category+year keys from registrations.
+  // Use this to detect stale teams whose members no longer have any registration.
+  const activePlayerCatYear = new Set<string>();
+  for (const reg of regRows) {
+    if (reg.status !== "Cancelled") {
+      activePlayerCatYear.add(`${reg.tournamentYear}|${reg.categoryId}|${reg.playerId}`);
+      if (reg.partnerId) {
+        activePlayerCatYear.add(`${reg.tournamentYear}|${reg.categoryId}|${reg.partnerId}`);
+      }
+    }
+  }
+
+  const staleTeams = teamRowsInitial.filter((team) => {
+    const m1Active = activePlayerCatYear.has(`${team.tournamentYear}|${team.categoryId}|${team.member1PlayerId}`);
+    const m2Active = team.member2PlayerId
+      ? activePlayerCatYear.has(`${team.tournamentYear}|${team.categoryId}|${team.member2PlayerId}`)
+      : false;
+    return !m1Active && !m2Active;
+  });
+
+  let teamRows = teamRowsInitial;
+  if (staleTeams.length > 0) {
+    const affectedCats = new Set(staleTeams.map((t) => `${t.tournamentYear}|${t.categoryId}`));
+    await Promise.all(staleTeams.map((team) =>
+      prisma.team.delete({ where: { tournamentYear_id: { tournamentYear: team.tournamentYear, id: team.id } } })
+    ));
+    await Promise.all([...affectedCats].map((key) => {
+      const [yearStr, catId] = key.split("|");
+      return renumberTeamsInCategory(parseInt(yearStr, 10), catId!);
+    }));
+    teamRows = await prisma.team.findMany({
+      include: {
+        category: { select: { label: true, labelKo: true, isDoubles: true } },
+        member1: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
+        member2: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
+      },
+      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
+    });
+  }
+
+  // Auto-update prizes for years that have bracket rules (currently 2026)
+  await Promise.all(Object.keys(PRIZE_BRACKETS).map(Number).flatMap((year) => {
+    const teamCountMap = new Map<string, number>();
+    for (const t of teamRows) {
+      if (t.tournamentYear === year) teamCountMap.set(t.categoryId, (teamCountMap.get(t.categoryId) ?? 0) + 1);
+    }
+    return statusRows
+      .filter((s) => s.tournamentYear === year && s.status === "Active")
+      .flatMap((s) => {
+        const cat = catRows.find((c) => c.id === s.categoryId);
+        const amounts = getPrizeAmounts(teamCountMap.get(s.categoryId) ?? 0, year, cat?.isDoubles ?? false);
+        if (!amounts) return [];
+        return [prisma.categoryPrize.upsert({
+          where: { tournamentYear_categoryId: { tournamentYear: year, categoryId: s.categoryId } },
+          update: amounts,
+          create: { tournamentYear: year, categoryId: s.categoryId, ...amounts },
+        })];
+      });
+  }));
+
   const prizeRows = await prisma.categoryPrize.findMany({
-    orderBy: [{ tournamentYear: "desc" }, { isDoubles: "desc" }, { teamCountBracket: "asc" }],
+    orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
   });
 
   const registrations = regRows.map((r) => ({
@@ -101,6 +186,7 @@ export default async function AdminPage() {
     playerEmail: r.player.email,
     playerPhone: r.player.phone,
     playerNtrp: r.player.ntrp,
+    playerGender: r.player.gender,
     playerClubs: r.player.clubs.map((c) => c.clubCode),
     partnerId: r.partner?.id ?? null,
     partnerNameEn: r.partner?.fullNameEn ?? null,
@@ -120,19 +206,22 @@ export default async function AdminPage() {
   // Teams come directly from Team records (created from registrations via createTeamFromRegistration)
   const catSortOrder = new Map(catRows.map((c) => [c.id, c.sortOrder]));
   const teams = teamRows
-    .map((t) => ({
-      teamId: t.id,
-      tournamentYear: t.tournamentYear,
-      categoryId: t.categoryId,
-      categoryLabel: t.category.label,
-      categoryLabelKo: t.category.labelKo,
-      isDoubles: t.category.isDoubles,
-      seed: t.seed ?? null,
-      member1NameEn: t.member1.fullNameEn.trim() || t.member1.fullNameKo?.trim() || "",
-      member1NameKo: t.member1.fullNameKo?.trim() || null,
-      member2NameEn: t.member2?.fullNameEn.trim() || t.member2?.fullNameKo?.trim() || null,
-      member2NameKo: t.member2?.fullNameKo?.trim() || null,
-    }))
+    .map((t) => {
+      const [m1, m2] = orderTeamMembersForDisplay(t.member1, t.member2);
+      return {
+        teamId: t.id,
+        tournamentYear: t.tournamentYear,
+        categoryId: t.categoryId,
+        categoryLabel: t.category.label,
+        categoryLabelKo: t.category.labelKo,
+        isDoubles: t.category.isDoubles,
+        seed: t.seed ?? null,
+        member1NameEn: m1.fullNameEn.trim() || m1.fullNameKo?.trim() || "",
+        member1NameKo: m1.fullNameKo?.trim() || null,
+        member2NameEn: m2?.fullNameEn.trim() || m2?.fullNameKo?.trim() || null,
+        member2NameKo: m2?.fullNameKo?.trim() || null,
+      };
+    })
     .sort((a, b) => {
       const catDiff = (catSortOrder.get(a.categoryId) ?? 0) - (catSortOrder.get(b.categoryId) ?? 0);
       if (catDiff !== 0) return catDiff;
@@ -145,14 +234,15 @@ export default async function AdminPage() {
   // Team member lookup for matches: keyed by "${tournamentYear}-${teamId}"
   const teamMemberMap = new Map<string, { namesEn: string[]; namesKo: string[] }>();
   for (const t of teamRows) {
+    const [m1, m2] = orderTeamMembersForDisplay(t.member1, t.member2);
     teamMemberMap.set(`${t.tournamentYear}-${t.id}`, {
       namesEn: [
-        t.member1.fullNameEn.trim() || t.member1.fullNameKo?.trim() || "",
-        t.member2?.fullNameEn.trim() || t.member2?.fullNameKo?.trim() || null,
+        m1.fullNameEn.trim() || m1.fullNameKo?.trim() || "",
+        m2?.fullNameEn.trim() || m2?.fullNameKo?.trim() || null,
       ].filter(Boolean) as string[],
       namesKo: [
-        t.member1.fullNameKo?.trim() || t.member1.fullNameEn.trim() || "",
-        t.member2 ? (t.member2.fullNameKo?.trim() || t.member2.fullNameEn.trim() || null) : null,
+        m1.fullNameKo?.trim() || m1.fullNameEn.trim() || "",
+        m2 ? (m2.fullNameKo?.trim() || m2.fullNameEn.trim() || null) : null,
       ].filter(Boolean) as string[],
     });
   }
@@ -161,14 +251,14 @@ export default async function AdminPage() {
     const t1 = r.team1Id ? teamMemberMap.get(`${r.tournamentYear}-${r.team1Id}`) : null;
     const t2 = r.team2Id ? teamMemberMap.get(`${r.tournamentYear}-${r.team2Id}`) : null;
     return {
-    id: r.id,
+      id: r.id,
     tournamentYear: r.tournamentYear,
     categoryId: r.categoryId,
     categoryLabel: r.category.label,
     categoryLabelKo: r.category.labelKo,
-    roundCode: r.round?.code ?? null,
-    roundLabel: r.round?.labelEn ?? null,
-    roundLabelKo: r.round?.labelKo ?? null,
+    roundCode: r.roundRef?.code ?? null,
+    roundLabel: r.roundRef?.labelEn ?? null,
+    roundLabelKo: r.roundRef?.labelKo ?? null,
     group: extractGroup(r.id),
     team1Names: t1?.namesEn ?? [],
     team1NamesKo: t1?.namesKo ?? [],
@@ -185,8 +275,13 @@ export default async function AdminPage() {
     set2T2: r.set2ScoreTeam2,
     set3T2: r.set3ScoreTeam2,
     ball: r.ball ?? null,
+    ballReceived: r.ballReceived,
     comment: r.comment,
     };
+  }).sort((a, b) => {
+    if (b.tournamentYear !== a.tournamentYear) return b.tournamentYear - a.tournamentYear;
+    if (a.categoryId !== b.categoryId) return a.categoryId.localeCompare(b.categoryId);
+    return naturalMatchIdSort(a.id, b.id);
   });
 
   const players = playerRows.map((p) => ({
@@ -211,46 +306,15 @@ export default async function AdminPage() {
     isDoubles: c.isDoubles,
     ntrp: c.ntrp,
     sortOrder: c.sortOrder,
+    prelimFormat: c.prelimFormat ?? null,
   }));
 
-  // Auto-confirm categories that have reached 4+ teams
-  const teamCountByYearCat = new Map<string, { year: number; categoryId: string; count: number }>();
-  for (const team of teams) {
-    const key = `${team.tournamentYear}::${team.categoryId}`;
-    if (!teamCountByYearCat.has(key)) {
-      teamCountByYearCat.set(key, { year: team.tournamentYear, categoryId: team.categoryId, count: 0 });
-    }
-    teamCountByYearCat.get(key)!.count++;
-  }
-  const existingStatusMap = new Map(statusRows.map((s) => [`${s.tournamentYear}::${s.categoryId}`, s.status]));
-  const autoConfirmEntries = [...teamCountByYearCat.values()].filter(
-    ({ year, categoryId, count }) =>
-      count >= 4 && existingStatusMap.get(`${year}::${categoryId}`) !== "Active"
-  );
-  if (autoConfirmEntries.length > 0) {
-    await Promise.all(
-      autoConfirmEntries.map(({ year, categoryId }) =>
-        prisma.categoryYearStatus.upsert({
-          where: { tournamentYear_categoryId: { tournamentYear: year, categoryId } },
-          update: { status: "Active" },
-          create: { tournamentYear: year, categoryId, status: "Active" },
-        })
-      )
-    );
-  }
-  const autoConfirmedSet = new Set(autoConfirmEntries.map((e) => `${e.year}::${e.categoryId}`));
-
-  const categoryStatuses = [
-    ...statusRows.map((s) => ({
-      tournamentYear: s.tournamentYear,
-      categoryId: s.categoryId,
-      status: autoConfirmedSet.has(`${s.tournamentYear}::${s.categoryId}`) ? "Active" : s.status,
-    })),
-    // Newly created rows for categories that had no record yet
-    ...autoConfirmEntries
-      .filter(({ year, categoryId }) => !existingStatusMap.has(`${year}::${categoryId}`))
-      .map(({ year, categoryId }) => ({ tournamentYear: year, categoryId, status: "Active" })),
-  ];
+  const categoryStatuses = statusRows.map((s) => ({
+    tournamentYear: s.tournamentYear,
+    categoryId: s.categoryId,
+    status: s.status,
+    prelimFormat: s.prelimFormat ?? null,
+  }));
 
   const adminUsers = adminRows.map((u) => ({
     id: u.id,
@@ -262,12 +326,34 @@ export default async function AdminPage() {
   const prizes = prizeRows.map((p) => ({
     id: p.id,
     tournamentYear: p.tournamentYear,
-    isDoubles: p.isDoubles,
-    teamCountBracket: p.teamCountBracket,
+    categoryId: p.categoryId,
     first: p.first,
     second: p.second,
     third: p.third,
     fourth: p.fourth,
+  }));
+
+
+  const giveaways = rawGiveaways.map((g) => ({
+    id: g.id,
+    tournamentYear: g.tournamentYear,
+    playerId: g.player.id,
+    playerNameEn: g.player.fullNameEn,
+    playerNameKo: g.player.fullNameKo,
+    optionId: g.optionId,
+    optionId2: g.optionId2 ?? null,
+    pickupClub: g.pickupClub,
+    pickupNote: g.pickupNote,
+    received: g.received,
+    received2: g.received2,
+    createdAt: g.createdAt.toISOString(),
+  }));
+
+  const tumblerOptions = tumblerOptionRows.map((o) => ({
+    optionId: o.optionId,
+    label: o.label,
+    imageSrc: o.imageSrc ?? null,
+    stock: o.stock,
   }));
 
   return (
@@ -281,6 +367,10 @@ export default async function AdminPage() {
       adminUsers={adminUsers}
       finalists={[...finalistKeys]}
       prizes={prizes}
+      courtBookings={[]}
+      giveaways={giveaways}
+      tumblerOptions={tumblerOptions}
+      drawsPublished={hasDrawPublishDatePassed()}
     />
   );
 }

@@ -1,3 +1,4 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -8,23 +9,26 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const email = url.searchParams.get("email")?.trim().toLowerCase();
     const yearParam = url.searchParams.get("year");
-    const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
+    const year = yearParam ? parseInt(yearParam, 10) : getYear();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    const player = await prisma.player.findFirst({
+    const players = await prisma.player.findMany({
       where: { email },
       include: { clubs: { select: { clubCode: true } } },
     });
 
-    if (!player) {
+    if (players.length === 0) {
       return NextResponse.json({ error: "No registration found for this email" }, { status: 404 });
     }
 
+    const primary = players[0];
+    const playerIds = players.map((p) => p.id);
+
     const registrations = await prisma.tournamentRegistration.findMany({
-      where: { playerId: player.id, tournamentYear: year },
+      where: { playerId: primary.id, tournamentYear: year },
       include: {
         partner: { select: { fullNameEn: true, fullNameKo: true } },
       },
@@ -47,13 +51,14 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      playerId: player.id,
-      fullNameEn: player.fullNameEn,
-      fullNameKo: player.fullNameKo,
-      email: player.email,
-      phone: player.phone,
-      ntrp: player.ntrp ?? null,
-      clubs: player.clubs.map((c) => c.clubCode),
+      playerId: primary.id,
+      playerIds,
+      fullNameEn: primary.fullNameEn,
+      fullNameKo: primary.fullNameKo,
+      email: primary.email,
+      phone: primary.phone,
+      ntrp: primary.ntrp ?? null,
+      clubs: primary.clubs.map((c) => c.clubCode),
       year,
       registrations: registrations.map((r) => ({
         id: r.id,

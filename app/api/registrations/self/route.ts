@@ -1,7 +1,9 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseClubCodesFromBody } from "@/lib/clubs";
-import { createTeamFromRegistration } from "@/lib/createTeam";
+import { createTeamFromRegistration, activateCategoryIfThresholdMet } from "@/lib/createTeam";
+import { resolveOrCreatePartner } from "@/lib/resolvePartner";
 
 async function setPlayerClubs(playerId: number, clubCodes: string[]) {
   await prisma.playerClub.deleteMany({ where: { playerId } });
@@ -11,36 +13,6 @@ async function setPlayerClubs(playerId: number, clubCodes: string[]) {
   });
 }
 
-async function resolveOrCreatePartnerId(
-  text: string | null,
-  excludePlayerId: number
-): Promise<number | null> {
-  const name = text?.trim();
-  if (!name) return null;
-  const existing = await prisma.player.findFirst({
-    where: {
-      id: { not: excludePlayerId },
-      OR: [
-        { fullNameEn: { equals: name, mode: "insensitive" } },
-        { fullNameKo: { equals: name, mode: "insensitive" } },
-      ],
-    },
-    select: { id: true },
-  });
-  if (existing) return existing.id;
-  try {
-    const stub = await prisma.player.create({
-      data: {
-        fullNameEn: name,
-        email: `partner-stub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@placeholder.tomlee-open`,
-      },
-    });
-    return stub.id;
-  } catch (err) {
-    console.error("resolveOrCreatePartnerId (self): stub creation failed:", err);
-    return null;
-  }
-}
 
 /**
  * PATCH /api/registrations/self — public player self-edit.
@@ -57,7 +29,7 @@ export async function PATCH(request: Request) {
     const year =
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
-        : new Date().getFullYear();
+        : getYear();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -147,7 +119,7 @@ export async function PATCH(request: Request) {
         if (partnerIds[categoryId] != null) {
           partnerId = partnerIds[categoryId];
         } else if (categoryId in partnerNames) {
-          partnerId = await resolveOrCreatePartnerId(
+          partnerId = await resolveOrCreatePartner(
             partnerNames[categoryId] || null,
             player.id
           );
@@ -171,11 +143,11 @@ export async function PATCH(request: Request) {
         if (partnerIds[categoryId] != null) {
           partnerId = partnerIds[categoryId];
         } else if (partnerNames[categoryId]) {
-          partnerId = await resolveOrCreatePartnerId(partnerNames[categoryId], player.id);
+          partnerId = await resolveOrCreatePartner(partnerNames[categoryId], player.id);
         }
       }
 
-      const reg = await prisma.tournamentRegistration.upsert({
+      await prisma.tournamentRegistration.upsert({
         where: {
           tournamentYear_playerId_categoryId: {
             tournamentYear: year,
@@ -206,6 +178,8 @@ export async function PATCH(request: Request) {
         playerId: player.id,
         partnerId,
       });
+
+      await activateCategoryIfThresholdMet(year, categoryId);
     }
 
     return NextResponse.json({ ok: true });

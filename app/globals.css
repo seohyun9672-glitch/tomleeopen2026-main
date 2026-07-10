@@ -93,10 +93,7 @@
   /* ----- Primary blue scale (#304DD1 @ 500) ----- */
   --color-primary-blue-500: #304dd1;
   --color-primary-blue-50: color-mix(in srgb, var(--color-primary-blue-500) 6%, white);
-  --color-primary-blue-100: color-mix(in srgb, var(--color-primary-blue-500) 12%, white);
-  --color-primary-blue-200: color-mix(in srgb, var(--color-primary-blue-500) 22%, white);
   --color-primary-blue-300: color-mix(in srgb, var(--color-primary-blue-500) 35%, white);
-  --color-primary-blue-400: color-mix(in srgb, var(--color-primary-blue-500) 50%, white);
   --color-primary-blue-600: color-mix(in srgb, var(--color-primary-blue-500) 82%, black);
   --color-primary-blue-700: color-mix(in srgb, var(--color-primary-blue-500) 62%, black);
   --color-primary-blue-800: color-mix(in srgb, var(--color-primary-blue-500) 42%, black);
@@ -104,31 +101,16 @@
 
   /* ----- Secondary blue scale (#3A52C0 @ 500) ----- */
   --color-secondary-blue-500: #3a52c0;
-  --color-secondary-blue-50: color-mix(in srgb, var(--color-secondary-blue-500) 6%, white);
-  --color-secondary-blue-100: color-mix(in srgb, var(--color-secondary-blue-500) 12%, white);
   --color-secondary-blue-200: color-mix(in srgb, var(--color-secondary-blue-500) 22%, white);
   --color-secondary-blue-300: color-mix(in srgb, var(--color-secondary-blue-500) 35%, white);
   --color-secondary-blue-400: color-mix(in srgb, var(--color-secondary-blue-500) 50%, white);
   --color-secondary-blue-600: color-mix(in srgb, var(--color-secondary-blue-500) 82%, black);
-  --color-secondary-blue-700: color-mix(in srgb, var(--color-secondary-blue-500) 62%, black);
-  --color-secondary-blue-800: color-mix(in srgb, var(--color-secondary-blue-500) 42%, black);
-  --color-secondary-blue-900: color-mix(in srgb, var(--color-secondary-blue-500) 24%, black);
 
   /* ----- Primary yellow scale (#DFFF00 @ 500) ----- */
   --color-primary-yellow-500: #dfff00;
-  --color-primary-yellow-50: color-mix(in srgb, var(--color-primary-yellow-500) 8%, white);
-  --color-primary-yellow-100: color-mix(in srgb, var(--color-primary-yellow-500) 16%, white);
-  --color-primary-yellow-200: color-mix(in srgb, var(--color-primary-yellow-500) 28%, white);
-  --color-primary-yellow-300: color-mix(in srgb, var(--color-primary-yellow-500) 42%, white);
-  --color-primary-yellow-400: color-mix(in srgb, var(--color-primary-yellow-500) 58%, white);
-  --color-primary-yellow-600: color-mix(in srgb, var(--color-primary-yellow-500) 82%, black);
-  --color-primary-yellow-700: color-mix(in srgb, var(--color-primary-yellow-500) 64%, black);
-  --color-primary-yellow-800: color-mix(in srgb, var(--color-primary-yellow-500) 46%, black);
-  --color-primary-yellow-900: color-mix(in srgb, var(--color-primary-yellow-500) 30%, black);
 
   /* Base brand aliases */
   --color-primary-blue: var(--color-primary-blue-500);
-  --color-secondary-blue: var(--color-secondary-blue-500);
   --color-primary-yellow: var(--color-primary-yellow-500);
 
   /* Neutrals
@@ -143,7 +125,6 @@
 
   /* Text on brand (header / hero) */
   --color-text-on-brand: #ffffff;
-  --color-text-on-brand-muted: color-mix(in srgb, var(--color-text-on-brand) 78%, transparent);
 
   /* Surfaces derived from brand + neutrals */
   --color-surface-muted: color-mix(in srgb, var(--color-primary-blue-500) 3.2%, var(--color-background));
@@ -154,42 +135,33 @@
   --color-shadow-base: color-mix(in srgb, var(--color-primary-blue-900) 22%, transparent);
 
   /* Blue outline scale — table shell/rows/cells, inputs, filter & chip chrome */
-  --outline-blue-ghost: color-mix(in srgb, var(--color-primary-blue-500) 8%, var(--color-background));
   --outline-blue-subtle: color-mix(in srgb, var(--color-primary-blue-500) 14%, var(--color-surface-card));
   --outline-blue-soft: color-mix(in srgb, var(--color-primary-blue-500) 12%, var(--color-background));
   --outline-blue-default: color-mix(in srgb, var(--color-primary-blue-500) 25%, transparent);
-  --outline-blue-emphasis: color-mix(in srgb, var(--color-primary-blue-500) 45%, transparent);
   --outline-blue-focus: color-mix(in srgb, var(--color-primary-blue-500) 78%, var(--color-primary-blue-700) 22%);
   --outline-blue-focus-ring: color-mix(in srgb, var(--color-primary-blue-500) 38%, transparent);
   --color-filter-outline: var(--outline-blue-default);
   --color-focus-ring: var(--outline-blue-focus-ring);
   --focus-outline-color: var(--outline-blue-focus);
   --ring-offset-canvas: var(--color-background);
-  --ring-offset-form: var(--form-surface-bg);
   --ring-offset-table: var(--color-table-bg);
 
   /* Interactive (focus rings, links, sort) */
   --color-primary: var(--color-secondary-blue-500);
-  --color-primary-dark: var(--color-secondary-blue-600);
-  --color-primary-darker: var(--color-primary-blue-700);
   --color-accent: var(--color-primary-yellow-500);
 
   /* Brand chrome */
   --color-bg-primary: var(--color-primary-blue-500);
-  --color-bg-secondary: var(--color-secondary-blue-500);
   --color-page-body-bg: var(--color-background);
 
   /* Borders */
   --color-border-subtle: color-mix(in srgb, var(--color-text-primary) 9%, transparent);
-  --color-border-strong: color-mix(in srgb, var(--color-text-primary) 16%, transparent);
   --divider-color: var(--color-border-subtle);
   --color-border-on-brand: color-mix(in srgb, var(--color-text-on-brand) 22%, transparent);
-  --color-border-on-brand-strong: color-mix(in srgb, var(--color-text-on-brand) 42%, transparent);
 
   /* Tables */
   --color-table-bg: var(--color-surface-card);
   --color-table-text: var(--color-text-primary);
-  --color-table-border: var(--outline-blue-default);
   --form-surface-bg: var(--color-table-bg);
   --form-max-width: 680px;
 
@@ -197,84 +169,67 @@
   --color-status-success: #4cd964;
   --color-status-warning: #ffd166;
   --color-status-error: #ff6b6b;
-  --color-gender-female: #e91e8c;
-  --color-gender-male: var(--color-primary-blue-500);
-  --color-status-orange: #ee592a;
-  --color-success: var(--color-status-success);
-  --color-warning: var(--color-status-warning);
-  --color-error: var(--color-status-error);
-  --color-orange: var(--color-status-orange);
+  --color-status-warn: #ee592a;
   --form-field-error-text: color-mix(in srgb, var(--color-status-error) 72%, black);
   --form-required-mark: color-mix(in srgb, var(--color-status-error) 62%, black);
-  --form-success-callout-bg: color-mix(in srgb, var(--color-status-success) 10%, var(--color-surface-card));
-  --form-success-callout-border: color-mix(in srgb, var(--color-status-success) 28%, var(--color-surface-card));
-  --color-status-error-bg-subtle: color-mix(in srgb, var(--color-status-error) 12%, var(--color-surface-card));
-  --color-status-error-text-strong: color-mix(in srgb, var(--color-status-error) 58%, black);
 
   /* Destructive actions */
-  --destructive-action-fill: color-mix(in srgb, var(--color-status-error) 72%, black);
-  --destructive-action-fill-hover: color-mix(in srgb, var(--color-status-error) 62%, black);
   --destructive-outline-border: color-mix(in srgb, var(--color-status-error) 32%, var(--color-surface-card));
   --destructive-outline-text: color-mix(in srgb, var(--color-status-error) 48%, black);
   --destructive-outline-hover-bg: color-mix(in srgb, var(--color-status-error) 7%, var(--color-surface-card));
 
   /* Overlays */
   --overlay-scrim-strong: color-mix(in srgb, var(--color-primary-blue-900) 88%, black);
-  --overlay-control-bg: color-mix(in srgb, var(--color-primary-blue-900) 42%, transparent);
-  --overlay-control-bg-hover: color-mix(in srgb, var(--color-primary-blue-900) 58%, transparent);
   --media-thumb-drop-shadow: color-mix(in srgb, var(--color-text-primary) 52%, transparent);
   --media-thumb-filter: drop-shadow(0 0 1px var(--media-thumb-drop-shadow))
     drop-shadow(0 1px 2px color-mix(in srgb, var(--media-thumb-drop-shadow) 72%, transparent));
 
-  /* ----- Pastel chip accents ----- */
-  --chip-pastel-ring-mix: color-mix(in srgb, #818cf8 32%, var(--color-surface-card));
-  --chip-pastel-neutral-bg: #eef2ff;
-  --chip-pastel-neutral-fg: #3730a3;
-  --chip-pastel-mint-bg: #d1fae5;
-  --chip-pastel-mint-fg: #047857;
-  --chip-pastel-rose-bg: #ffe4e6;
-  --chip-pastel-rose-fg: #be123c;
-  --chip-pastel-butter-bg: #fef9c3;
-  --chip-pastel-butter-fg: #a16207;
-  --chip-pastel-sky-bg: #e0f2fe;
-  --chip-pastel-sky-fg: #0369a1;
-  --chip-pastel-peach-bg: #ffedd5;
-  --chip-pastel-peach-fg: #9a3412;
-  --chip-pastel-lilac-bg: #ede9fe;
-  --chip-pastel-lilac-fg: #5b21b6;
-  --chip-pastel-aqua-bg: #ccfbf1;
-  --chip-pastel-aqua-fg: #0f766e;
-  --chip-pastel-pink-bg: #fce7f3;
-  --chip-pastel-pink-fg: #9d174d;
-  --chip-pastel-periwinkle-bg: #dbeafe;
-  --chip-pastel-periwinkle-fg: #1e40af;
-  --chip-pastel-peach-mid-bg:  #fed7aa;
-  --chip-pastel-peach-mid-fg:  #7c2d12;
-  --chip-pastel-peach-deep-bg: #fdba74;
-  --chip-pastel-sky-mid-bg:    #bae6fd;
-  --chip-pastel-sky-mid-fg:    #075985;
-  --chip-pastel-sky-deep-bg:   #7dd3fc;
-  --chip-pastel-sky-deep-fg:   #0c4a6e;
-  --chip-pastel-violet-bg:     #ddd6fe;
-  --chip-pastel-violet-fg:     #5b21b6;
-  --chip-pastel-slate-bg:      #f1f5f9;
-  --chip-pastel-slate-fg:      #475569;
+  /* ----- Pastel palette ----- */
+  --pastel-ring-mix: color-mix(in srgb, #818cf8 32%, var(--color-surface-card));
+  --pastel-neutral-bg: #eef2ff;
+  --pastel-neutral-fg: #3730a3;
+  --pastel-mint-bg: #d1fae5;
+  --pastel-mint-fg: #047857;
+  --pastel-rose-bg: #ffe4e6;
+  --pastel-rose-fg: #be123c;
+  --pastel-butter-bg: #fef9c3;
+  --pastel-butter-fg: #a16207;
+  --pastel-sky-bg: #e0f2fe;
+  --pastel-sky-fg: #0369a1;
+  --pastel-peach-bg: #ffedd5;
+  --pastel-peach-fg: #9a3412;
+  --pastel-lilac-bg: #ede9fe;
+  --pastel-lilac-fg: #5b21b6;
+  --pastel-aqua-bg: #ccfbf1;
+  --pastel-aqua-fg: #0f766e;
+  --pastel-pink-bg: #fce7f3;
+  --pastel-pink-fg: #9d174d;
+  --pastel-periwinkle-bg: #dbeafe;
+  --pastel-periwinkle-fg: #1e40af;
+  --pastel-peach-mid-bg:  #fed7aa;
+  --pastel-peach-mid-fg:  #7c2d12;
+  --pastel-peach-deep-bg: #fdba74;
+  --pastel-sky-mid-bg:    #bae6fd;
+  --pastel-sky-mid-fg:    #075985;
+  --pastel-sky-deep-bg:   #7dd3fc;
+  --pastel-sky-deep-fg:   #0c4a6e;
+  --pastel-violet-bg:     #ddd6fe;
+  --pastel-violet-fg:     #5b21b6;
+  --pastel-slate-bg:      #f1f5f9;
+  --pastel-slate-fg:      #475569;
 
-  /* Global chip palette — semantic status tokens */
-  --chip-palette-ring:      var(--chip-pastel-ring-mix);
-  --chip-status-neutral-bg: var(--chip-pastel-neutral-bg);
-  --chip-status-neutral-fg: var(--chip-pastel-neutral-fg);
-  --chip-status-success-bg: var(--chip-pastel-mint-bg);
-  --chip-status-success-fg: var(--chip-pastel-mint-fg);
-  --chip-status-info-bg:    var(--chip-pastel-sky-bg);
-  --chip-status-info-fg:    var(--chip-pastel-sky-fg);
-  --chip-status-warning-bg: var(--chip-pastel-butter-bg);
-  --chip-status-warning-fg: var(--chip-pastel-butter-fg);
-  --chip-status-error-bg:   var(--chip-pastel-rose-bg);
-  --chip-status-error-fg:   var(--chip-pastel-rose-fg);
-
-  --table-data-pill-note-color: color-mix(in srgb, var(--color-status-warning) 48%, black);
-
+  /* Global status palette — chips, callouts, banners, etc. */
+  --palette-ring:      var(--pastel-ring-mix);
+  --status-neutral-bg: var(--pastel-neutral-bg);
+  --status-neutral-fg: var(--pastel-neutral-fg);
+  --status-success-bg: var(--pastel-mint-bg);
+  --status-success-fg: var(--pastel-mint-fg);
+  --status-info-bg:    var(--pastel-sky-bg);
+  --status-info-fg:    var(--pastel-sky-fg);
+  --status-warning-bg: var(--pastel-butter-bg);
+  --status-warning-fg: var(--pastel-butter-fg);
+  --status-error-bg:   var(--pastel-rose-bg);
+  --status-error-fg:   var(--pastel-rose-fg);
 
   /* Card chrome */
   --color-border-card: color-mix(in srgb, var(--color-border-ui) 82%, transparent);
@@ -283,13 +238,12 @@
   --card-label-lesson: color-mix(in srgb, var(--color-status-success) 52%, black);
 
   /* Tournament calendar cell accents */
-  --calendar-accent-0: color-mix(in srgb, var(--color-secondary-blue-400) 46%, transparent);
-  --calendar-accent-1: color-mix(in srgb, var(--color-status-success) 42%, transparent);
-  --calendar-accent-2: color-mix(in srgb, var(--color-primary-blue-300) 58%, transparent);
-  --calendar-accent-3: color-mix(in srgb, var(--color-primary-blue-500) 36%, transparent);
-  --calendar-accent-4: color-mix(in srgb, var(--color-status-orange) 38%, transparent);
-  --calendar-accent-5: color-mix(in srgb, var(--color-primary-yellow-400) 50%, transparent);
-  --calendar-accent-6: color-mix(in srgb, var(--color-secondary-blue-600) 34%, transparent);
+  --calendar-accent-0: var(--pastel-peach-bg);
+  --calendar-accent-1: var(--pastel-mint-bg);
+  --calendar-accent-2: var(--pastel-neutral-bg);
+  --calendar-accent-3: var(--pastel-periwinkle-bg);
+  --calendar-accent-4: var(--pastel-violet-bg);
+  --calendar-accent-5: var(--pastel-rose-bg);
 
   /* Button tokens */
   --button-on-accent-text: var(--color-text-primary);
@@ -303,23 +257,23 @@
   --button-secondary-active-bg: color-mix(in srgb, var(--color-text-primary) 11%, #ffffff);
   --button-secondary-disabled-border: var(--color-border-ui-strong);
   --icon-button-text: var(--color-text-secondary);
-  --icon-button-hover-bg: var(--color-surface-hover);
+
+  /* Pill tab tokens (TabList) */
+  --chip-accent-text-inactive: var(--color-text-secondary);
+  --chip-accent-hover-bg: var(--color-surface-hover);
+  --chip-accent-hover-text: var(--color-text-primary);
 
   /* Semantic usage aliases */
-  --bg-page: var(--color-page-body-bg);
   --header-bg: var(--color-bg-primary);
   --footer-bg: var(--header-bg);
-  --footer-text: var(--color-text-on-brand);
   --home-zebra-blue: color-mix(in srgb, var(--color-secondary-blue-500) 6.5%, var(--color-background));
   --text-default: var(--color-text-primary);
   --text-secondary: var(--color-text-secondary);
   --text-muted: var(--color-text-tertiary);
   --text-heading: var(--color-text-primary);
-  --text-accent: var(--color-text-primary);
   --bg-accent: var(--color-accent);
   --bg-table: var(--color-table-bg);
   --text-table: var(--color-table-text);
-  --border-table: var(--color-table-border);
   --table-header-bg: color-mix(in srgb, var(--color-primary-blue-500) 4.5%, var(--color-surface-card));
   --table-header-text: var(--color-text-primary);
   --tournament-tree-stage-header-bg-solid: var(--color-background);
@@ -330,7 +284,6 @@
   --table-border-row: var(--outline-blue-subtle);
   --table-body-text: var(--color-text-primary);
   --table-row-bg: var(--color-surface-card);
-  --table-row-alt: color-mix(in srgb, var(--color-secondary-blue-500) 4%, var(--color-surface-card));
   --table-cell-py: var(--element-gap);
   --table-cell-px: var(--element-gap);
   --table-radius: 1rem;
@@ -339,11 +292,10 @@
   --table-row-hover-bg: var(--color-surface-muted);
   --table-row-min-height: 2.5rem;
   --table-group-border-width: 2px;
-  --badge-category-bg: var(--color-primary-blue-100);
-  --badge-category-text: var(--color-primary-blue-900);
-  --badge-category-border: var(--color-secondary-blue-300);
+  --table-group-border-color: color-mix(in srgb, var(--outline-blue-default) 60%, var(--outline-blue-subtle));
   --link-default: var(--color-secondary-blue-600);
   --link-hover: var(--color-primary-blue-600);
+
   /* Layout grid */
   --grid-unit: 96px;
   --grid-line-color: color-mix(in srgb, #dfff00 30%, transparent);
@@ -358,40 +310,26 @@
     0 4px 12px color-mix(in srgb, var(--color-shadow-base) 45%, transparent),
     0 12px 28px color-mix(in srgb, var(--color-shadow-base) 38%, transparent),
     0 24px 48px color-mix(in srgb, var(--color-shadow-base) 30%, transparent);
-  --card-elev-shadow-hover:
-    0 2px 4px color-mix(in srgb, var(--color-shadow-base) 42%, transparent),
-    0 8px 20px color-mix(in srgb, var(--color-shadow-base) 52%, transparent),
-    0 20px 44px color-mix(in srgb, var(--color-shadow-base) 45%, transparent),
-    0 36px 72px color-mix(in srgb, var(--color-shadow-base) 38%, transparent);
 
   /* Tailwind theme aliases */
   --background: var(--color-page-body-bg);
   --foreground: var(--color-text-primary);
   --primary: var(--bg-accent);
-  --primary-border: var(--color-border-on-brand-strong);
   --foreground-on-light: var(--color-text-primary);
   --section-bg: var(--bg-table);
   --section-text: var(--text-table);
   --input-bg: var(--bg-table);
   --input-border: var(--outline-blue-soft);
-  --input-border-select: var(--outline-blue-soft);
   --input-text: var(--text-table);
   --input-focus-border: var(--outline-blue-focus);
-  --input-focus-ring: var(--outline-blue-focus-ring);
+  --input-placeholder: var(--color-text-tertiary);
 
   /* Spacing scale */
-  --space-1: 4px;
   --space-2: 8px;
-  --space-3: 12px;
   --space-4: 16px;
-  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
-  --space-10: 40px;
   --space-12: 48px;
-  --space-16: 64px;
-  --space-24: 96px;
-
   /* Semantic spacing */
   --layout-gap: var(--space-12);
   --section-gap: var(--space-8);
@@ -402,16 +340,8 @@
 
   /* Page hero */
   --page-hero-padding-y: var(--section-gap);
-  --page-hero-padding-x: var(--space-16);
-  --page-hero-padding-inline-start: var(--space-6);
 
   /* Card system */
-  --card-image-min-h: 80px;
-  --card-image-max-h: 240px;
-  --card-image-h-default: 150px;
-  --card-max-h-default: 300px;
-  --club-card-h: 300px;
-  --lesson-card-h: 364px;
   --match-card-min-width: 22rem;
 
   /* Global container */
@@ -425,43 +355,31 @@
   --button-border-radius: 9999px;
   --button-border-radius-rounded: 0.5rem;
   --button-min-width: 7.5rem;
-  --button-max-width: 7.5rem;
-  --button-inline-safe-pad: 16px;
-  --button-font-size: 0.875rem;
   --button-height-large: 2.75rem;
   --button-height-medium: 2.5rem;
-  --button-height-small: 2rem;
+  --button-height-small: 2.25rem;
   --button-px-large: 1.25rem;
   --button-px-medium: 1rem;
   --button-px-small: 0.75rem;
-  --icon-button-radius: 0.5rem;
 
   /* Font tokens — English defaults.
    * --font-heading is provided by Anton via next/font (variable: "--font-heading" on <html>).
    * Korean overrides are in html[lang="ko"] below. */
   --font-body: "IBM Plex Sans", sans-serif;
-  --font-korean: "Paperlogy", sans-serif;
 
   /* Typography scale tokens */
-  --text-h1-font: var(--font-heading);
   --text-h1-weight: 600;
   --text-h1-size: clamp(1.375rem, 1.1rem + 1.4vw, 2rem);
-  --text-h1-letter-spacing: 0;
-  --text-h1-line-height: 1.05;
 
-  --text-h2-font: var(--font-heading);
   --text-h2-weight: 600;
   --text-h2-size: clamp(1.125rem, 0.95rem + 0.85vw, 1.5rem);
-  --text-h2-letter-spacing: 0;
-  --text-h2-line-height: 1.1;
 
   --text-h3-font: var(--font-heading);
   --text-h3-weight: 400;
   --text-h3-size: clamp(0.9375rem, 0.85rem + 0.43vw, 1.125rem);
   --text-h3-display-size: clamp(1rem, 0.9rem + 0.35vw, 1.25rem);
-  --text-h3-letter-spacing: 0;
+  --text-h3-letter-spacing: 0.3;
   --text-h3-line-height: 1.1;
-  --text-h3-gap: var(--element-gap);
 
   --text-body-font: var(--font-body);
   --text-body-weight: 400;
@@ -469,21 +387,17 @@
   --text-body-letter-spacing: -0.02em;
   --text-body-line-height: 1.6;
 
-  /* Misc */
-  /* --radius-heading-accent: 12px;
-  --radius-heading-accent-sm: 8px;
-  --radius-badge: 6px; */
   --calendar-card-padding: var(--content-gap);
 }
 
 /* ============================================================
    LANGUAGE-SPECIFIC FONT OVERRIDES
-   In Korean mode, Paperlogy replaces Anton for headings.
-   Body text uses IBM Plex Sans in both languages.
+   In Korean mode, Paperlogy is used for all text (headings and body).
    ============================================================ */
 
 html[lang="ko"] {
   --font-heading: "Paperlogy", sans-serif;
+  --font-body: "Paperlogy", sans-serif;
   --text-h1-weight: 800;
   --text-h2-weight: 800;
   --text-h3-weight: 400;
@@ -496,6 +410,7 @@ html[lang="ko"] {
 @theme {
   /* Breakpoints — xs is custom; sm/md/lg/xl/2xl mirror Tailwind v4 defaults */
   --breakpoint-xs: 320px;
+  --breakpoint-ms: 480px;
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
@@ -529,10 +444,8 @@ html[lang="ko"] {
     --table-cell-px: var(--content-gap);
     --table-radius: 0.5rem;
     --calendar-card-padding: var(--section-gap);
-    --button-font-size: 0.9375rem;
-    --button-inline-safe-pad: 24px;
     --button-height-large: 2.875rem;
-    --button-height-medium: 2.625rem;
+    --button-height-medium: 2.5rem;
     --button-height-small: 2.125rem;
     --button-px-large: 1.5rem;
     --button-px-medium: 1.25rem;
@@ -544,7 +457,6 @@ html[lang="ko"] {
 @media (min-width: 1024px) {
   :root {
     --calendar-card-padding: var(--section-gap);
-    --button-font-size: 1rem;
     --button-height-large: 3rem;
     --button-height-medium: 2.75rem;
     --button-height-small: 2.25rem;
@@ -560,64 +472,76 @@ html[lang="ko"] {
    Add a matching class here when adding a new row to the DB.
    ============================================================ */
 
-.category-chip-md-b { background-color: var(--chip-pastel-peach-bg);     color: var(--chip-pastel-peach-fg); }
-.category-chip-md-s { background-color: var(--chip-pastel-peach-mid-bg); color: var(--chip-pastel-peach-mid-fg); }
-.category-chip-md-g { background-color: var(--chip-pastel-peach-deep-bg); color: var(--chip-pastel-peach-mid-fg); }
-.category-chip-md-o { background-color: var(--chip-pastel-rose-bg);      color: var(--chip-pastel-rose-fg); }
-.category-chip-ms-b { background-color: var(--chip-pastel-sky-bg);       color: var(--chip-pastel-sky-fg); }
-.category-chip-ms-s { background-color: var(--chip-pastel-sky-mid-bg);   color: var(--chip-pastel-sky-mid-fg); }
-.category-chip-ms-g { background-color: var(--chip-pastel-sky-deep-bg);  color: var(--chip-pastel-sky-deep-fg); }
-.category-chip-ms-o { background-color: var(--chip-pastel-periwinkle-bg); color: var(--chip-pastel-periwinkle-fg); }
-.category-chip-xd-b { background-color: var(--chip-pastel-pink-bg);      color: var(--chip-pastel-pink-fg); }
-.category-chip-xd-s { background-color: var(--chip-pastel-violet-bg);    color: var(--chip-pastel-violet-fg); }
-.category-chip-xd-g { background-color: var(--chip-pastel-slate-bg);     color: var(--chip-pastel-slate-fg); }
-.category-chip-wd-b { background-color: var(--chip-pastel-butter-bg);    color: var(--chip-pastel-butter-fg); }
-.category-chip-wd-s { background-color: var(--chip-pastel-lilac-bg);     color: var(--chip-pastel-lilac-fg); }
-.category-chip-wd-g { background-color: var(--chip-pastel-aqua-bg);      color: var(--chip-pastel-aqua-fg); }
-.category-chip-ws-b { background-color: var(--chip-pastel-mint-bg);      color: var(--chip-pastel-mint-fg); }
-.category-chip-ws-s { background-color: var(--chip-pastel-sky-bg);       color: var(--chip-pastel-sky-fg); }
-.category-chip-ws-g { background-color: var(--chip-pastel-neutral-bg);   color: var(--chip-pastel-neutral-fg); }
+.category-chip-md-b { background-color: var(--pastel-peach-bg);     color: var(--pastel-peach-fg); }
+.category-chip-md-s { background-color: var(--pastel-peach-mid-bg); color: var(--pastel-peach-mid-fg); }
+.category-chip-md-g { background-color: var(--pastel-peach-deep-bg); color: var(--pastel-peach-mid-fg); }
+.category-chip-md-o { background-color: var(--pastel-rose-bg);      color: var(--pastel-rose-fg); }
+.category-chip-ms-b { background-color: var(--pastel-sky-bg);       color: var(--pastel-sky-fg); }
+.category-chip-ms-s { background-color: var(--pastel-sky-mid-bg);   color: var(--pastel-sky-mid-fg); }
+.category-chip-ms-g { background-color: var(--pastel-sky-deep-bg);  color: var(--pastel-sky-deep-fg); }
+.category-chip-ms-o { background-color: var(--pastel-periwinkle-bg); color: var(--pastel-periwinkle-fg); }
+.category-chip-xd-b { background-color: var(--pastel-pink-bg);      color: var(--pastel-pink-fg); }
+.category-chip-xd-s { background-color: var(--pastel-violet-bg);    color: var(--pastel-violet-fg); }
+.category-chip-xd-g { background-color: var(--pastel-slate-bg);     color: var(--pastel-slate-fg); }
+.category-chip-wd-b { background-color: var(--pastel-butter-bg);    color: var(--pastel-butter-fg); }
+.category-chip-wd-s { background-color: var(--pastel-lilac-bg);     color: var(--pastel-lilac-fg); }
+.category-chip-wd-g { background-color: var(--pastel-aqua-bg);      color: var(--pastel-aqua-fg); }
+.category-chip-ws-b { background-color: var(--pastel-mint-bg);      color: var(--pastel-mint-fg); }
+.category-chip-ws-s { background-color: var(--pastel-sky-bg);       color: var(--pastel-sky-fg); }
+.category-chip-ws-g { background-color: var(--pastel-neutral-bg);   color: var(--pastel-neutral-fg); }
 
 /* ============================================================
    CLUB CHIP COLORS — one class per Club.code (lowercase).
    Add a matching class here when adding a new row to the DB.
    ============================================================ */
 
-.club-chip-harang  { background-color: var(--chip-pastel-sky-bg);    color: var(--chip-pastel-sky-fg); }
-.club-chip-vktc    { background-color: var(--chip-pastel-mint-bg);   color: var(--chip-pastel-mint-fg); }
-.club-chip-ctc     { background-color: var(--chip-pastel-lilac-bg);  color: var(--chip-pastel-lilac-fg); }
-.club-chip-clayton { background-color: var(--chip-pastel-butter-bg); color: var(--chip-pastel-butter-fg); }
-.club-chip-sagol   { background-color: var(--chip-pastel-peach-bg);  color: var(--chip-pastel-peach-fg); }
-.club-chip-machang { background-color: var(--chip-pastel-aqua-bg);   color: var(--chip-pastel-aqua-fg); }
-.club-chip-langley { background-color: var(--chip-pastel-pink-bg);   color: var(--chip-pastel-pink-fg); }
-.club-chip-na      { background-color: var(--chip-pastel-slate-bg);  color: var(--chip-pastel-slate-fg); }
+.club-chip-harang  { background-color: var(--pastel-sky-bg);    color: var(--pastel-sky-fg); }
+.club-chip-vktc    { background-color: var(--pastel-mint-bg);   color: var(--pastel-mint-fg); }
+.club-chip-ctc     { background-color: var(--pastel-lilac-bg);  color: var(--pastel-lilac-fg); }
+.club-chip-clayton { background-color: var(--pastel-butter-bg); color: var(--pastel-butter-fg); }
+.club-chip-sagol   { background-color: var(--pastel-peach-bg);  color: var(--pastel-peach-fg); }
+.club-chip-machang { background-color: var(--pastel-aqua-bg);   color: var(--pastel-aqua-fg); }
+.club-chip-langley { background-color: var(--pastel-pink-bg);   color: var(--pastel-pink-fg); }
+.club-chip-na      { background-color: var(--pastel-slate-bg);  color: var(--pastel-slate-fg); }
 
 /* ============================================================
    STATUS CHIP COLORS
    ============================================================ */
 
-.match-status-chip-scheduled        { background-color: var(--chip-status-info-bg);    color: var(--chip-status-info-fg);    border: 1px solid color-mix(in srgb, var(--chip-status-info-fg)    30%, transparent); }
-.match-status-chip-completed        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
-.match-status-chip-cancelled        { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
-.match-status-chip-pending          { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
-.player-status-withdrew             { background-color: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card)); color: color-mix(in srgb, var(--color-status-orange) 55%, black); border: 1px solid color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card)); }
+.match-status-chip-scheduled        { background-color: var(--status-info-bg);    color: var(--status-info-fg);    border: 1px solid color-mix(in srgb, var(--status-info-fg)    30%, transparent); }
+.match-status-chip-completed        { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
+.match-status-chip-cancelled        { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
+.match-status-chip-pending          { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
+.player-status-withdrew             { background-color: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card)); color: color-mix(in srgb, var(--color-status-warn) 55%, black); border: 1px solid color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card)); }
 
-.registration-status-chip-pending   { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
-.registration-status-chip-confirmed { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
-.registration-status-chip-cancelled { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
+.registration-status-chip-pending   { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
+.registration-status-chip-confirmed { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
+.registration-status-chip-cancelled { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
 
-.category-status-chip-active        { background-color: var(--chip-status-success-bg); color: var(--chip-status-success-fg); border: 1px solid color-mix(in srgb, var(--chip-status-success-fg) 30%, transparent); }
-.category-status-chip-inactive      { background-color: var(--chip-status-error-bg);   color: var(--chip-status-error-fg);   border: 1px solid color-mix(in srgb, var(--chip-status-error-fg)   30%, transparent); }
-.category-status-chip-pending       { background-color: var(--chip-status-warning-bg); color: var(--chip-status-warning-fg); border: 1px solid color-mix(in srgb, var(--chip-status-warning-fg) 30%, transparent); }
+.category-status-chip-active,
+.tumbler-status-chip-available,
+.court-chip-available               { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
 
-.chip-neutral                       { background-color: var(--chip-status-neutral-bg); color: var(--chip-status-neutral-fg); }
+.category-status-chip-inactive,
+.tumbler-status-chip-unavailable,
+.court-chip-booked                  { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
 
-.group-chip-a { background-color: var(--chip-pastel-sky-bg);     color: var(--chip-pastel-sky-fg); }
-.group-chip-b { background-color: var(--chip-pastel-peach-bg);   color: var(--chip-pastel-peach-fg); }
-.group-chip-c { background-color: var(--chip-pastel-mint-bg);    color: var(--chip-pastel-mint-fg); }
-.group-chip-d { background-color: var(--chip-pastel-lilac-bg);   color: var(--chip-pastel-lilac-fg); }
-.group-chip-e { background-color: var(--chip-pastel-butter-bg);  color: var(--chip-pastel-butter-fg); }
-.group-chip-f { background-color: var(--chip-pastel-aqua-bg);    color: var(--chip-pastel-aqua-fg); }
+.court-chip-expired                 { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
+
+.court-chip-completed               { background-color: var(--status-info-bg);    color: var(--status-info-fg);    border: 1px solid color-mix(in srgb, var(--status-info-fg)    30%, transparent); }
+
+.category-status-chip-pending       { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
+
+.chip-neutral                       { background-color: var(--status-neutral-bg); color: var(--status-neutral-fg); }
+.chip-gender-female                 { background-color: color-mix(in srgb, #e91e8c 12%, white); color: #e91e8c; }
+.chip-gender-male                   { background-color: color-mix(in srgb, #304dd1 12%, white); color: #304dd1; }
+
+.group-chip-a { background-color: var(--pastel-sky-bg);     color: var(--pastel-sky-fg); }
+.group-chip-b { background-color: var(--pastel-peach-bg);   color: var(--pastel-peach-fg); }
+.group-chip-c { background-color: var(--pastel-mint-bg);    color: var(--pastel-mint-fg); }
+.group-chip-d { background-color: var(--pastel-lilac-bg);   color: var(--pastel-lilac-fg); }
+.group-chip-e { background-color: var(--pastel-butter-bg);  color: var(--pastel-butter-fg); }
+.group-chip-f { background-color: var(--pastel-aqua-bg);    color: var(--pastel-aqua-fg); }
 
 /* ============================================================
    BASE ELEMENT STYLES
@@ -823,6 +747,22 @@ body {
   outline-offset: 2px;
 }
 
+input:focus-visible,
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+/* Inputs nested inside custom containers manage focus via focus-within on the parent */
+.form-input-match input:focus-visible,
+.form-input-match button:focus-visible,
+.form-control-input input:focus-visible,
+.form-control-input button:focus-visible {
+  box-shadow: none;
+}
+
 /* Bullet lists */
 ul.list-disc {
   list-style-position: outside;
@@ -838,6 +778,10 @@ ul.list-disc {
 
 td ul {
   padding-left: 1rem;
+}
+
+td ul.list-disc {
+  padding-left: 1.25rem;
 }
 
 /* Interactive buttons */
@@ -1029,7 +973,7 @@ button:disabled {
 .table-data tbody tr.is-table-row-group-start td {
   border-top-width: var(--table-group-border-width);
   border-top-style: solid;
-  border-top-color: var(--table-border-row);
+  border-top-color: var(--table-group-border-color);
 }
 
 
@@ -1068,6 +1012,9 @@ button:disabled {
 .form-control-input:focus,
 .form-control-input:focus-within {
   border-color: var(--input-focus-border);
+}
+.form-control-input::placeholder {
+  color: var(--input-placeholder);
 }
 
 textarea.form-control-input {
@@ -1124,6 +1071,9 @@ textarea.form-control-input {
 .form-input-match:hover {
   background-color: var(--color-surface-muted);
 }
+.form-input-match::placeholder {
+  color: var(--input-placeholder);
+}
 
 .form-control-with-leading-icon {
   position: relative;
@@ -1143,4 +1093,17 @@ textarea.form-control-input {
 }
 .form-control-input--with-leading-icon {
   padding-left: 2.5rem;
+}
+
+/* Prevent iOS from zooming in when focusing inputs with font-size < 16px.
+   Also force font-family:inherit so the typeface never resets on mobile. */
+@media (max-width: 639px) {
+  input:not([type="hidden"]),
+  textarea,
+  select,
+  .form-control-input,
+  .form-input-match {
+    font-size: 16px !important;
+    font-family: inherit !important;
+  }
 }

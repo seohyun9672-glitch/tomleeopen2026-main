@@ -1,9 +1,10 @@
+import { getYear } from "@/lib/utils";
 import { getCategories } from "@/lib/categories";
 import { getRegistrationStatus } from "@/lib/registrationStatus";
 import { registrationPage } from "@/lib/content/registrationPage";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Callout } from "@/app/components/ui/Callout";
-import { RegistrationForm } from "@/app/registration/RegistrationForm";
+import { NewRegistrationHub } from "@/app/registration/NewRegistrationHub";
 
 export default async function RegistrationNewPage({
   params,
@@ -19,12 +20,10 @@ export default async function RegistrationNewPage({
   const statusMessage =
     status === "not-open"
       ? { title: rp.notYetOpenTitle, body: rp.notYetOpenMessage }
-      : status === "closed"
-        ? { title: rp.closedTitle, body: rp.closedMessage }
-        : null;
+      : null;
 
   const categories = statusMessage ? [] : await getCategories();
-  const year = new Date().getFullYear();
+  const year = getYear();
 
   return (
     <PageContainer contentMaxWidth="max-w-[var(--form-max-width)]">
@@ -32,7 +31,7 @@ export default async function RegistrationNewPage({
         <Callout title={statusMessage.title} message={statusMessage.body} />
       ) : (
         <div className="flex flex-col gap-3">
-          <RegistrationForm categories={categories} year={year} />
+          <NewRegistrationHub categories={categories} year={year} />
         </div>
       )}
     </PageContainer>

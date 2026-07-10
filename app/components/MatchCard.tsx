@@ -4,7 +4,7 @@ import { Chip } from "@/app/components/ui/Chip";
 import { Label } from "@/app/components/ui/Label";
 import { useLocale } from "@/lib/locale-context";
 import type { Match } from "@/lib/matches";
-import { matchStatusLabel, matchStatusChipClass, formatTimeDisplay } from "@/lib/matches";
+import { matchStatusLabel, matchStatusChipClass, formatTimeDisplay, matchSeqNumber } from "@/lib/matches";
 import { ROUND_PRE } from "@/lib/round";
 import { cn } from "@/lib/utils";
 
@@ -345,21 +345,18 @@ function TimeIcon() {
 
 type Props = {
   match: Match;
-  team1Rank?: number | null;
-  team2Rank?: number | null;
+  team1GlobalRank?: number | null;
+  team2GlobalRank?: number | null;
   fillHeight?: boolean;
   omitCategoryInHeader?: boolean;
-  /** When provided, shown in the header instead of the match number. */
-  group?: string | null;
 };
 
 export function MatchCard({
   match,
-  team1Rank,
-  team2Rank,
+  team1GlobalRank,
+  team2GlobalRank,
   fillHeight = false,
   omitCategoryInHeader = false,
-  group,
 }: Props) {
   const { t, locale } = useLocale();
   const mUi = t.matchUi;
@@ -375,8 +372,8 @@ export function MatchCard({
   // Rank badges appear only in knockout stages. Prelim round code is "Pre" —
   // those matches generate the rankings that feed the bracket; they don't display them.
   const isKnockout = match.round?.code !== ROUND_PRE;
-  const rank1 = isKnockout ? (team1Rank ?? null) : null;
-  const rank2 = isKnockout ? (team2Rank ?? null) : null;
+  const rank1 = isKnockout ? (team1GlobalRank ?? null) : null;
+  const rank2 = isKnockout ? (team2GlobalRank ?? null) : null;
 
   const showSet3 = !isCancelled && hasSet3(match);
   const withdrew = isCancelled
@@ -388,25 +385,27 @@ export function MatchCard({
   const team1Name = getLocalizedTeamName(match, 1, locale);
   const team2Name = getLocalizedTeamName(match, 2, locale);
 
-  const categoryPart = match.categoryId;
-  const roundPart =
+  const categoryPart =
     locale === "ko"
-      ? (match.round?.labelKo ?? match.round?.labelEn ?? "—")
-      : (match.round?.labelEn ?? "—");
-  // Match number shown for all rounds except Final
-  const matchNumberPart =
-    match.round?.code !== "F" && match.matchNumber != null
-      ? `#${match.matchNumber}`
-      : null;
-
+      ? (match.categoryDisplayLabelKo ?? match.categoryDisplayLabel ?? match.categoryId)
+      : (match.categoryDisplayLabel ?? match.categoryId);
+  const roundPart = match.round?.code ?? "—";
+  const matchSeq = (() => {
+    const code = match.round?.code;
+    if (!code) return null;
+    const n = matchSeqNumber(match.id, code);
+    return n > 0 ? String(n) : null;
+  })();
+  // Prelim: combine seed group letter + match seq (e.g. "A" + "2" → "#A2"). Knockout/final: seq only, never fall back to seed.
+  const matchIdentifier = !isKnockout && match.team1Seed
+    ? `#${match.team1Seed}${matchSeq ?? ""}`
+    : matchSeq
+    ? `#${matchSeq}`
+    : null;
+  const roundWithIdentifier = matchIdentifier ? `${roundPart}${matchIdentifier}` : roundPart;
   const headerLine = omitCategoryInHeader
-    ? [roundPart, group ?? matchNumberPart].filter(Boolean).join(" ")
-    : group != null
-    ? [categoryPart, roundPart, group].filter(Boolean).join(" · ")
-    : [categoryPart, roundPart, matchNumberPart]
-        .filter(Boolean)
-        .join(" · ")
-        .replace(" · #", " #");
+    ? roundWithIdentifier
+    : [categoryPart, roundWithIdentifier].filter(Boolean).join(" · ");
 
   const displayLocation = match.location?.trim() || null;
   const displayDate = formatDateDisplay(match.date ?? null, locale);

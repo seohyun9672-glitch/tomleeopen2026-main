@@ -80,6 +80,13 @@ export function TopHeader() {
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeTournament = useCallback(() => setTournamentOpen(false), []);
 
+  const handleHeaderClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button, input, select, [role="button"]')) return;
+    const root = document.querySelector<HTMLElement>("[data-app-scroll-root]");
+    root?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const navItems = useMemo<HeaderNavItem[]>(() => {
     const menu = getMenuData(locale);
     return menu.nav as HeaderNavItem[];
@@ -153,7 +160,7 @@ export function TopHeader() {
 
   return (
     <>
-      <header className="fixed top-0 right-0 left-0 z-[110] w-full shrink-0 border-b border-[color:var(--color-border-on-brand)] bg-[var(--header-bg)]">
+      <header className="fixed top-0 right-0 left-0 z-[110] w-full shrink-0 border-b border-[color:var(--color-border-on-brand)] bg-[var(--header-bg)]" onClick={handleHeaderClick}>
         <div className="w-full overflow-x-clip">
           <div
             ref={headerBarRef}

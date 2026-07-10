@@ -12,6 +12,7 @@ export type CategoryRecord = {
   isDoubles: boolean;
   ntrp: string | null;
   sortOrder: number;
+  prelimFormat: string | null;
 };
 
 type Locale = "en" | "ko";
@@ -92,7 +93,7 @@ export async function getCategories(): Promise<CategoryRecord[]> {
 
   const rows = await prisma.category.findMany({
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-    select: { id: true, label: true, labelKo: true, category: true, categoryKo: true, tier: true, tierKo: true, isDoubles: true, ntrp: true, sortOrder: true },
+    select: { id: true, label: true, labelKo: true, category: true, categoryKo: true, tier: true, tierKo: true, isDoubles: true, ntrp: true, sortOrder: true, prelimFormat: true },
   });
 
   return rows
@@ -107,12 +108,33 @@ export async function getCategories(): Promise<CategoryRecord[]> {
       isDoubles: c.isDoubles,
       ntrp: normalizeText(c.ntrp).replace(/\s*[–-]\s*/g, " – ") || null,
       sortOrder: c.sortOrder,
+      prelimFormat: c.prelimFormat ?? null,
     }))
     .sort((a, b) => {
       const bySortOrder = a.sortOrder - b.sortOrder;
       if (bySortOrder !== 0) return bySortOrder;
       return a.id.localeCompare(b.id);
     });
+}
+
+export type CategoryYearStatusRow = {
+  tournamentYear: number;
+  categoryId: string;
+  status: CategoryYearStatus;
+  prelimFormat: string | null;
+};
+
+export async function getAllCategoryYearStatuses(): Promise<CategoryYearStatusRow[]> {
+  noStore();
+  const rows = await prisma.categoryYearStatus.findMany({
+    select: { tournamentYear: true, categoryId: true, status: true, prelimFormat: true },
+  });
+  return rows.map((r) => ({
+    tournamentYear: r.tournamentYear,
+    categoryId: normalizeCategoryId(r.categoryId),
+    status: toCategoryYearStatus(r.status),
+    prelimFormat: r.prelimFormat ?? null,
+  }));
 }
 
 export async function getCategoryYearStatusList(
@@ -133,7 +155,7 @@ export async function getCategoryYearStatusList(
     const explicit = byId.get(c.id);
     return {
       categoryId: c.id,
-      status: explicit ? toCategoryYearStatus(explicit) : tournamentYear >= 2026 ? "Pending" : "Active",
+      status: explicit ? toCategoryYearStatus(explicit) : "Pending",
     };
   });
 }

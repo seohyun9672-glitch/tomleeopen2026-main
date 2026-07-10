@@ -13,6 +13,7 @@ type StageHeaderNav = {
 
 type StageHeaderProps = {
   title: string;
+  subtitle?: string;
   className?: string;
   /** Shown on small screens only. */
   navigation?: StageHeaderNav;
@@ -27,12 +28,10 @@ type NavButtonProps = {
   direction: NavDirection;
 };
 const ROOT_CLASS =
-  "tournament-tree-stage-header flex h-12 shrink-0 items-center justify-center gap-1 overflow-hidden px-1 md:px-2";
+  "tournament-tree-stage-header flex h-16 shrink-0 items-center justify-center gap-1 overflow-hidden px-1 md:px-2";
 
   const NAV_BUTTON_CLASS = "h-9 w-9 shrink-0 md:hidden";
 
-const TITLE_CLASS =
-  "m-0 min-w-0 flex-1 text-center text-[var(--color-text-primary)]";
 
 const TITLE_STYLE = {
   display: "block",
@@ -57,6 +56,7 @@ function cx(...classes: Array<string | undefined | false>) {
  */
 export function StageHeader({
   title,
+  subtitle,
   className,
   navigation,
 }: StageHeaderProps) {
@@ -71,9 +71,16 @@ export function StageHeader({
         />
       )}
 
-      <h3 className={TITLE_CLASS} style={TITLE_STYLE}>
-        {title}
-      </h3>
+      <div className="m-0 min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 text-center overflow-hidden">
+        <h3 className="m-0 text-[var(--color-text-primary)]" style={TITLE_STYLE}>
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="m-0 text-xs text-[var(--color-text-tertiary)] truncate w-full text-center">
+            {subtitle}
+          </p>
+        )}
+      </div>
 
       {navigation && (
         <NavButton

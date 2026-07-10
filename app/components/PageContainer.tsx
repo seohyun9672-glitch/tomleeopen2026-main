@@ -21,7 +21,8 @@ const PATH_TITLES: Partial<Record<string, (t: Messages) => string>> = {
   "/media":        (t) => t.mediaPage.heroTitle,
   "/honour-roll":  (t) => t.heroTitle,
   "/rules":        (t) => t.rulesPage.heroTitle,
-  "/overview":     (t) => t.overviewPage.heroTitle,
+  "/overview":      (t) => t.overviewPage.heroTitle,
+  "/court-booking": (t) => t.courtBookingPage.heroTitle,
 };
 
 export type PageContainerProps = {
@@ -40,7 +41,7 @@ export function PageContainer({ children, title, titleActions, beforeTitle, cont
 
   // Strip /ko prefix to get the locale-neutral path, then look up the locale-aware title.
   const cleanPath = pathname === "/ko" ? "/" : pathname.startsWith("/ko/") ? pathname.slice(3) : pathname;
-  const resolvedTitle = PATH_TITLES[cleanPath]?.(t) ?? title;
+  const resolvedTitle = title ?? PATH_TITLES[cleanPath]?.(t);
 
   const inner = (
     <>

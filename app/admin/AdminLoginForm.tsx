@@ -54,7 +54,7 @@ export function AdminLoginForm() {
           autoComplete="current-password"
         />
         {error && <p className="text-sm text-[var(--color-status-error)]">{error}</p>}
-        <Button type="submit" disabled={loading || !email.trim() || !password}>
+        <Button type="submit" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>

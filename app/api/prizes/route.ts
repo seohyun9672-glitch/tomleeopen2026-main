@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-/** POST /api/prizes — upsert a single prize bracket record. */
+/** POST /api/prizes — create or update a prize record for a category+year. */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const tournamentYear = typeof body.tournamentYear === "number" ? body.tournamentYear : null;
-    const isDoubles = typeof body.isDoubles === "boolean" ? body.isDoubles : null;
-    const teamCountBracket = typeof body.teamCountBracket === "string" ? body.teamCountBracket : null;
-    if (tournamentYear === null || isDoubles === null || !teamCountBracket)
-      return NextResponse.json({ error: "tournamentYear, isDoubles, teamCountBracket required" }, { status: 400 });
+    const categoryId = typeof body.categoryId === "string" ? body.categoryId.trim() : null;
+    if (tournamentYear === null || !categoryId)
+      return NextResponse.json({ error: "tournamentYear and categoryId required" }, { status: 400 });
 
     const data = {
       first:  typeof body.first  === "number" ? Math.max(0, Math.round(body.first))  : 0,
@@ -19,9 +18,9 @@ export async function POST(request: Request) {
     };
 
     const record = await prisma.categoryPrize.upsert({
-      where: { tournamentYear_isDoubles_teamCountBracket: { tournamentYear, isDoubles, teamCountBracket } },
+      where: { tournamentYear_categoryId: { tournamentYear, categoryId } },
       update: data,
-      create: { tournamentYear, isDoubles, teamCountBracket, ...data },
+      create: { tournamentYear, categoryId, ...data },
     });
 
     return NextResponse.json(record);
@@ -31,11 +30,11 @@ export async function POST(request: Request) {
   }
 }
 
-/** GET /api/prizes — fetch all prize bracket records. */
+/** GET /api/prizes — fetch all prize records. */
 export async function GET() {
   try {
     const prizes = await prisma.categoryPrize.findMany({
-      orderBy: [{ tournamentYear: "desc" }, { isDoubles: "desc" }, { teamCountBracket: "asc" }],
+      orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
     });
     return NextResponse.json(prizes);
   } catch (e) {

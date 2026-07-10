@@ -32,9 +32,11 @@ export type DataTableProps = {
   stableColumnLayout?: boolean;
   columnFlexWeights?: readonly number[];
   columnNoWrap?: readonly boolean[];
+  columnWidths?: readonly (string | null | undefined)[];
   rowGroupBreakBefore?: (rowIndex: number) => boolean;
   onRowClick?: (cells: DataTableRow, rowIndex: number) => void;
   sortConfig?: DataTableSortConfig;
+  rowIds?: readonly (string | undefined)[];
   rows?: never;
   alignTop?: never;
 };

@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   turbopack: { root: process.cwd() },
+  experimental: {
+    staleTimes: { dynamic: 0, static: 0 },
+  },
   webpack(config, { dev }) {
     if (dev && config.watchOptions) {
       config.watchOptions.ignored = [

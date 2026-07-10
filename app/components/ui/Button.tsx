@@ -23,6 +23,7 @@ type BaseButtonProps = {
   iconRight?: ReactNode;
   className?: string;
   children: ReactNode;
+  disabled?: boolean;
 };
 
 type LinkButtonProps = BaseButtonProps &
@@ -42,7 +43,8 @@ export type IconButtonProps = {
   title?: string;
   variant?: ButtonVariant;
   className?: string;
-  children: ReactNode;
+  icon?: ReactNode;
+  children?: ReactNode;
 } & Omit<ComponentProps<"button">, "className" | "children" | "type">;
 
 const BUTTON_BASE_CLASS = [
@@ -75,7 +77,7 @@ export const buttonVariants = cva(BUTTON_BASE_CLASS, {
       transparent: [
         "border-2 border-transparent bg-transparent",
         // text + icon use same foreground
-        "text-[var(  --icon-button-text)] [&_svg]:text-current",
+        "text-[var(--icon-button-text)] [&_svg]:text-current",
         // interaction
         "hover:bg-[var(--color-surface-hover)] active:bg-[var(--color-surface-hover)]",
         // focus (match primary)
@@ -124,7 +126,7 @@ function ButtonContent({
 }) {
   return (
     <>
-      <span>{children}</span>
+      <span className="inline-flex items-center gap-2">{children}</span>
       {iconRight && (
         <span
           className="ml-1 inline-flex items-center [&_svg]:size-[1em]"
@@ -167,6 +169,7 @@ export function Button(props: ButtonProps) {
       className: _c,
       children: _ch,
       iconRight: _i,
+      disabled: _d,
       ...linkProps
     } = props;
 
@@ -198,6 +201,7 @@ export function Button(props: ButtonProps) {
 export function IconButton({
   variant,
   className,
+  icon,
   children,
   title,
   ...rest
@@ -214,7 +218,7 @@ export function IconButton({
       )}
       {...rest}
     >
-      {children}
+      {icon ?? children}
     </button>
   );
 }

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-const PLACEHOLDER_DOMAIN = "placeholder.tomlee-open";
+const PLACEHOLDER_DOMAIN = "@email.com";
 
 function normName(s: string): string {
   return s.trim().replace(/\s+/g, " ");

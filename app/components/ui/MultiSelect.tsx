@@ -61,8 +61,6 @@ export function MultiSelect({
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [focusedIndex, setFocusedIndex] = React.useState(-1);
-  const jumpQueryRef = React.useRef("");
-  const jumpTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const listId = React.useId();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLDivElement>(null);
@@ -77,7 +75,7 @@ export function MultiSelect({
     return available.filter((o) => o.label.toLowerCase().includes(q));
   }, [available, search, searchable]);
   const groupedItems = React.useMemo(() => buildGroupedItems(filtered), [filtered]);
-  const placement = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
+  const { placement, maxHeight } = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
   useDismissOnOutsidePointerDown(open, containerRef, () => setOpen(false));
 
   const toggleOption = React.useCallback(
@@ -108,10 +106,7 @@ export function MultiSelect({
   }, [open, searchable]);
 
   React.useEffect(() => {
-    if (!open) {
-      setFocusedIndex(-1);
-      jumpQueryRef.current = "";
-    }
+    if (!open) setFocusedIndex(-1);
   }, [open]);
 
   React.useEffect(() => {
@@ -147,21 +142,6 @@ export function MultiSelect({
       setOpen(false);
       triggerRef.current?.focus();
     }
-    // All other keys (including IME keystrokes) fall through to onInput below.
-  }
-
-  // Fired after IME composition completes — works for both Latin and Korean input.
-  function handleHiddenInputInput(e: React.FormEvent<HTMLInputElement>) {
-    const val = e.currentTarget.value;
-    if (!val) return;
-    e.currentTarget.value = ""; // clear so the next keystrokes accumulate in jumpQueryRef only
-
-    if (jumpTimerRef.current) clearTimeout(jumpTimerRef.current);
-    jumpQueryRef.current += val.toLowerCase();
-    jumpTimerRef.current = setTimeout(() => { jumpQueryRef.current = ""; }, 800);
-    const q = jumpQueryRef.current;
-    const idx = filtered.findIndex((o) => o.label.toLowerCase().includes(q));
-    if (idx >= 0) setFocusedIndex(idx);
   }
 
   return (
@@ -216,7 +196,7 @@ export function MultiSelect({
               onBlur={() => onSearchBlur?.()}
               onClick={(e) => e.stopPropagation()}
               placeholder=""
-              className="min-h-[1.25rem] min-w-[8rem] max-w-none flex-1 cursor-text border-0 bg-transparent [color:var(--input-text)] outline-none focus:outline-none focus-visible:outline-none focus:ring-0"
+              className="min-h-[1.25rem] min-w-0 max-w-none flex-1 cursor-text border-0 bg-transparent [color:var(--input-text)] [font-family:inherit]"
               autoComplete="off"
               role="searchbox"
               aria-controls={listId}
@@ -224,21 +204,21 @@ export function MultiSelect({
           ) : null}
         </div>
 
-        {/* Invisible input that captures IME-composed characters for type-to-jump */}
         {!searchable && (
           <input
             ref={hiddenInputRef}
             type="text"
+            inputMode="none"
+            readOnly
             aria-hidden="true"
             tabIndex={-1}
             onKeyDown={handleHiddenInputKeyDown}
-            onInput={handleHiddenInputInput}
             className="sr-only"
           />
         )}
 
         {open && (
-          <Popover placement={placement} maxHeightClass="max-h-48">
+          <Popover placement={placement} maxHeightPx={maxHeight}>
             <ul ref={listRef} id={listId} role="listbox" aria-multiselectable="true">
               {filtered.length === 0 ? (
                 <li className="px-4 py-2 text-sm text-[var(--color-text-tertiary)]">{noMatchesText}</li>

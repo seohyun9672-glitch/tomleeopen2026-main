@@ -6,7 +6,7 @@ export const homePage = {
       heroTitle: "Tomlee Open",
       hero: {
         title: "Tomlee Open",
-        navLinks: [getMenuData("en").overview, getMenuData("en").schedule, getMenuData("en").draws],
+        navLinks: [getMenuData("en").courtBooking, getMenuData("en").schedule, getMenuData("en").draws],
       },
       sectionTitles: {
         tournamentSchedules: "Tournament schedules",
@@ -39,6 +39,40 @@ export const homePage = {
         communityPartners: undefined as string | undefined,
         clubs: undefined as string | undefined,
       },
+      tournamentStats: {
+        categories: "Categories",
+        competingPlayers: "Competing Players",
+        teams: "Teams",
+        totalMatches: "Total Matches",
+        prizePool: "Prize Pool",
+        daysToFinal: "Days to Final",
+      },
+      tournamentUpdates: {
+        sectionTitle: "Tournament Updates",
+        registrationOpen: {
+          title: "Registration is open",
+          message: (count: number, daysLeft: number) =>
+            `${count} ${count === 1 ? "player" : "players"} registered as of today. ${daysLeft} ${daysLeft === 1 ? "day" : "days"} left to sign up!`,
+        },
+        registrationNotOpen: {
+          title: "Registration opening soon",
+          message: (period: string) => `Registration opens ${period}.`,
+        },
+        registrationClosed: {
+          title: "Registration has closed",
+          message: (count: number, period: string) =>
+            `The registration period (${period}) has ended. A total of ${count} ${count === 1 ? "player" : "players"} will be competing this year.`,
+        },
+        drawDay: {
+          title: "Today is draw day @8PM",
+          message: "The draw will be published once group seeding is complete.",
+        },
+        drawPublished: {
+          title: "Draw published",
+          message: "Check the Draws page to see your matches.",
+          linkLabel: "View draws",
+        },
+      },
     },
   },
   ko: {
@@ -46,7 +80,7 @@ export const homePage = {
       heroTitle: "탐리 오픈",
       hero: {
         title: "탐리 오픈",
-        navLinks: [getMenuData("ko").overview, getMenuData("ko").schedule, getMenuData("ko").draws],
+        navLinks: [getMenuData("ko").courtBooking, getMenuData("ko").schedule, getMenuData("ko").draws],
       },
       sectionTitles: {
         tournamentSchedules: "대회 일정",
@@ -78,6 +112,40 @@ export const homePage = {
         sponsors: undefined as string | undefined,
         communityPartners: undefined as string | undefined,
         clubs: undefined as string | undefined,
+      },
+      tournamentStats: {
+        categories: "카테고리",
+        competingPlayers: "참가 선수",
+        teams: "팀",
+        totalMatches: "전체 경기",
+        prizePool: "총 상금",
+        daysToFinal: "결승까지",
+      },
+      tournamentUpdates: {
+        sectionTitle: "대회 업데이트",
+        registrationOpen: {
+          title: "등록 진행 중",
+          message: (count: number, daysLeft: number) =>
+            `오늘 기준으로 ${count}명 등록이 완료되었습니다. 마감까지 ${daysLeft}일 남았습니다.`,
+        },
+        registrationNotOpen: {
+          title: "등록 예정",
+          message: (period: string) => `등록은 ${period}에 시작됩니다.`,
+        },
+        registrationClosed: {
+          title: "등록 마감",
+          message: (count: number, period: string) =>
+            `등록 기간(${period})이 종료되었습니다. 총 ${count}명이 이번 대회에 참가합니다.`,
+        },
+        drawDay: {
+          title: "오늘은 대진표 발표일입니다 @8PM",
+          message: "그룹 시드 배정이 완료되면 대진표가 공개됩니다.",
+        },
+        drawPublished: {
+          title: "대진표 발표",
+          message: "대진표 페이지에서 경기 일정을 확인하세요.",
+          linkLabel: "대진표 보기",
+        },
       },
     },
   },

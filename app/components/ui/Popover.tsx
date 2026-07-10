@@ -9,12 +9,17 @@ import {
 
 export type PopoverPlacement = "above" | "below";
 
+export type PopoverPosition = { placement: PopoverPlacement; maxHeight: number };
+
 export function usePopoverPlacement(
   open: boolean,
   triggerRef: RefObject<HTMLElement | null>,
   listMaxHeightPx: number
-): PopoverPlacement {
-  const [placement, setPlacement] = useState<PopoverPlacement>("below");
+): PopoverPosition {
+  const [position, setPosition] = useState<PopoverPosition>({
+    placement: "below",
+    maxHeight: listMaxHeightPx,
+  });
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -26,13 +31,19 @@ export function usePopoverPlacement(
       const margin = 8;
       const spaceBelow = window.innerHeight - rect.bottom - margin;
       const spaceAbove = rect.top - margin;
+      let placement: PopoverPlacement;
       if (spaceBelow >= listMaxHeightPx) {
-        setPlacement("below");
+        placement = "below";
       } else if (spaceAbove >= listMaxHeightPx) {
-        setPlacement("above");
+        placement = "above";
       } else {
-        setPlacement(spaceAbove > spaceBelow ? "above" : "below");
+        placement = spaceAbove > spaceBelow ? "above" : "below";
       }
+      const maxHeight = Math.min(
+        listMaxHeightPx,
+        placement === "below" ? spaceBelow : spaceAbove
+      );
+      setPosition({ placement, maxHeight });
     }
 
     measure();
@@ -46,7 +57,7 @@ export function usePopoverPlacement(
     };
   }, [open, triggerRef, listMaxHeightPx]);
 
-  return placement;
+  return position;
 }
 
 export function useDismissOnOutsidePointerDown(
@@ -67,18 +78,19 @@ export function useDismissOnOutsidePointerDown(
 
 export function Popover({
   placement,
-  maxHeightClass = "max-h-56",
+  maxHeightPx,
   className = "",
   children,
 }: {
   placement: PopoverPlacement;
-  maxHeightClass?: string;
+  maxHeightPx: number;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <div
-      className={`absolute left-0 right-0 z-[200] w-full overflow-auto rounded-lg border py-1 shadow-lg [border-color:var(--input-border)] [background-color:var(--input-bg)] ${maxHeightClass} ${
+      style={{ maxHeight: maxHeightPx }}
+      className={`absolute left-0 right-0 z-[200] w-full overflow-y-auto rounded-lg border py-1 shadow-lg [border-color:var(--input-border)] [background-color:var(--input-bg)] ${
         placement === "below" ? "top-full mt-1" : "bottom-full mb-1"
       } ${className}`.trim()}
     >

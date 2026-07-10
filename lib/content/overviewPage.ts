@@ -1,26 +1,62 @@
-import { importantDates } from "@/lib/importantDatesData";
+import { getImportantDates } from "@/lib/importantDatesData";
+import { getYear } from "@/lib/utils";
 import { EXTERNAL_LINKS } from "@/lib/externalLinks";
 import { contactData } from "@/lib/contactData";
+import { VENUES } from "@/lib/content/courts";
+import { formatDateDisplay } from "@/lib/matches";
 
-const _finalEntry = importantDates.find((e) => e.label === "Final");
+// Jan 2 2000 was a Sunday; offset by dayOfWeek to get the right weekday
+function weekdayLabel(dayOfWeek: number, locale: "en" | "ko"): string {
+  const d = new Date(2000, 0, 2 + dayOfWeek);
+  const name = d.toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", { weekday: "long" });
+  return locale === "ko" ? `매주 ${name}` : `${name}s`;
+}
+
+function venuePrelimRow(v: typeof VENUES[number], locale: "en" | "ko") {
+  // Gates Park name already ends with "Courts" — no extra "Court" word needed
+  const courtSuffix = v.id === "gates-park"
+    ? ` ${v.courts.join(", ")}`
+    : ` Court ${v.courts.join(", ")}`;
+  return {
+    location: v.name + courtSuffix,
+    href: v.href,
+    date: `${formatDateDisplay(v.startDate, locale)} – ${formatDateDisplay(v.endDate, locale)}`,
+    day: weekdayLabel(v.dayOfWeek, locale),
+    time: v.timeSlot,
+  };
+}
+
+const _finalEntry = getImportantDates(getYear()).find((e) => e.label === "Final");
 const finalDateEn =
   (_finalEntry && _finalEntry.type !== "text" ? _finalEntry.valueDisplay : null) ?? "TBD";
 const finalDateKo =
   (_finalEntry && _finalEntry.type !== "text" ? _finalEntry.valueDisplayKo : null) ?? "추후 확정";
 
-const regEntry = importantDates.find((e) => e.label === "Registration");
+const regEntry = getImportantDates(getYear()).find((e) => e.label === "Registration");
 const regPeriodEn = regEntry && regEntry.type !== "text" ? regEntry.valueDisplay : "";
 const regPeriodKo = regEntry && regEntry.type !== "text" ? (regEntry.valueDisplayKo ?? regEntry.valueDisplay) : "";
+
+const _prelimEntry = getImportantDates(getYear()).find((e) => e.label === "Preliminaries");
+const _prelimEndStr = _prelimEntry?.type === "range" ? _prelimEntry.endDate : null;
+const _prelimEndDate = _prelimEndStr ? new Date(`${_prelimEndStr}T12:00:00`) : null;
+const prelimEndEn = _prelimEndStr ? formatDateDisplay(_prelimEndStr, "en") : "TBD";
+const prelimEndKo = _prelimEndStr ? formatDateDisplay(_prelimEndStr, "ko") : "TBD";
+const prelimEndWeekdayEn = _prelimEndDate ? _prelimEndDate.toLocaleDateString("en-US", { weekday: "long" }) : "";
+const prelimEndWeekdayKo = _prelimEndDate ? _prelimEndDate.toLocaleDateString("ko-KR", { weekday: "long" }) : "";
+
+const _tournamentEntry = getImportantDates(getYear()).find((e) => e.label === "Tournament");
+const tournamentYear = _tournamentEntry?.type === "range" ? _tournamentEntry.startDate.slice(0, 4) : String(new Date().getFullYear());
 
 export const overviewPage = {
   en: {
     overviewPage: {
       heroTitle: "Overview",
       overview: {
+        id: "about",
         title: "About",
         hostSponsorLookupName: "Tom Lee Sedation Dental Group",
         table: [
-          { label: "Event", value: "Tomlee Open 2026" },
+          { label: "Event", value: `Tomlee Open ${tournamentYear}` },
           {
             label: "Format",
             value:
@@ -31,7 +67,9 @@ export const overviewPage = {
         ],
       },
       importantDatesTitle: "Important dates",
+      importantDatesId: "important-dates",
       categories: {
+        id: "categories",
         title: "Categories",
         footerNotes: [
           "Levels based on NTRP; doubles levels are the total of both players' ratings.",
@@ -53,7 +91,7 @@ export const overviewPage = {
           id: "preliminary-matches",
           title: "Preliminary matches",
           items: [
-            "All preliminary matches must be completed by Saturday, August 16.",
+            `All preliminary matches must be completed by ${prelimEndWeekdayEn}, ${prelimEndEn}.`,
             "The schedule and location for each match should be arranged mutually between the teams.",
             "If scheduling is difficult, teams may request assistance from the organizing committee.",
           ],
@@ -94,8 +132,6 @@ export const overviewPage = {
         title: "Venue",
         preliminariesHeading: "Preliminary",
         finalHeading: "Final",
-        description:
-          "We offer courts for preliminary matches during the preliminaries period, subject to availability on a first come, first served basis. Players must notify the admin in advance to confirm the schedule.",
         finals: {
           location: "Gates Park Tennis Courts",
           href: EXTERNAL_LINKS.gatesParkTennisCourts,
@@ -104,29 +140,50 @@ export const overviewPage = {
           dateDisplay: finalDateEn,
         },
         prelimHeaders: ["Location", "Date", "Day", "Time"],
-        prelimRows: [
-          {
-            location: "Fraser Heights Court 1, 2",
-            href: EXTERNAL_LINKS.fraserHeightsCourt12,
-            date: "June 27 – Aug 18",
-            day: "Tuesdays",
-            time: "7:00 – 9:00 PM",
-          },
-          {
-            location: "Fraser Heights Court North",
-            href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
-            date: "June 27 – Aug 16",
-            day: "Sundays",
-            time: "5:00 – 7:00 PM",
-          },
-          {
-            location: "Gates Park Tennis Courts 1, 2",
-            href: EXTERNAL_LINKS.gatesParkTennisCourts,
-            date: "July 4 – Aug 15",
-            day: "Saturdays",
-            time: "6:00 – 8:00 PM",
-          },
-        ],
+        prelimRows: VENUES.map((v) => venuePrelimRow(v, "en")),
+        venueTableHeading: "Preliminary Courts & Hours",
+        bookCourtLabel: "Book a court",
+        bookCourtHref: "/court-booking",
+        courtBookingRules: {
+          heading: "Court booking & cancellation policy",
+          rows: [
+            { label: "Booking limit", value: "One court booking per player per week." },
+            {
+              label: "Booking opens",
+              value: "7 days before the usage date at midnight (00:00)",
+              note: "Example: For courts on July 10, booking opens at midnight on July 3",
+            },
+            {
+              label: "Cancellation",
+              subitems: [
+                "Cancellations must be made through the official KakaoTalk open chat.",
+                "After cancellation is confirmed, admin will update the system and immediately announce 'Rebooking Available' in the open chat.",
+                "Court bookings cannot be transferred between players. Please cancel the booking first, then make a new reservation through the booking page."
+              ],
+            },
+          ] as Array<{ label: string; value?: string; note?: string; subitems?: readonly string[] }>,
+        },
+        penaltyTable: {
+          heading: "Cancellation & no-show penalty policy",
+          headers: ["Category", "Condition", "Penalty"],
+          rows: [
+            { category: "Normal cancellation", condition: "Cancelled 48+ hours before", penalties: ["No penalty"] },
+            {
+              category: "Late cancellation",
+              condition: "Cancelled within 48 hours – 2 hours before",
+              penalties: ["Future court booking ban"],
+            },
+            {
+              category: "Urgent cancellation & No-show",
+              condition: "Within 2 hours of start or unused",
+              penalties: [
+                "Future court booking ban",
+                "$20 penalty fee",
+                "Excluded from prize draw",
+              ],
+            },
+          ] as Array<{ category: string; condition: string; penalties: string[] }>,
+        },
       },
       resultReporting: {
         id: "result-reporting",
@@ -136,7 +193,7 @@ export const overviewPage = {
           label: "Reporting results",
           sentenceParts: [
             { text: "After each match, the winning team must share the results in the " },
-            { linkLabel: "KakaoTalk Open Chat room", href: contactData.kakao.href },
+            { linkLabel: contactData.kakao.label, href: contactData.kakao.href },
             { text: " using the format below:" },
           ],
           example: "Example: Federer/Jokovic 6-3, 1-6, 10-3 Murray/Nadal",
@@ -146,7 +203,7 @@ export const overviewPage = {
           label: "Viewing results",
           sentenceParts: [
             { text: "All match results can be viewed on the Results page and information will be regularly shared in the " },
-            { linkLabel: "KakaoTalk Open Chat room", href: contactData.kakao.href },
+            { linkLabel: contactData.kakao.label, href: contactData.kakao.href },
             { text: "." },
           ],
         },
@@ -162,18 +219,19 @@ export const overviewPage = {
       feeValue: "$50 per player (non-refundable)",
       paymentDetailsLabel: "Payment details",
       inquiryLabel: "Inquiry",
-      inquiryKakaoPrefix: "KakaoTalk open chat",
-      inquiryEmailPrefix: "Email",
+      inquiryKakaoPrefix: contactData.kakao.label,
+      inquiryEmailPrefix: contactData.email.label,
     },
   },
   ko: {
     overviewPage: {
       heroTitle: "개요",
       overview: {
+        id: "about",
         title: "대회 요강",
         hostSponsorLookupName: "Tom Lee Sedation Dental Group",
         table: [
-          { label: "대회명", value: "탐리오픈 2026" },
+          { label: "대회명", value: `탐리오픈 ${tournamentYear}` },
           {
             label: "대회 형식",
             value:
@@ -184,7 +242,9 @@ export const overviewPage = {
         ],
       },
       importantDatesTitle: "중요 일정",
+      importantDatesId: "important-dates",
       categories: {
+        id: "categories",
         title: "대회 종목",
         footerNotes: [
           "레벨은 NTRP 기준이며, 복식 레벨은 두 선수 점수의 합으로 산정됩니다.",
@@ -206,7 +266,7 @@ export const overviewPage = {
           id: "preliminary-matches",
           title: "예선 경기",
           items: [
-            "모든 예선 경기는 8월 16일 토요일까지 완료되어야 합니다.",
+            `모든 예선 경기는 ${prelimEndKo} ${prelimEndWeekdayKo}까지 완료되어야 합니다.`,
             "경기 일정과 장소는 양 팀이 상호 협의하여 정합니다.",
             "일정 조율이 어려울 경우 운영위원회에 도움을 요청할 수 있습니다.",
           ],
@@ -244,10 +304,8 @@ export const overviewPage = {
       venueAndCourts: {
         id: "venue-and-courts",
         title: "장소",
-        preliminariesHeading: "예선",
-        finalHeading: "본선",
-        description:
-          "예선 기간 동안 예선 경기의 장소와 시간은 팀 간 협의로 조정할 수 있습니다. 예선 경기용 코트는 선착순으로 제공되며, 이용을 원하시면 사전에 운영진에게 연락해 일정을 확정해 주세요.",
+        preliminariesHeading: "예선 코트",
+        finalHeading: "본선 장소",
         finals: {
           location: "게이츠 파크 테니스 코트",
           href: EXTERNAL_LINKS.gatesParkTennisCourts,
@@ -256,29 +314,50 @@ export const overviewPage = {
           dateDisplay: finalDateKo,
         },
         prelimHeaders: ["장소", "날짜", "요일", "시간"],
-        prelimRows: [
-          {
-            location: "Fraser Heights Court 1, 2",
-            href: EXTERNAL_LINKS.fraserHeightsCourt12,
-            date: "6월 27일 – 8월 18일",
-            day: "매주 화요일",
-            time: "오후 7:00 – 9:00",
-          },
-          {
-            location: "Fraser Heights Court North",
-            href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
-            date: "6월 27일 – 8월 16일",
-            day: "매주 일요일",
-            time: "오후 5:00 – 7:00",
-          },
-          {
-            location: "Gates Park Tennis Courts 1, 2",
-            href: EXTERNAL_LINKS.gatesParkTennisCourts,
-            date: "7월 4일 – 8월 15일",
-            day: "매주 토요일",
-            time: "오후 6:00 – 8:00",
-          },
-        ],
+        prelimRows: VENUES.map((v) => venuePrelimRow(v, "ko")),
+        venueTableHeading: "예선 코트 및 이용 시간",
+        bookCourtLabel: "코트 예약",
+        bookCourtHref: "/court-booking",
+        courtBookingRules: {
+          heading: "코트 예약 및 취소 규정",
+          rows: [
+            { label: "예약 제한", value: "선수 1인당 주 1회만 예약할 수 있습니다." },
+            {
+              label: "예약 오픈",
+              value: "사용일 7일 전 00:00 (자정)부터 가능합니다",
+              note: "예시: 7월 10일 코트 이용 희망 시, 7월 3일 0시부터 예약 가능",
+            },
+            {
+              label: "예약 취소 절차",
+              subitems: [
+                "원활한 코트 재배정을 위해 취소는 반드시 공식 오픈채팅방을 통해 말씀해 주셔야 합니다.",
+                "취소 접수 확인 후, 운영진이 웹사이트 시스템을 수정하여 오픈채팅방에 '재예약 가능' 상태를 즉시 공지할 예정입니다.",
+                "선수 간 코트 예약 양도는 불가합니다. 기존 예약을 취소한 후, 예약 페이지를 통해 다시 예약해 주세요."
+              ],
+            },
+          ] as Array<{ label: string; value?: string; note?: string; subitems?: readonly string[] }>,
+        },
+        penaltyTable: {
+          heading: "잔여 시간별 취소 및 노쇼(No-Show) 페널티 안내",
+          headers: ["구분", "적용 조건", "페널티 내용"],
+          rows: [
+            { category: "정상 취소", condition: "이용 시간 48시간 전까지 취소", penalties: ["페널티 없음"] },
+            {
+              category: "지각 취소",
+              condition: "이용 시간 48시간 이내 ~ 2시간 전 취소",
+              penalties: ["향후 대회 전용 코트 예약 불가"],
+            },
+            {
+              category: "임박 취소 및 노쇼",
+              condition: "이용 시간 2시간 이내 취소 또는 미사용",
+              penalties: [
+                "향후 전용 코트 예약 불가",
+                "페널티 금액 $20 부과",
+                "대회 경품 추첨 대상에서 제외",
+              ],
+            },
+          ] as Array<{ category: string; condition: string; penalties: string[] }>,
+        },
       },
       resultReporting: {
         id: "result-reporting",

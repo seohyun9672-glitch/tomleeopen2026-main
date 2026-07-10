@@ -1,8 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useLocale } from "@/lib/locale-context";
-import { importantDates } from "@/lib/importantDatesData";
+import { getImportantDates } from "@/lib/importantDatesData";
+import { getYear } from "@/lib/utils";
+import { Button } from "@/app/components/ui/Button";
 import { PageContainer } from "@/app/components/PageContainer";
 import { Section } from "@/app/components/Section";
 import { Table } from "@/app/components/ui/table/Table";
@@ -40,6 +42,7 @@ function renderSentenceParts(parts: readonly SentencePart[]) {
 type OverviewHubProps = {
   categories: CategoryRow[];
   hostSponsorWebsite?: string;
+  showCategories: boolean;
 };
 
 type CategoryGroup = { category: string; categoryKo: string | null; items: CategoryRow[] };
@@ -116,17 +119,55 @@ function CategoriesTable({ categories, locale, t }: CategoriesTableProps) {
   );
 }
 
-export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps) {
+export function OverviewHub({ categories, hostSponsorWebsite, showCategories }: OverviewHubProps) {
   const { t, locale } = useLocale();
   const {
     overview,
     categories: categoriesSection,
     importantDatesTitle,
+    importantDatesId,
     matchLogistics,
     venueAndCourts,
     resultReporting,
   } = t.overviewPage;
   const hostLookup = overview.hostSponsorLookupName.trim().toLowerCase();
+
+  // Scroll-spy: update URL hash as sections scroll into the top of the viewport.
+  useEffect(() => {
+    const scrollRoot = document.querySelector<HTMLElement>("[data-app-scroll-root]");
+    const ids = [
+      overview.id,
+      importantDatesId,
+      showCategories ? categoriesSection.id : null,
+      matchLogistics.id,
+      "preliminarycourt",
+      "final-venue",
+      resultReporting.id,
+    ].filter(Boolean) as string[];
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.find((e) => e.isIntersecting);
+        if (!visible) return;
+        const newHash = `#${visible.target.id}`;
+        if (window.location.hash !== newHash) {
+          window.history.replaceState(null, "", newHash);
+        }
+      },
+      {
+        root: scrollRoot,
+        rootMargin: "-8% 0px -88% 0px",
+        threshold: 0,
+      }
+    );
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [overview.id, importantDatesId, categoriesSection.id, matchLogistics.id, resultReporting.id, showCategories]);
 
   const overviewTableRows: KeyValueRow[] = overview.table.map((row) =>
     row.value.trim().toLowerCase().includes(hostLookup)
@@ -134,7 +175,7 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
       : row
   );
 
-  const importantDatesRows = importantDates
+  const importantDatesRows = getImportantDates(getYear())
     .filter((entry) => entry.label !== "Tournament")
     .map((entry) => ({
       label: locale === "ko" ? (entry.labelKo ?? entry.label) : entry.label,
@@ -161,24 +202,26 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
   return (
     <PageContainer>
       <div className="flex flex-col gap-[var(--layout-gap)]">
-        <Section title={overview.title}>
+        <Section title={overview.title} id={overview.id} className="scroll-mt-14">
           <Table variant="key-value" rows={overviewTableRows} />
         </Section>
 
-        <Section title={importantDatesTitle}>
+        <Section title={importantDatesTitle} id={importantDatesId} className="scroll-mt-14">
           <Table variant="key-value" rows={importantDateRows} />
         </Section>
 
-        <Section title={categoriesSection.title}>
-          <CategoriesTable categories={categories} locale={locale} t={t.overviewPage} />
-          <ul className="list-outside list-disc space-y-[var(--element-gap)] pl-6">
-            {categoriesSection.footerNotes.map((note: ReactNode, i: number) => (
-              <li key={i}>{note}</li>
-            ))}
-          </ul>
-        </Section>
+        {showCategories && (
+          <Section title={categoriesSection.title} id={categoriesSection.id} className="scroll-mt-14">
+            <CategoriesTable categories={categories} locale={locale} t={t.overviewPage} />
+            <ul className="list-outside list-disc space-y-[var(--element-gap)] pl-6">
+              {categoriesSection.footerNotes.map((note: ReactNode, i: number) => (
+                <li key={i}>{note}</li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
-        <Section title={matchLogistics.title} id={matchLogistics.id}>
+        <Section title={matchLogistics.title} id={matchLogistics.id} className="scroll-mt-14">
           <Table
             variant="key-value"
             rows={[
@@ -207,45 +250,88 @@ export function OverviewHub({ categories, hostSponsorWebsite }: OverviewHubProps
           />
         </Section>
 
-        <Section title={venueAndCourts.title} id={venueAndCourts.id}>
-          <div className="flex flex-col gap-[var(--element-gap)]">
-            <h3>{venueAndCourts.preliminariesHeading}</h3>
-            <p className="text-body text-[var(--color-text-secondary)]">{venueAndCourts.description}</p>
-            <Table
-              variant="data"
-              headers={[...venueAndCourts.prelimHeaders]}
-              dataRows={venueAndCourts.prelimRows.map((row) => [
-                <span key={`${row.location}-cell`}>
-                  <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
-                    {row.location}
-                  </a>
-                </span>,
-                row.date,
-                row.day,
-                row.time,
-              ])}
-            />
+        <section id="preliminarycourt" className="scroll-mt-14 flex flex-col gap-[var(--content-gap)]">
+          <div className="flex items-center justify-between gap-4">
+            <h2>{venueAndCourts.preliminariesHeading}</h2>
+            <Button href="/court-booking" variant="secondary" size="small">
+              {venueAndCourts.bookCourtLabel}
+            </Button>
           </div>
-          <div className="flex flex-col gap-[var(--element-gap)]">
-            <h3>{venueAndCourts.finalHeading}</h3>
-            <Table
-              variant="data"
-              headers={[...venueAndCourts.prelimHeaders]}
-              dataRows={[[
-                <span key="final-location-cell">
-                  <a href={venueAndCourts.finals.href} target="_blank" rel="noreferrer" className="link-default">
-                    {venueAndCourts.finals.location}
-                  </a>
-                </span>,
-                venueAndCourts.finals.dateDisplay,
-                venueAndCourts.finals.day,
-                venueAndCourts.finals.time,
-              ]]}
-            />
-          </div>
-        </Section>
 
-        <Section title={resultReporting.title} id={resultReporting.id}>
+          <div className="flex flex-col gap-[var(--layout-gap)]">
+            <div className="flex flex-col gap-[var(--element-gap)]">
+              <h3>{venueAndCourts.venueTableHeading}</h3>
+              <Table
+                variant="data"
+                headers={[...venueAndCourts.prelimHeaders]}
+                dataRows={venueAndCourts.prelimRows.map((row) => [
+                  <span key={`${row.location}-cell`}>
+                    <a href={row.href} target="_blank" rel="noreferrer" className="link-default">
+                      {row.location}
+                    </a>
+                  </span>,
+                  row.date,
+                  row.day,
+                  row.time,
+                ])}
+              />
+            </div>
+
+            <div id="court-booking-policy" className="flex flex-col gap-[var(--element-gap)] scroll-mt-14">
+              <h3>{venueAndCourts.courtBookingRules.heading}</h3>
+              <Table
+                variant="key-value"
+                rows={venueAndCourts.courtBookingRules.rows.map((row) =>
+                  row.subitems
+                    ? { label: row.label, items: row.subitems as readonly string[] }
+                    : row.note
+                      ? { label: row.label, items: [row.value!, <span key="note" className="italic text-[var(--color-text-secondary)]">{row.note}</span>] }
+                      : { label: row.label, value: row.value! }
+                )}
+              />
+            </div>
+
+            <div className="flex flex-col gap-[var(--element-gap)]">
+              <h3>{venueAndCourts.penaltyTable.heading}</h3>
+              <Table
+                variant="data"
+                stableColumnLayout={false}
+                headers={[...venueAndCourts.penaltyTable.headers]}
+                dataRows={venueAndCourts.penaltyTable.rows.map((row) => [
+                  row.category,
+                  row.condition,
+                  row.penalties.length === 1
+                    ? row.penalties[0]
+                    : (
+                      <ul className="list-outside list-disc space-y-0.5 pl-4">
+                        {row.penalties.map((p, i) => <li key={i}>{p}</li>)}
+                      </ul>
+                    ),
+                ])}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section id="final-venue" className="scroll-mt-14 flex flex-col gap-[var(--content-gap)]">
+          <h2>{venueAndCourts.finalHeading}</h2>
+          <Table
+            variant="data"
+            headers={[...venueAndCourts.prelimHeaders]}
+            dataRows={[[
+              <span key="final-location-cell">
+                <a href={venueAndCourts.finals.href} target="_blank" rel="noreferrer" className="link-default">
+                  {venueAndCourts.finals.location}
+                </a>
+              </span>,
+              venueAndCourts.finals.dateDisplay,
+              venueAndCourts.finals.day,
+              venueAndCourts.finals.time,
+            ]]}
+          />
+        </section>
+
+        <Section title={resultReporting.title} id={resultReporting.id} className="scroll-mt-14">
           <Table
             variant="key-value"
             rows={[
