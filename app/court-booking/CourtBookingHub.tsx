@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "@/lib/locale-context";
 import { displayName } from "@/lib/names";
 import { formatDateDisplay } from "@/lib/matches";
 import { PageContainer } from "@/app/components/PageContainer";
+import { BackButton } from "@/app/components/ui/BackButton";
 import { Field } from "@/app/components/ui/Field";
 import { Button } from "@/app/components/ui/Button";
 import { Chip } from "@/app/components/ui/Chip";
+import { ChoiceCard } from "@/app/components/ui/ChoiceCard";
 import { Callout } from "@/app/components/ui/Callout";
-import { COURT_OPTIONS } from "@/lib/content/courts";
-import { addDays, getToday } from "@/lib/utils";
+import { COURT_OPTIONS, deriveCourtBookingStatus, type CourtBookingStatus } from "@/lib/content/courts";
+import { addDays, cn, getToday, getYear } from "@/lib/utils";
 import type { Locale } from "@/lib/content";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -21,11 +24,13 @@ type MatchResult = {
   id: string;
   myTeamId: string | null;
   category: { label: string; labelKo: string | null };
+  round: string | null;
+  matchStatus: string;
   team1Id: string | null;
   team2Id: string | null;
   team1: { member1: MemberInfo; member2: MemberInfo | null } | null;
   team2: { member1: MemberInfo; member2: MemberInfo | null } | null;
-  courtBooking: { courtId: string; date: string } | null;
+  courtBooking: { id: string; courtId: string; date: string; createdAt: string } | null;
 };
 
 type CourtSlot = {
@@ -34,8 +39,10 @@ type CourtSlot = {
   courtNameKo: string;
   date: string;
   timeSlot: string;
-  status: "Available" | "Booked";
+  status: CourtBookingStatus;
 };
+
+type View = "lookup" | "form";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,11 +58,8 @@ function teamNames(
   return m2 ? `${m1} / ${m2}` : m1;
 }
 
-function matchLabel(match: MatchResult, loc: Locale): string {
-  const cat = displayName(match.category.label, match.category.labelKo, loc);
-  const t1 = teamNames(match.team1, loc);
-  const t2 = teamNames(match.team2, loc);
-  return `${cat} · ${t1} vs ${t2}`;
+function normalizeStatus(status: string): string {
+  return status.trim().toLowerCase();
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -63,13 +67,32 @@ function matchLabel(match: MatchResult, loc: Locale): string {
 export function CourtBookingHub() {
   const { t, locale } = useLocale();
   const cb = t.courtBookingPage;
-  const year = new Date().getFullYear();
+  const year = getYear();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.toString()) {
+      router.replace("/court-booking", { scroll: false } as never);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── State ─────────────────────────────────────────────────────────────────────
+  const [view, setView] = useState<View>("lookup");
+  const [email, setEmail] = useState("");
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupPlayerIds, setLookupPlayerIds] = useState<number[]>([]);
+
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const [matches, setMatches] = useState<MatchResult[]>([]);
 
   const [slots, setSlots] = useState<CourtSlot[]>([]);
   const [slotsLoaded, setSlotsLoaded] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedCourtId, setSelectedCourtId] = useState("");
-  const [matchQuery, setMatchQuery] = useState("");
   const [selectedMatch, setSelectedMatch] = useState<MatchResult | null>(null);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -84,18 +107,22 @@ export function CourtBookingHub() {
       .finally(() => setSlotsLoaded(true));
   }, []);
 
-  useEffect(() => { setSelectedCourtId(""); }, [selectedDate]);
-
-  const allCourtDates = useMemo(
-    () => slotsLoaded ? new Set(slots.map((s) => s.date)) : undefined,
-    [slots, slotsLoaded]
-  );
+  const allCourtDates = useMemo(() => {
+    if (!slotsLoaded) return undefined;
+    const today = getToday();
+    const bookable = slots.filter((s) => {
+      if (s.date < today) return false;
+      const court = COURT_OPTIONS.find((c) => c.id === s.courtId);
+      const effective = deriveCourtBookingStatus(s.status, s.date, court?.timeSlot ?? "");
+      return effective === "Available" || effective === "Booked";
+    });
+    return new Set(bookable.map((s) => s.date));
+  }, [slots, slotsLoaded]);
 
   const isOutsideWindow = useMemo(() => {
     if (!selectedDate) return false;
-    const today = getToday();
-    const windowEnd = addDays(today, 6);
-    return selectedDate < today || selectedDate > windowEnd;
+    const windowEnd = addDays(getToday(), 7);
+    return selectedDate > windowEnd;
   }, [selectedDate]);
 
   const courtsForDate = useMemo(
@@ -103,24 +130,80 @@ export function CourtBookingHub() {
     [selectedDate, slots]
   );
 
-  const loadMatchOptions = useCallback(
-    async (query: string): Promise<MatchResult[]> => {
-      if (!query.trim()) return [];
-      const res = await fetch(
-        `/api/court-bookings?playerName=${encodeURIComponent(query)}&year=${year}`
-      );
-      if (!res.ok) return [];
-      return res.json();
-    },
-    [year]
-  );
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function resetFormState() {
+    setMatches([]);
+    setSelectedDate("");
+    setSelectedCourtId("");
+    setSelectedMatch(null);
+    setNotes("");
+    setErrors({});
+  }
 
+  function goBackToLookup() {
+    setEmail("");
+    setLookupError(null);
+    resetFormState();
+    setView("lookup");
+    router.replace("/court-booking", { scroll: false } as never);
+  }
+
+  // ── Email lookup → booking form ───────────────────────────────────────────────
+  async function doLookup(trimmed: string) {
+    setLookupLoading(true);
+    setLookupError(null);
+    try {
+      const res = await fetch(
+        `/api/registrations/lookup?email=${encodeURIComponent(trimmed)}&year=${year}`
+      );
+      if (res.status === 404) { setLookupError(cb.lookup.noResult); return; }
+      if (!res.ok) { setLookupError(cb.lookup.error); return; }
+      const data = await res.json();
+      const playerIds: number[] = data.playerIds ?? (data.playerId ? [data.playerId] : []);
+
+      const results = await Promise.all(
+        playerIds.map((pid) =>
+          fetch(`/api/court-bookings?playerId=${pid}&year=${year}`).then((r) => r.json())
+        )
+      );
+      const seen = new Set<string>();
+      const merged = results.flat().filter((m) => m && !seen.has(m.id) && seen.add(m.id));
+      setMatches(merged);
+      setLookupPlayerIds(playerIds);
+      setLookupEmail(trimmed);
+      setEmail("");
+      setView("form");
+    } catch {
+      setLookupError(cb.lookup.error);
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
+  function handleLookup() {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return;
+    doLookup(trimmed);
+  }
+
+  // ── Form helpers ──────────────────────────────────────────────────────────────
   function clearError(...keys: string[]) {
     setErrors((prev) => {
       const next = { ...prev };
       keys.forEach((k) => delete next[k]);
       return next;
     });
+  }
+
+  function handleDateChange(date: string) {
+    setSelectedDate(date);
+    setSelectedCourtId("");
+    clearError("date", "court", "submit");
+  }
+
+  function handleCourtSelect(courtId: string) {
+    setSelectedCourtId(courtId);
+    clearError("court");
   }
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
@@ -142,11 +225,26 @@ export function CourtBookingHub() {
           teamId: selectedMatch!.myTeamId,
           matchId: selectedMatch!.id,
           notes: notes.trim() || undefined,
+          playerIds: lookupPlayerIds,
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setErrors({ submit: data.error ?? cb.errors.failed });
+        if (res.status === 409) {
+          const body = await res.json().catch(() => ({}));
+          const isWeeklyLimit = typeof body.error === "string" &&
+            body.error.toLowerCase().includes("once per week");
+          if (isWeeklyLimit) {
+            setErrors({ submit: body.error });
+          } else {
+            const fresh = await fetch("/api/court-bookings").then((r) => r.json()).catch(() => []);
+            if (Array.isArray(fresh)) setSlots(fresh);
+            setSelectedCourtId("");
+            setSelectedDate("");
+            setErrors({ submit: cb.errors.slotTaken });
+          }
+        } else {
+          setErrors({ submit: cb.errors.failed });
+        }
         return;
       }
       setSlots((prev) =>
@@ -157,6 +255,7 @@ export function CourtBookingHub() {
         )
       );
       setConfirmed(true);
+      router.replace("/court-booking", { scroll: false } as never);
     } catch {
       setErrors({ submit: cb.errors.failed });
     } finally {
@@ -164,6 +263,7 @@ export function CourtBookingHub() {
     }
   }
 
+  // ── Confirmation screen ───────────────────────────────────────────────────────
   if (confirmed) {
     const court = COURT_OPTIONS.find((c) => c.id === selectedCourtId);
     const message = court
@@ -171,24 +271,143 @@ export function CourtBookingHub() {
       : formatDateDisplay(selectedDate, locale);
     return (
       <PageContainer contentMaxWidth="max-w-[var(--form-max-width)]">
-        <Callout variant="success" title={cb.confirmation.title} message={message} />
+        <div className="flex flex-col gap-4">
+          <Callout variant="success" title={cb.confirmation.title} message={message} />
+          <Button
+            variant="secondary"
+            onClick={() => router.push(`/court-booking/manage?email=${encodeURIComponent(lookupEmail)}`)}
+          >
+            {cb.confirmation.manageBooking}
+          </Button>
+        </div>
       </PageContainer>
     );
   }
 
+  // ── Lookup view ───────────────────────────────────────────────────────────────
+  if (view === "lookup") {
+    return (
+      <PageContainer contentMaxWidth="max-w-[var(--form-max-width)]">
+        <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+          {cb.description}{" "}
+          <a href={cb.chatHref} target="_blank" rel="noreferrer">
+            {cb.chatLinkLabel}
+          </a>
+          {cb.chatLinkSuffix}{" "}
+          <a href="/overview#court-booking-policy" className="text-[var(--color-primary-blue-500)]">
+            {cb.cancellationPolicyLink}
+          </a>
+        </p>
+        <div className="flex flex-col items-start gap-4">
+          <Field
+            variant="email"
+            id="lookup-email"
+            label={cb.lookup.emailLabel}
+            value={email}
+            onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
+            onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") handleLookup(); }}
+            wrapperClassName="w-full"
+          />
+          {lookupError && (
+            <p className="text-sm text-[var(--color-status-error)]">{lookupError}</p>
+          )}
+          <Button
+            variant="primary"
+            onClick={handleLookup}
+            disabled={lookupLoading || !email.trim()}
+            className="w-full"
+          >
+            {lookupLoading ? cb.lookup.loading : cb.lookup.button}
+          </Button>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  // ── Form view ─────────────────────────────────────────────────────────────────
+  const unbookedMatches = (() => {
+    const seen = new Set<string>();
+    return matches.filter((m) => {
+      if (m.courtBooking) return false;
+      if (!m.id || seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+  })();
+
   return (
-    <PageContainer contentMaxWidth="max-w-[var(--form-max-width)]">
-      <p className="text-sm text-[var(--color-text-secondary)] mb-6">{cb.description}</p>
+    <PageContainer
+      beforeTitle={<BackButton onClick={goBackToLookup} />}
+      contentMaxWidth="max-w-[var(--form-max-width)]"
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
-        {/* 1. Date */}
+        {/* Match */}
+        <div className="flex flex-col gap-1.5">
+          <span className="form-label">
+            {cb.fields.match}
+            <span className="ml-0.5 text-[var(--form-required-mark)]"> *</span>
+          </span>
+          {unbookedMatches.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-tertiary)]">{cb.lookup.noMatches}</p>
+          ) : (
+            <div className="rounded-lg border border-[var(--color-border-ui)] overflow-hidden">
+              {unbookedMatches.map((match, i) => {
+                const isSelected = selectedMatch?.id === match.id;
+                const status = normalizeStatus(match.matchStatus);
+                const cat = displayName(match.category.label, match.category.labelKo, locale);
+                const t1 = teamNames(match.team1, locale);
+                const t2 = teamNames(match.team2, locale);
+                return (
+                  <div key={match.id} className={i > 0 ? "border-t border-[var(--color-border-ui)]" : ""}>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedMatch(match); clearError("match"); }}
+                      className={cn(
+                        "flex items-start gap-3 w-full px-4 py-3 text-left transition-colors select-none cursor-pointer hover:bg-[var(--color-surface-muted)]",
+                        isSelected ? "bg-[var(--color-surface-muted)]" : "bg-[var(--color-surface-card)]",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "mt-0.5 shrink-0 flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors",
+                          isSelected ? "border-[var(--color-primary-blue-500)]" : "border-[var(--color-border-ui-strong)]",
+                        )}
+                        aria-hidden
+                      >
+                        {isSelected && (
+                          <span className="h-2 w-2 rounded-full bg-[var(--color-primary-blue-500)]" />
+                        )}
+                      </span>
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-[var(--color-text-primary)]">{cat}</p>
+                          <Chip
+                            label={status.charAt(0).toUpperCase() + status.slice(1)}
+                            size="sm"
+                            className={cn("shrink-0", `match-status-chip-${status}`)}
+                          />
+                        </div>
+                        <p className="text-sm text-[var(--color-text-secondary)]">{match.round ?? "—"} · #{i + 1}</p>
+                        <p className="text-sm text-[var(--color-text-secondary)]">{t1} vs {t2}</p>
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {errors.match && <p className="form-field-error">{errors.match}</p>}
+        </div>
+
+        {/* Date */}
         <Field
           variant="datepicker"
           id="booking-date"
           label={cb.fields.date}
           required
           value={selectedDate}
-          onChange={(date) => { setSelectedDate(date); clearError("date"); }}
+          onChange={handleDateChange}
           enabledDates={allCourtDates}
           error={errors.date ? <p className="form-field-error">{errors.date}</p> : undefined}
         />
@@ -196,86 +415,49 @@ export function CourtBookingHub() {
           <Callout variant="warning" message={cb.fields.outsideWindow} />
         )}
 
-        {/* 2. Court table — always visible */}
-        <div className="flex flex-col gap-1.5">
-          <span className="form-label">
-            {cb.fields.court}
-            <span className="ml-0.5 text-[var(--form-required-mark)]"> *</span>
-          </span>
-          <div className="rounded-lg border border-[var(--color-border-ui)] bg-white overflow-hidden min-h-[48px]">
+        {/* Court — shown once date is selected */}
+        {selectedDate && (
+          <div className="flex flex-col gap-1.5">
+            <span className="form-label">
+              {cb.fields.court}
+              <span className="ml-0.5 text-[var(--form-required-mark)]"> *</span>
+            </span>
             {courtsForDate.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-[var(--color-text-tertiary)]">
-                {selectedDate ? cb.fields.noCourts : "—"}
-              </p>
+              <p className="text-sm text-[var(--color-text-tertiary)]">{cb.fields.noCourts}</p>
             ) : (
-              courtsForDate.map((slot, i) => {
-                const courtInfo = COURT_OPTIONS.find((c) => c.id === slot.courtId);
-                const isBooked = slot.status === "Booked";
-                const isSelected = selectedCourtId === slot.courtId;
-                return (
-                  <label
-                    key={slot.courtId}
-                    className={[
-                      "flex items-center gap-3 px-4 py-3 select-none",
-                      i > 0 ? "border-t border-[var(--color-border-ui)]" : "",
-                      isBooked ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-[var(--color-surface-muted)]",
-                      isSelected && !isBooked ? "bg-[var(--color-surface-muted)]" : "",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="radio"
-                      name="court"
-                      value={slot.courtId}
-                      checked={isSelected}
-                      disabled={isBooked}
-                      onChange={() => { setSelectedCourtId(slot.courtId); clearError("court"); }}
-                      className="accent-[var(--color-primary-blue-500)]"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                        {displayName(slot.courtName, slot.courtNameKo, locale)}
-                      </p>
-                      {courtInfo && (
-                        <p className="text-xs text-[var(--color-text-secondary)]">{courtInfo.timeSlot}</p>
-                      )}
+              <div className="rounded-lg border border-[var(--color-border-ui)] overflow-hidden">
+                {courtsForDate.map((slot, i) => {
+                  const courtInfo = COURT_OPTIONS.find((c) => c.id === slot.courtId);
+                  const effective = deriveCourtBookingStatus(slot.status, slot.date, courtInfo?.timeSlot ?? "");
+                  const badge = {
+                    Available: cb.fields.courtAvailable,
+                    Booked: cb.fields.courtBooked,
+                    Completed: cb.fields.courtCompleted,
+                    Expired: cb.fields.courtExpired,
+                  }[effective];
+                  const badgeClass = `court-chip-${effective.toLowerCase()}`;
+                  return (
+                    <div key={slot.courtId} className={i > 0 ? "border-t border-[var(--color-border-ui)]" : ""}>
+                      <ChoiceCard
+                        label={displayName(slot.courtName, slot.courtNameKo, locale)}
+                        sublabel={courtInfo?.timeSlot}
+                        showImage={false}
+                        badge={badge}
+                        badgeClassName={badgeClass}
+                        selected={selectedCourtId === slot.courtId}
+                        disabled={effective !== "Available"}
+                        onClick={() => handleCourtSelect(slot.courtId)}
+                      />
                     </div>
-                    <Chip
-                      size="sm"
-                      label={isBooked ? cb.fields.courtBooked : cb.fields.courtAvailable}
-                      className={isBooked ? "court-chip-booked" : "court-chip-available"}
-                    />
-                  </label>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
+            {errors.court && <p className="form-field-error">{errors.court}</p>}
           </div>
-          {errors.court && <p className="form-field-error">{errors.court}</p>}
-        </div>
+        )}
 
-        {/* 3. Match combobox — search by player name */}
-        <Field
-          variant="combobox"
-          id="booking-match"
-          label={cb.fields.match}
-          required
-          placeholder={cb.fields.matchPlaceholder}
-          value={matchQuery}
-          onValueChange={(v) => {
-            setMatchQuery(v);
-            if (!v.trim()) { setSelectedMatch(null); clearError("match"); }
-          }}
-          loadOptions={loadMatchOptions}
-          onSelect={(match: MatchResult) => {
-            setSelectedMatch(match);
-            setMatchQuery(matchLabel(match, locale));
-            clearError("match");
-          }}
-          getOptionKey={(m: MatchResult) => m.id}
-          getOptionLabel={(m: MatchResult) => matchLabel(m, locale)}
-          error={errors.match ? <p className="form-field-error">{errors.match}</p> : undefined}
-        />
-
-        {/* 4. Notes */}
+        {/* Notes */}
         <Field
           variant="textarea"
           id="booking-notes"

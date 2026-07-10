@@ -45,6 +45,8 @@ type FieldWrapProps = {
   error?: ReactNode;
   /** className applied to the wrapper div (only used when label is provided). */
   wrapperClassName?: string;
+  /** Renders label inline to the left instead of stacked above. */
+  horizontal?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -52,12 +54,28 @@ type FieldWrapProps = {
 // ---------------------------------------------------------------------------
 
 export function Field<TOption = unknown>(props: FieldProps<TOption> & FieldWrapProps) {
-  const { label, required, error, wrapperClassName, ...rest } = props as FieldWrapProps & Record<string, unknown>;
+  const { label, required, error, wrapperClassName, horizontal, ...rest } = props as FieldWrapProps & Record<string, unknown>;
   const id = (props as { id?: string }).id;
 
   const input = renderInput(rest as FieldProps<TOption>);
 
   if (!label) return input;
+
+  if (horizontal) {
+    return (
+      <div className={`flex items-center gap-3 ${wrapperClassName ?? ""}`}>
+        <label htmlFor={id} className="w-16 shrink-0 text-sm font-medium [color:var(--section-text)]">
+          {label}
+          {required && <span className="text-[var(--form-required-mark)]"> *</span>}
+        </label>
+        <div className="flex-1 min-w-0">
+          {input}
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={wrapperClassName}>
       <label htmlFor={id} className="block mb-1.5 text-sm font-medium [color:var(--section-text)]">

@@ -7,6 +7,53 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  active       Boolean  @default(true)
+}
+
+model Category {
+  id            String                   @id @default(cuid())
+  label         String
+  labelKo       String?
+  ntrp          String?
+  sortOrder     Int                      @default(0)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  isDoubles     Boolean                  @default(false)
+  category      String?
+  tier          String?
+  categoryKo    String?
+  tierKo        String?
+  prelimFormat  String?
+  prizes        CategoryPrize[]
+  matches       Match[]
+  media         Media[]
+  teams         Team[]
+  yearStatuses  CategoryYearStatus[]
+  registrations TournamentRegistration[]
+}
+
+model CategoryPrize {
+  id             String   @id @default(cuid())
+  tournamentYear Int
+  first          Int      @default(0)
+  second         Int      @default(0)
+  third          Int      @default(0)
+  fourth         Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentYear, categoryId])
+  @@index([tournamentYear])
+}
+
 model Club {
   id          String       @id @default(cuid())
   code        String       @unique
@@ -20,188 +67,15 @@ model Club {
   players     PlayerClub[]
 }
 
-model Category {
-  id                   String                   @id
-  label                String
-  labelKo              String?
-  ntrp                 String?
-  sortOrder            Int                      @default(0)
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  isDoubles            Boolean                  @default(false)
-  category             String?
-  tier                 String?
-  categoryKo           String?
-  tierKo               String?
-  prelimFormat         String?                  // "GROUP_ROUND_ROBIN" | "ROUND_ROBIN" | "ELIMINATION"
-  matches              Match[]
-  media                Media[]
-  teams                Team[]
-  categoryYearStatuses CategoryYearStatus[]
-  registrations        TournamentRegistration[]
-}
-
-/// Round table comment in schema refers to "Pre" code — updated to "PRE" via fix-match-ids script.
-/// SQLite table kept as `TournamentCategoryYear` for existing DBs; Prisma model name is clearer in code.
-model CategoryYearStatus {
-  tournamentYear Int
-  categoryId     String
-  status         String   @default("Pending")
-  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  @@id([tournamentYear, categoryId])
-  @@index([tournamentYear])
-  @@map("TournamentCategoryYear")
-}
-
-model Player {
-  id                     Int                      @id @default(autoincrement())
-  email                  String
-  fullNameEn             String
-  fullNameKo             String?
-  phone                  String?
-  ntrp                   String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  gender                 String?
-  clubs                  PlayerClub[]
-  teamsAsMember1         Team[]                   @relation("TeamMember1")
-  teamsAsMember2         Team[]                   @relation("TeamMember2")
-  registrationsAsPartner TournamentRegistration[] @relation("RegistrationPartner")
-  registrations          TournamentRegistration[] @relation("RegistrationPlayer")
-
-  @@index([email])
-}
-
-model PlayerClub {
-  playerId Int
-  clubCode String
-  club     Club   @relation(fields: [clubCode], references: [code], onDelete: Cascade)
-  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-
-  @@id([playerId, clubCode])
-  @@index([clubCode])
-}
-
-model TournamentRegistration {
-  id                String   @id @default(cuid())
-  tournamentYear    Int      @default(2026)
-  playerId          Int
-  categoryId        String
-  nameOnEtransfer   String?
-  partnerName       String?
-  partnerId         Int?
-  photoVideoConsent Boolean  @default(false)
-  engraving         String?
-  notes             String?
-  /// Pending | Confirmed | Cancelled — derived from paymentReceived + category status
-  status            String   @default("Confirmed")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  paymentReceived   Boolean  @default(false)
-  adminComments     String?
-  category          Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  partner           Player?  @relation("RegistrationPartner", fields: [partnerId], references: [id])
-  player            Player   @relation("RegistrationPlayer", fields: [playerId], references: [id], onDelete: Cascade)
-
-  @@unique([tournamentYear, playerId, categoryId])
-  @@index([playerId])
-  @@index([categoryId])
-  @@index([partnerId])
-}
-
-model Team {
-  id              String
-  tournamentYear  Int
-  categoryId      String
-  seed            String?
-  member1PlayerId Int
-  member2PlayerId Int?
-  matchesAsTeam1  Match[]  @relation("MatchTeam1")
-  matchesAsTeam2  Match[]  @relation("MatchTeam2")
-  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  member1         Player   @relation("TeamMember1", fields: [member1PlayerId], references: [id], onDelete: Cascade)
-  member2         Player?  @relation("TeamMember2", fields: [member2PlayerId], references: [id])
-
-  @@id([tournamentYear, id])
-  @@unique([tournamentYear, categoryId, member1PlayerId, member2PlayerId], map: "Team_tournamentYear_categoryId_member1PlayerId_member2PlayerId_")
-  @@index([categoryId])
-  @@index([tournamentYear, categoryId])
-  @@index([member1PlayerId])
-  @@index([member2PlayerId])
-}
-
-/// Round lookup table — single source of truth for round codes, labels, and sort order.
-/// Codes: "PRE" | "R16" | "R32" | "QF" | "SF" | "F". Seeded via prisma/seed.ts.
-model Round {
-  id        Int     @id @default(autoincrement())
-  code      String  @unique
-  labelEn   String
-  labelKo   String
-  sortOrder Int
-  matches   Match[]
-}
-
-model Match {
-  /// Id pattern: `{YY}{catId}{roundCode}{group}{n}` — Finals omit `{n}`. See `lib/generateMatches.ts`.
-  id             String   @id
-  tournamentYear Int
-  categoryId     String
-  round          String?
-  team1Id        String?
-  team2Id        String?
-  matchStatus    String   @default("Scheduled")
-  date           String?
-  time           String?
-  location       String?
-  set1ScoreTeam1 String?
-  set2ScoreTeam1 String?
-  set3ScoreTeam1 String?
-  set1ScoreTeam2 String?
-  set2ScoreTeam2 String?
-  set3ScoreTeam2 String?
-  comment        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  ball           String?
-  category       Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  roundRef       Round?        @relation(fields: [round], references: [code])
-  courtBooking   CourtBooking?
-  team1          Team?         @relation("MatchTeam1", fields: [tournamentYear, team1Id], references: [tournamentYear, id], onDelete: Cascade)
-  team2          Team?         @relation("MatchTeam2", fields: [tournamentYear, team2Id], references: [tournamentYear, id], onDelete: Cascade)
-
-  @@index([tournamentYear])
-  @@index([categoryId])
-  @@index([tournamentYear, categoryId])
-}
-
-model CourtBooking {
-  id             String   @id @default(cuid())
-  tournamentYear Int
-  courtId        String
-  date           String
-  teamId         String?
-  matchId        String?  @unique
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
-  status         String   @default("Available")
-  match          Match?   @relation(fields: [matchId], references: [id])
-
-  @@unique([courtId, date])
-  @@index([date])
-  @@index([tournamentYear])
-  @@index([teamId])
-}
-
-model Sponsor {
-  id        String   @id @default(cuid())
-  name      String
-  image     String
-  website   String?
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Coach {
+  id         String   @id @default(cuid())
+  name       String
+  fullNameKo String?
+  phone      String?
+  image      String?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model CommunityPartner {
@@ -214,15 +88,97 @@ model CommunityPartner {
   updatedAt DateTime @updatedAt
 }
 
-model Coach {
-  id         String   @id @default(cuid())
-  name       String
-  fullNameKo String?
-  phone      String?
-  image      String?
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model CourtBooking {
+  id               String   @id @default(cuid())
+  tournamentYear   Int
+  courtId          String
+  date             String
+  teamId           String?
+  matchId          String?  @unique
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now())
+  status           String   @default("Available")
+  bookedByPlayerId Int?
+  bookedByPlayer   Player?  @relation(fields: [bookedByPlayerId], references: [id])
+  match            Match?   @relation(fields: [matchId], references: [id])
+
+  @@unique([courtId, date])
+  @@index([bookedByPlayerId])
+  @@index([date])
+  @@index([teamId])
+  @@index([tournamentYear])
+}
+
+model Giveaway {
+  id             String   @id @default(cuid())
+  tournamentYear Int      @default(2026)
+  playerId       Int
+  optionId       String
+  pickupClub     String?
+  pickupNote     String?
+  received       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  optionId2      String?
+  received2      Boolean  @default(false)
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentYear, playerId])
+  @@index([playerId])
+  @@index([tournamentYear])
+}
+
+model TumblerOption {
+  tournamentYear Int
+  optionId       String
+  label          String
+  imageSrc       String?
+  status         String   @default("Available")
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  stock          Int      @default(15)
+  colour         String?
+  colourKo       String?
+  ml             String?
+
+  @@id([tournamentYear, optionId])
+  @@index([tournamentYear])
+  @@map("GiveawayOption")
+}
+
+model Match {
+  id             String        @id @default(cuid())
+  tournamentYear Int
+  categoryId     String
+  round          String?
+  team1Id        String?
+  team2Id        String?
+  matchStatus    String        @default("Scheduled")
+  date           String?
+  time           String?
+  location       String?
+  set1ScoreTeam1 String?
+  set2ScoreTeam1 String?
+  set3ScoreTeam1 String?
+  set1ScoreTeam2 String?
+  set2ScoreTeam2 String?
+  set3ScoreTeam2 String?
+  comment        String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  ball           String?
+  ballReceived   Boolean       @default(false)
+  courtBooking   CourtBooking?
+  category       Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  roundRef       Round?        @relation(fields: [round], references: [code])
+  team1          Team?         @relation("Match_tournamentYear_team1IdToTeam", fields: [tournamentYear, team1Id], references: [tournamentYear, id], onDelete: Cascade)
+  team2          Team?         @relation("Match_tournamentYear_team2IdToTeam", fields: [tournamentYear, team2Id], references: [tournamentYear, id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([tournamentYear, categoryId])
+  @@index([tournamentYear])
 }
 
 model Media {
@@ -232,7 +188,6 @@ model Media {
   subtitle           String?
   date               DateTime?
   image              String?
-  /// When there is no cover image, shown in the card image area (overrides default “No image” copy).
   imagePlaceholder   String?
   imagePlaceholderKo String?
   media              String?
@@ -247,18 +202,9 @@ model Media {
   outletKo           String?
   category           Category? @relation(fields: [categoryId], references: [id])
 
+  @@index([categoryId])
   @@index([type])
   @@index([type, tournamentYear, categoryId])
-  @@index([categoryId])
-}
-
-model AdminUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  active       Boolean  @default(true)
 }
 
 model Ntrp {
@@ -266,18 +212,111 @@ model Ntrp {
   sortOrder Int    @default(0)
 }
 
-model CategoryPrize {
-  id               String   @id @default(cuid())
-  tournamentYear   Int
-  isDoubles        Boolean
-  teamCountBracket String
-  first            Int      @default(0)
-  second           Int      @default(0)
-  third            Int      @default(0)
-  fourth           Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+model Player {
+  id                     Int                      @id @default(autoincrement())
+  email                  String
+  fullNameEn             String
+  fullNameKo             String?
+  phone                  String?
+  ntrp                   String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  gender                 String?
+  courtBookings          CourtBooking[]
+  giveaways              Giveaway[]
+  clubs                  PlayerClub[]
+  teamsAsMember1         Team[]                   @relation("Team_member1PlayerIdToPlayer")
+  teamsAsMember2         Team[]                   @relation("Team_member2PlayerIdToPlayer")
+  registrationsAsPartner TournamentRegistration[] @relation("TournamentRegistration_partnerIdToPlayer")
+  registrations          TournamentRegistration[] @relation("TournamentRegistration_playerIdToPlayer")
 
-  @@unique([tournamentYear, isDoubles, teamCountBracket])
+  @@index([email])
+}
+
+model PlayerClub {
+  playerId Int
+  clubCode String
+  club     Club   @relation(fields: [clubCode], references: [code], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, clubCode])
+  @@index([clubCode])
+}
+
+model Round {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique
+  labelEn   String
+  labelKo   String
+  sortOrder Int
+  matches   Match[]
+}
+
+model Sponsor {
+  id        String   @id @default(cuid())
+  name      String
+  image     String
+  website   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id              String
+  tournamentYear  Int
+  categoryId      String
+  seed            String?
+  member1PlayerId Int
+  member2PlayerId Int?
+  matchesAsTeam1  Match[]  @relation("Match_tournamentYear_team1IdToTeam")
+  matchesAsTeam2  Match[]  @relation("Match_tournamentYear_team2IdToTeam")
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  member1         Player   @relation("Team_member1PlayerIdToPlayer", fields: [member1PlayerId], references: [id], onDelete: Cascade)
+  member2         Player?  @relation("Team_member2PlayerIdToPlayer", fields: [member2PlayerId], references: [id])
+
+  @@id([tournamentYear, id])
+  @@unique([tournamentYear, categoryId, member1PlayerId, member2PlayerId], map: "Team_tournamentYear_categoryId_member1PlayerId_member2PlayerId_")
+  @@index([categoryId])
+  @@index([member1PlayerId])
+  @@index([member2PlayerId])
+  @@index([tournamentYear, categoryId])
+}
+
+model CategoryYearStatus {
+  tournamentYear Int
+  categoryId     String
+  status         String   @default("Pending")
+  prelimFormat   String?
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentYear, categoryId])
   @@index([tournamentYear])
+  @@map("TournamentCategoryYear")
+}
+
+model TournamentRegistration {
+  id                String   @id @default(cuid())
+  tournamentYear    Int      @default(2026)
+  playerId          Int
+  categoryId        String
+  nameOnEtransfer   String?
+  partnerName       String?
+  partnerId         Int?
+  photoVideoConsent Boolean  @default(false)
+  engraving         String?
+  notes             String?
+  status            String   @default("Confirmed")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  paymentReceived   Boolean  @default(false)
+  adminComments     String?
+  category          Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  partner           Player?  @relation("TournamentRegistration_partnerIdToPlayer", fields: [partnerId], references: [id])
+  player            Player   @relation("TournamentRegistration_playerIdToPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentYear, playerId, categoryId])
+  @@index([categoryId])
+  @@index([partnerId])
+  @@index([playerId])
 }

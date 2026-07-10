@@ -121,17 +121,19 @@ export type CategoryYearStatusRow = {
   tournamentYear: number;
   categoryId: string;
   status: CategoryYearStatus;
+  prelimFormat: string | null;
 };
 
 export async function getAllCategoryYearStatuses(): Promise<CategoryYearStatusRow[]> {
   noStore();
   const rows = await prisma.categoryYearStatus.findMany({
-    select: { tournamentYear: true, categoryId: true, status: true },
+    select: { tournamentYear: true, categoryId: true, status: true, prelimFormat: true },
   });
   return rows.map((r) => ({
     tournamentYear: r.tournamentYear,
     categoryId: normalizeCategoryId(r.categoryId),
     status: toCategoryYearStatus(r.status),
+    prelimFormat: r.prelimFormat ?? null,
   }));
 }
 

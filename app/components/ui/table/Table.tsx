@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type React from "react";
 import { Chip as ChipComponent } from "../Chip";
 import { computeColumnMeta } from "./tableColumnUtils";
@@ -19,8 +19,9 @@ export type TableCellProps =
   | { type: "text";     value: string | null | undefined }
   | { type: "number";   value: number | null | undefined }
   | { type: "chips";    items: Chip[] }
-  | { type: "stack";    lines: (string | null | undefined)[]; topBadge?: { label: string; className: string } }
-  | { type: "checkbox"; checked: boolean; onToggle?: (e: React.MouseEvent<HTMLButtonElement>) => void };
+  | { type: "stack";    lines: (string | null | undefined)[]; topBadge?: { label: string; className: string }; topBadgePlaceholder?: boolean; trailingIcon?: ReactNode; trailingIconPlaceholder?: boolean }
+  | { type: "checkbox"; checked: boolean; onToggle?: (e: React.MouseEvent<HTMLButtonElement>) => void }
+  | { type: "image";    src?: string; alt?: string; size?: "sm" | "md" };
 
 const DATA_CHIP_SHELL =
   "inline-flex w-fit shrink-0 items-center rounded-2xl border border-[color:var(--palette-ring)] px-2.5 py-1 text-left font-medium leading-snug whitespace-nowrap";
@@ -43,17 +44,38 @@ function TableCell(props: TableCellProps): ReactNode {
           ))}
         </span>
       );
-    case "stack":
-      return (
+    case "stack": {
+      const hasTrailing = props.trailingIcon != null || props.trailingIconPlaceholder;
+      const names = (
         <span className="flex flex-col gap-0.5">
-          {props.topBadge && (
-            <ChipComponent size="sm" label={props.topBadge.label} className={props.topBadge.className} />
+          {(props.topBadge || props.topBadgePlaceholder) && (
+            <ChipComponent
+              size="sm"
+              label={props.topBadge?.label ?? "W"}
+              className={props.topBadge ? props.topBadge.className : "invisible"}
+            />
           )}
           {props.lines.filter(Boolean).map((line, i) => (
             <span key={i}>{line}</span>
           ))}
         </span>
       );
+      if (!hasTrailing) return names;
+      return (
+        <span className="flex items-center gap-2">
+          {names}
+          {props.trailingIcon != null
+            ? props.trailingIcon
+            : <span className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+        </span>
+      );
+    }
+    case "image": {
+      const cls = props.size === "md" ? "h-20 w-20 rounded object-cover" : "h-16 w-16 rounded object-cover";
+      return props.src
+        ? <img src={props.src} alt={props.alt ?? ""} className={cls} />
+        : <div className={`${cls} bg-[var(--color-surface-muted)]`} aria-hidden />;
+    }
     case "checkbox": {
       const disabled = !props.onToggle;
       return (
@@ -80,9 +102,11 @@ function TableCell(props: TableCellProps): ReactNode {
 
 export type TableColumnConfig<T> = {
   header: string | ReactNode;
-  renderCell: (item: T) => TableCellProps;
+  renderCell: (item: T, index: number, total: number) => TableCellProps;
   sortKey?: string;
   sortValue?: (item: T) => string | number;
+  /** Override column width (e.g. "7ch", "4rem"). Useful for image columns that need to hug content. */
+  width?: string;
 };
 
 export type TableViewConfig<T> = {
@@ -95,6 +119,12 @@ export type TableViewConfig<T> = {
   /** Extra CSS classes applied to every cell (th + td) in the column at that index. */
   columnClass?: readonly (string | undefined)[];
   onRowClick?: (item: T) => void;
+  /** When provided, inserts a thicker group-divider border above rows where this returns true. */
+  rowGroupBreakBefore?: (rowIndex: number) => boolean;
+  /** Provides a stable DOM id for each row so scrollToId can find it. */
+  getRowId?: (item: T) => string;
+  /** When set, the row with this id is scrolled into view. */
+  scrollToId?: string | null;
 };
 
 // ─── Internal table styling ────────────────────────────────────────────────────
@@ -120,12 +150,17 @@ function DataTable({
   dataRows,
   stableColumnLayout = true,
   columnNoWrap,
+  columnWidths,
   rowGroupBreakBefore,
   onRowClick,
   sortConfig,
   columnClass,
+  rowIds,
 }: DataTableProps & { columnClass?: readonly (string | undefined)[] }) {
-  const { shouldCenter, widthsCh } = computeColumnMeta(headers ?? [], dataRows ?? []);
+  const { shouldCenter, widthsCh: computedWidths } = computeColumnMeta(headers ?? [], dataRows ?? []);
+  const widthsCh = columnWidths
+    ? computedWidths.map((w, i) => columnWidths[i] ?? w)
+    : computedWidths;
 
   const colgroup =
     !headers || headers.length === 0
@@ -231,6 +266,7 @@ function DataTable({
                 key={i}
                 className={`${rowBorder} ${rowGroupBreakBefore?.(i) ? "is-table-row-group-start" : ""}`}
                 data-clickable={onRowClick ? "true" : undefined}
+                data-row-id={rowIds?.[i]}
                 onClick={onRowClick ? () => onRowClick(cells, i) : undefined}
               >
                 {cells.map((c, j) => {
@@ -334,9 +370,19 @@ export function TableView<T>({
   columnNoWrap,
   columnClass,
   onRowClick,
+  rowGroupBreakBefore,
+  getRowId,
+  scrollToId,
 }: TableViewConfig<T> & { items: T[] }) {
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!scrollToId) return;
+    const el = tableRef.current?.querySelector(`[data-row-id="${scrollToId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [scrollToId]);
 
   const sortedItems = useMemo(() => {
     if (!activeSortKey) return items;
@@ -361,23 +407,28 @@ export function TableView<T>({
   const sortKeys = columns.map((c) => c.sortKey ?? null);
 
   return (
-    <DataTable
-      variant={variant}
-      headers={columns.map((c) => c.header)}
-      stableColumnLayout={stableColumnLayout}
-      columnFlexWeights={columnFlexWeights}
-      columnNoWrap={columnNoWrap}
-      columnClass={columnClass}
-      sortConfig={
-        sortKeys.some((k) => k !== null)
-          ? { activeKey: activeSortKey, direction: sortDir, keys: sortKeys, onSort: handleSort }
-          : undefined
-      }
-      onRowClick={onRowClick ? (_, i) => onRowClick(sortedItems[i]) : undefined}
-      dataRows={sortedItems.map((item) =>
-        columns.map((col) => <TableCell {...col.renderCell(item)} />)
-      )}
-    />
+    <div ref={tableRef}>
+      <DataTable
+        variant={variant}
+        headers={columns.map((c) => c.header)}
+        stableColumnLayout={stableColumnLayout}
+        columnFlexWeights={columnFlexWeights}
+        columnNoWrap={columnNoWrap}
+        columnWidths={columns.map((c) => c.width ?? null)}
+        columnClass={columnClass}
+        sortConfig={
+          sortKeys.some((k) => k !== null)
+            ? { activeKey: activeSortKey, direction: sortDir, keys: sortKeys, onSort: handleSort }
+            : undefined
+        }
+        onRowClick={onRowClick ? (_, i) => onRowClick(sortedItems[i]) : undefined}
+        rowGroupBreakBefore={rowGroupBreakBefore}
+        rowIds={getRowId ? sortedItems.map((item) => getRowId(item)) : undefined}
+        dataRows={sortedItems.map((item, i) =>
+          columns.map((col) => <TableCell {...col.renderCell(item, i, sortedItems.length)} />)
+        )}
+      />
+    </div>
   );
 }
 

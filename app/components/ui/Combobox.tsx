@@ -20,6 +20,8 @@ export type ComboboxProps<TOption> = {
   onSelect?: (option: TOption) => void;
   getOptionKey: (option: TOption) => string | number;
   getOptionLabel: (option: TOption) => string;
+  /** When set, the dropdown option whose key matches this value shows a checkmark. */
+  selectedKey?: string | number;
   placeholder?: string;
   minQueryLength?: number;
   debounceMs?: number;
@@ -44,6 +46,7 @@ export function Combobox<TOption>({
   onSelect,
   getOptionKey,
   getOptionLabel,
+  selectedKey,
   placeholder,
   minQueryLength = 1,
   debounceMs = 250,
@@ -114,7 +117,7 @@ export function Combobox<TOption>({
   const queryOk = q.length >= minQueryLength;
   const canShowInitial = showInitialOptions && q.length === 0;
   const showPanel = open && (queryOk || canShowInitial);
-  const placement = usePopoverPlacement(showPanel, triggerRef, COMBO_DROPDOWN_MAX_PX);
+  const { placement, maxHeight } = usePopoverPlacement(showPanel, triggerRef, COMBO_DROPDOWN_MAX_PX);
 
   const selectOption = (option: TOption) => {
     onSelect?.(option);
@@ -158,7 +161,7 @@ export function Combobox<TOption>({
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={`relative${disabled ? " opacity-50 pointer-events-none" : ""}`}>
       <input
         ref={triggerRef}
         id={id}
@@ -189,7 +192,7 @@ export function Combobox<TOption>({
       />
 
       {showPanel && (
-        <Popover placement={placement} maxHeightClass="max-h-56">
+        <Popover placement={placement} maxHeightPx={maxHeight}>
           <ul id={listId} role="listbox" aria-label={listAriaLabel}>
           {loading ? (
             <li className="px-4 py-2 text-sm text-[var(--color-text-tertiary)]" role="presentation">
@@ -211,7 +214,14 @@ export function Combobox<TOption>({
                   onMouseEnter={() => setHighlighted(idx)}
                   onClick={() => selectOption(option)}
                 >
-                  {getOptionLabel(option)}
+                  <span className="flex items-center justify-between gap-2">
+                    <span>{getOptionLabel(option)}</span>
+                    {selectedKey != null && String(getOptionKey(option)) === String(selectedKey) && (
+                      <svg viewBox="0 0 16 16" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 text-[var(--color-brand-primary)]">
+                        <polyline points="2 8 6 12 14 4" />
+                      </svg>
+                    )}
+                  </span>
                 </button>
               </li>
             ))

@@ -35,10 +35,6 @@ function TierHeading({ label }: { label: string }) {
   );
 }
 
-function bronzeColSpan(index: number): string {
-  return index < 2 ? "col-span-1 sm:col-span-3 lg:col-span-1" : "col-span-1 sm:col-span-2 lg:col-span-1";
-}
-
 export function SponsorsSection({ sponsors }: SponsorsSectionProps) {
   const { t } = useLocale();
   const title = t.homePage.sectionTitles.sponsors;
@@ -90,18 +86,17 @@ export function SponsorsSection({ sponsors }: SponsorsSectionProps) {
       {bronze.length > 0 && (
         <div>
           <TierHeading label={tierLabels.bronze} />
-          <div className="grid grid-cols-2 gap-0 sm:grid-cols-6 lg:grid-cols-4">
-            {bronze.map((item, i) => (
-              <div key={item.id} className={bronzeColSpan(i)}>
-                <Card
-                  imageOnly
-                  image={item.image}
-                  imageAlt={item.name}
-                  href={item.website ?? "#"}
-                  hrefAriaLabel={visit(item.name)}
-                  className="h-full"
-                />
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-0">
+            {bronze.map((item) => (
+              <Card
+                key={item.id}
+                imageOnly
+                image={item.image}
+                imageAlt={item.name}
+                href={item.website ?? "#"}
+                hrefAriaLabel={visit(item.name)}
+                className="h-full"
+              />
             ))}
           </div>
         </div>

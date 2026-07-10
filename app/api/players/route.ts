@@ -23,6 +23,7 @@ export async function POST(request: Request) {
         fullNameKo: body.fullNameKo?.trim() || null,
         phone: body.phone?.trim() || null,
         ntrp: body.ntrp?.trim() || null,
+        gender: body.gender?.trim() || null,
       },
     });
 
@@ -46,14 +47,42 @@ export async function GET(request: Request) {
   const email = searchParams.get("email")?.trim().toLowerCase();
   const name = searchParams.get("name")?.trim();
   const all = searchParams.get("all") === "1";
+  const excludeId = Number(searchParams.get("excludeId")) || null;
+  const yearParam = searchParams.get("year");
+  const registeredOnly = searchParams.get("registered") === "1";
+  const includeAdmins = searchParams.get("includeAdmins") === "1";
   const nameLower = name?.toLowerCase() ?? "";
   const hasEmail = Boolean(email && email.length >= 2);
   const hasName = Boolean(name && name.length >= 1);
   try {
+    let adminEmails: string[] = [];
+    if (includeAdmins) {
+      const admins = await prisma.adminUser.findMany({
+        where: { active: true },
+        select: { email: true },
+      });
+      adminEmails = admins.map((a) => a.email);
+    }
+
+    const registrationCondition = registeredOnly && yearParam
+      ? { registrations: { some: { tournamentYear: Number(yearParam) } } }
+      : null;
+
+    let whereClause: object;
+    if (hasEmail) {
+      whereClause = { email };
+    } else if (registrationCondition && adminEmails.length > 0) {
+      whereClause = { OR: [registrationCondition, { email: { in: adminEmails } }] };
+    } else if (registrationCondition) {
+      whereClause = registrationCondition;
+    } else if (adminEmails.length > 0) {
+      whereClause = { email: { in: adminEmails } };
+    } else {
+      whereClause = {};
+    }
+
     const rawPlayers = await prisma.player.findMany({
-      where: hasEmail
-        ? { email }
-        : {},
+      where: whereClause,
       select: {
         id: true,
         fullNameEn: true,
@@ -61,11 +90,12 @@ export async function GET(request: Request) {
         email: true,
         phone: true,
         ntrp: true,
+        gender: true,
       },
       orderBy: { fullNameEn: "asc" },
       take: all ? undefined : hasEmail ? NAME_SEARCH_TAKE : hasName ? 500 : 5,
     });
-    const players = hasName
+    const players = (hasName
       ? rawPlayers
           .filter((p) => {
             const en = p.fullNameEn?.toLowerCase() ?? "";
@@ -73,7 +103,8 @@ export async function GET(request: Request) {
             return en.includes(nameLower) || ko.includes(nameLower);
           })
           .slice(0, NAME_SEARCH_TAKE)
-      : rawPlayers;
+      : rawPlayers
+    ).filter((p) => !excludeId || p.id !== excludeId);
     if (players.length === 0) return NextResponse.json([]);
 
     const playerIds = players.map((p) => p.id);

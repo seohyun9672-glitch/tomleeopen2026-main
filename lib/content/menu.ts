@@ -16,6 +16,8 @@ export const MENU_ITEMS = [
   { href: "/media", label: { en: "Media", ko: "미디어" } },
 ] as const;
 
+const COURT_BOOKING_ITEM = { href: "/court-booking", label: { en: "Book a Court", ko: "코트 예약" } } as const;
+
 export function getMenuData(locale: MenuLocale) {
   const p = locale === "ko" ? "/ko" : "";
   const [tournament, schedule, draws, players, media] = MENU_ITEMS;
@@ -46,5 +48,6 @@ export function getMenuData(locale: MenuLocale) {
     draws: loc(draws),
     players: loc(players),
     media: loc(media),
+    courtBooking: loc(COURT_BOOKING_ITEM),
   };
 }

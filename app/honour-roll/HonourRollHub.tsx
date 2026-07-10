@@ -5,7 +5,8 @@ import type { CategoryRecord } from "@/lib/categories";
 import type { Match } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { DatabaseLayout } from "@/app/components/database";
-import { MatchCard } from "@/app/components/MatchCard";
+import { TableView } from "@/app/components/ui/table/Table";
+import { GroupedList } from "@/app/components/GroupedList";
 
 type HonourEntry = { year: number; match: Match };
 
@@ -15,21 +16,73 @@ type Props = {
 };
 
 export function HonourRollHub({ categories, allMatches }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
-  const allYears = useMemo(
-    () => [...new Set(allMatches.map((m) => m.tournamentYear))].sort((a, b) => b - a),
-    [allMatches],
-  );
-
-  // Pre-filter to finals only and reshape once; DatabaseLayout applies year + category filters.
+  // Only finals where a winner has been determined.
   const allEntries = useMemo(
     (): HonourEntry[] =>
       allMatches
-        .filter((m) => m.round?.code === "F")
+        .filter((m) => m.round?.code === "F" && m.winner !== null)
         .map((m) => ({ year: m.tournamentYear, match: m }))
         .sort((a, b) => b.year - a.year),
     [allMatches],
+  );
+
+  const championName = (e: HonourEntry) => {
+    const winner = e.match.winner;
+    return winner === 1
+      ? locale === "ko"
+        ? e.match.team1DisplayNameKo || e.match.team1DisplayName
+        : e.match.team1DisplayName
+      : winner === 2
+        ? locale === "ko"
+          ? e.match.team2DisplayNameKo || e.match.team2DisplayName
+          : e.match.team2DisplayName
+        : null;
+  };
+
+  const runnerUpName = (e: HonourEntry) => {
+    const winner = e.match.winner;
+    return winner === 1
+      ? locale === "ko"
+        ? e.match.team2DisplayNameKo || e.match.team2DisplayName
+        : e.match.team2DisplayName
+      : winner === 2
+        ? locale === "ko"
+          ? e.match.team1DisplayNameKo || e.match.team1DisplayName
+          : e.match.team1DisplayName
+        : null;
+  };
+
+  // Shared width across every category's table so the champion/runner-up
+  // columns line up regardless of which category happens to have the longest name.
+  const nameColWidth = useMemo(() => {
+    let maxLen = 1;
+    for (const e of allEntries) {
+      maxLen = Math.max(maxLen, (championName(e) ?? "").length, (runnerUpName(e) ?? "").length);
+    }
+    return `${maxLen + 1}ch`;
+  }, [allEntries, locale]);
+
+  const columns = useMemo(
+    () => [
+      {
+        header: t.year,
+        width: "6ch",
+        renderCell: (e: HonourEntry) => ({ type: "text" as const, value: String(e.year) }),
+      },
+      {
+        header: t.champion,
+        width: nameColWidth,
+        renderCell: (e: HonourEntry) => ({ type: "text" as const, value: championName(e) ?? "" }),
+      },
+      {
+        header: t.runnerUp,
+        width: nameColWidth,
+        renderCell: (e: HonourEntry) => ({ type: "text" as const, value: runnerUpName(e) ?? "" }),
+      },
+    ],
+    [t, locale, nameColWidth],
   );
 
   return (
@@ -37,48 +90,46 @@ export function HonourRollHub({ categories, allMatches }: Props) {
       data={allEntries}
       managedFilters={[
         {
-          type: "year" as const,
-          years: allYears,
-          apply: (items: HonourEntry[], year: string) =>
-            year ? items.filter((e) => String(e.year) === year) : items,
-          clearParams: ["cat"],
-          allLabel: t.shared.labels.allYears,
-          defaultToAll: true,
-        },
-        {
           type: "category" as const,
-          // Options are derived from year-filtered entries so the category list
-          // updates when the year filter changes.
-          options: (yearFiltered: HonourEntry[]) => {
-            const ids = new Set(yearFiltered.map((e) => e.match.categoryId));
+          options: (filtered: HonourEntry[]) => {
+            const ids = new Set(filtered.map((e) => e.match.categoryId));
             return categories
               .filter((c) => ids.has(c.id))
-              .map((c) => ({
-                id: c.id,
-                label: c.label,
-                labelKo: c.labelKo,
-              }))
-              .sort((a, b) =>
-                a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
-              );
+              .map((c) => ({ id: c.id, label: c.label, labelKo: c.labelKo }));
           },
           apply: (items: HonourEntry[], categoryId: string) =>
             categoryId ? items.filter((e) => e.match.categoryId === categoryId) : items,
-          autoSelect: true,
+          allLabel: t.shared.labels.allCategories,
         },
       ]}
-      view={{
-        getKey: (e) => `${e.match.id}-${e.year}`,
-        groupBy: (e) => String(e.year),
-        renderGroupHeader: (year) => (
-          <h3 className="text-[var(--section-text)]">{year}</h3>
-        ),
-        renderItem: (e) => <MatchCard match={e.match} />,
-        headerGap: "gap-[var(--element-gap)]",
-        groupGap: "gap-[var(--section-gap)]",
-        className: "text-[var(--section-text)]",
-      }}
       emptyText={t.emptyStates.noResults}
-    />
+    >
+      {(filteredData) => {
+        // Group filtered entries by category, preserving the server's stable
+        // sortOrder-based category order (locale-independent).
+        const groupMap = new Map<string, HonourEntry[]>();
+        for (const entry of filteredData) {
+          if (!groupMap.has(entry.match.categoryId)) groupMap.set(entry.match.categoryId, []);
+          groupMap.get(entry.match.categoryId)!.push(entry);
+        }
+        const groups = categories
+          .filter((c) => groupMap.has(c.id))
+          .map((c) => ({
+            categoryId: c.id,
+            label: locale === "ko" ? c.labelKo || c.label : c.label,
+            entries: groupMap.get(c.id)!,
+          }));
+
+        return (
+          <GroupedList
+            groups={groups.map(({ categoryId, label, entries }) => ({
+              key: categoryId,
+              label,
+              children: <TableView items={entries} type="table" columns={columns} />,
+            }))}
+          />
+        );
+      }}
+    </DatabaseLayout>
   );
 }

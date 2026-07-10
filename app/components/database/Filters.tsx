@@ -56,7 +56,7 @@ function shellClass(control: FilterControlKind, className?: string) {
 }
 
 function innerClass(control: FilterControlKind) {
-  if (HUG_CONTROLS.has(control)) return "w-fit min-w-0";
+  if (HUG_CONTROLS.has(control)) return "w-fit min-w-0 [&_select]:w-auto";
   if (control === "default") return "h-full w-full min-w-0";
   return cn("w-full min-w-0", FILL_CHILD);
 }
@@ -305,14 +305,15 @@ type ClubFilterProps = {
   options: string[];
   onChange: (values: string[]) => void;
   placeholder?: string;
+  singleSelect?: boolean;
 };
 
-export function ClubFilter({ id, selected, options, onChange, placeholder }: ClubFilterProps) {
+export function ClubFilter({ id, selected, options, onChange, placeholder, singleSelect }: ClubFilterProps) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const placement = usePopoverPlacement(open, triggerRef, CLUB_DROPDOWN_MAX_PX);
+  const { placement, maxHeight } = usePopoverPlacement(open, triggerRef, CLUB_DROPDOWN_MAX_PX);
   useDismissOnOutsidePointerDown(open, containerRef, () => setOpen(false));
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
@@ -325,6 +326,21 @@ export function ClubFilter({ id, selected, options, onChange, placeholder }: Clu
       : selected.length === 1
       ? selected[0]!
       : `${selected.length} ${t.shared.labels.club.toLowerCase()}`;
+
+  if (singleSelect) {
+    return (
+      <Filter control="club" htmlFor={id} label={selected.length === 0 ? t.shared.labels.allClubs : t.shared.labels.club}>
+        <Filter.Select
+          id={id}
+          value={selected[0] ?? ""}
+          onChange={(e) => { onChange(e.currentTarget.value ? [e.currentTarget.value] : []); e.currentTarget.blur(); }}
+        >
+          <option value="">{placeholder ?? t.shared.labels.allClubs}</option>
+          {options.map((club) => <option key={club} value={club}>{club}</option>)}
+        </Filter.Select>
+      </Filter>
+    );
+  }
 
   return (
     <Filter control="club" htmlFor={id} label={t.shared.labels.club}>
@@ -344,7 +360,7 @@ export function ClubFilter({ id, selected, options, onChange, placeholder }: Clu
           </span>
         </button>
         {open && (
-          <Popover placement={placement} maxHeightClass="max-h-52">
+          <Popover placement={placement} maxHeightPx={maxHeight}>
             <ul role="listbox" aria-multiselectable="true">
               {options.map((club) => {
                 const checked = selectedSet.has(club);
@@ -368,32 +384,6 @@ export function ClubFilter({ id, selected, options, onChange, placeholder }: Clu
           </Popover>
         )}
       </div>
-    </Filter>
-  );
-}
-
-// ─── GroupFilter ──────────────────────────────────────────────────────────────
-
-type GroupFilterProps = {
-  id: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-  allLabel?: string;
-};
-
-export function GroupFilter({ id, value, options, onChange, allLabel }: GroupFilterProps) {
-  const { t } = useLocale();
-  return (
-    <Filter control="round" htmlFor={id} label={t.shared.labels.seed}>
-      <Filter.Select
-        id={id}
-        value={value}
-        onChange={(e) => { onChange(e.currentTarget.value); e.currentTarget.blur(); }}
-      >
-        {allLabel !== undefined && <option value="">{allLabel || t.shared.labels.allGroups}</option>}
-        {options.map((g) => <option key={g} value={g}>{g}</option>)}
-      </Filter.Select>
     </Filter>
   );
 }

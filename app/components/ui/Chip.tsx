@@ -20,7 +20,12 @@ const SHAPES: Record<NonNullable<ChipProps["shape"]>, string> = {
 export function Chip({ label, size = "md", shape = "circular", className, "aria-label": ariaLabel }: ChipProps) {
   return (
     <span
-      className={cn("inline-block border", SIZES[size], SHAPES[shape], className)}
+      className={cn(
+        "inline-block border",
+        "bg-[var(--color-surface-strong)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]",
+        SIZES[size], SHAPES[shape],
+        className,
+      )}
       aria-label={ariaLabel}
     >
       {label}

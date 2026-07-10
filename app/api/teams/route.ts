@@ -1,3 +1,4 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const playerName = searchParams.get("playerName")?.trim() ?? "";
   const year = parseInt(
-    searchParams.get("year") ?? String(new Date().getFullYear()),
+    searchParams.get("year") ?? String(getYear()),
     10
   );
 

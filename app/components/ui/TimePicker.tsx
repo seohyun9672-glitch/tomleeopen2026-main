@@ -7,6 +7,7 @@ export type TimePickerProps = {
   value: string; // "HH:MM" (24h) or ""
   onChange: (time: string) => void;
   placeholder?: string;
+  disabled?: boolean;
   "aria-label"?: string;
   className?: string;
 };
@@ -45,6 +46,7 @@ export function TimePicker({
   id,
   value,
   onChange,
+  disabled = false,
   className = "",
 }: TimePickerProps) {
   const parsed = parse24h(value);
@@ -61,8 +63,7 @@ export function TimePicker({
   }, [value]);
 
   function emit(nextH: string, nextM: string, nextPeriod: "AM" | "PM") {
-    const built = build24h(nextH, nextM, nextPeriod);
-    if (built) onChange(built);
+    onChange(build24h(nextH, nextM, nextPeriod));
   }
 
   function handleHChange(raw: string) {
@@ -71,10 +72,21 @@ export function TimePicker({
     emit(digits, m, period);
   }
 
+  function handleHBlur() {
+    if (!h && !m) onChange("");
+  }
+
   function handleMChange(raw: string) {
     const digits = raw.replace(/\D/g, "").slice(0, 2);
     setM(digits);
     emit(h, digits, period);
+  }
+
+  function handleMBlur() {
+    if (h && !m) {
+      setM("00");
+      emit(h, "00", period);
+    }
   }
 
   function togglePeriod() {
@@ -85,9 +97,16 @@ export function TimePicker({
 
   const inputBase = "w-8 min-w-0 bg-transparent text-center text-[0.875rem] leading-normal text-[var(--input-text)]";
 
+  const hasValue = !!(h || m);
+
+  function handleClear() {
+    setH(""); setM(""); setPeriod("AM");
+    onChange("");
+  }
+
   return (
     <div
-      className={`form-control-with-leading-icon ${className}`}
+      className={`relative form-control-with-leading-icon ${className}${disabled ? " opacity-50 pointer-events-none" : ""}`}
     >
       <span className="form-control-leading-icon" aria-hidden>
         <ClockIcon />
@@ -102,6 +121,7 @@ export function TimePicker({
           placeholder="—"
           value={h}
           onChange={(e) => handleHChange(e.target.value)}
+          onBlur={handleHBlur}
           className={inputBase}
           aria-label="Hour"
           maxLength={2}
@@ -113,6 +133,7 @@ export function TimePicker({
           placeholder="——"
           value={m}
           onChange={(e) => handleMChange(e.target.value)}
+          onBlur={handleMBlur}
           className={inputBase}
           aria-label="Minute"
           maxLength={2}
@@ -125,6 +146,19 @@ export function TimePicker({
           {period}
         </button>
       </div>
+      {hasValue && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Clear time"
+          onClick={handleClear}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden>
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

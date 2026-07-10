@@ -8,7 +8,7 @@ import {
   YearFilter,
   CategoryFilter,
   RoundFilter,
-  GroupFilter,
+  SeedFilter,
   ClubFilter,
   StatusFilter,
 } from "./Filters";
@@ -45,8 +45,8 @@ export type CategoryFilterConfig = {
   allLabel?: string;
 };
 
-export type GroupFilterConfig = {
-  type: "group";
+export type SeedFilterConfig = {
+  type: "seed";
   value: string;
   options: string[];
   onChange: (v: string) => void;
@@ -76,6 +76,7 @@ export type ClubFilterConfig = {
   options: string[];
   onChange: (values: string[]) => void;
   placeholder?: string;
+  singleSelect?: boolean;
 };
 
 export type StatusFilterConfig = {
@@ -90,7 +91,7 @@ export type FilterConfig =
   | DateFilterConfig
   | YearFilterConfig
   | CategoryFilterConfig
-  | GroupFilterConfig
+  | SeedFilterConfig
   | RoundFilterConfig
   | SearchFilterConfig
   | ClubFilterConfig
@@ -107,7 +108,7 @@ export const FILTER_TYPE_PARAMS = {
   category: "cat",
   search:   "q",
   round:    "round",
-  group:    "group",
+  seed:     "seed",
   status:   "status",
   club:     "club",
 } as const satisfies Record<string, string>;
@@ -186,15 +187,15 @@ export type ManagedRoundFilterConfig<T> = {
   clearParams?: string[];
 };
 
-export type ManagedGroupFilterConfig<T> = {
-  type: "group";
-  /** URL search param key. Defaults to "group". */
+export type ManagedSeedFilterConfig<T> = {
+  type: "seed";
+  /** URL search param key. Defaults to "seed". */
   param?: string;
   /** Static list or a function derived from items already filtered by earlier filters. */
   options: string[] | ((prevItems: T[]) => string[]);
-  apply: (items: T[], group: string) => T[];
+  apply: (items: T[], seed: string) => T[];
   allLabel?: string;
-  /** If provided, group filter is only shown in the filter bar when this returns true. */
+  /** If provided, seed filter is only shown in the filter bar when this returns true. */
   visibleWhen?: (resolvedSoFar: Record<string, string>) => boolean;
 };
 
@@ -223,7 +224,7 @@ export type ManagedFilterConfig<T> =
   | ManagedCategoryFilterConfig<T>
   | ManagedSearchFilterConfig<T>
   | ManagedRoundFilterConfig<T>
-  | ManagedGroupFilterConfig<T>
+  | ManagedSeedFilterConfig<T>
   | ManagedClubFilterConfig<T>
   | ManagedStatusFilterConfig<T>;
 
@@ -346,9 +347,9 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
           allLabel={config.allLabel}
         />
       );
-    case "group":
+    case "seed":
       return (
-        <GroupFilter
+        <SeedFilter
           id={id}
           value={config.value}
           options={config.options}
@@ -387,6 +388,7 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
           options={config.options}
           onChange={config.onChange}
           placeholder={config.placeholder}
+          singleSelect={config.singleSelect}
         />
       );
     case "status":
@@ -505,15 +507,15 @@ function computeManaged<T>(
       });
       if (raw) items = f.apply(items, raw);
 
-    } else if (f.type === "group") {
-      const groupOpts = typeof f.options === "function" ? f.options(items) : f.options;
+    } else if (f.type === "seed") {
+      const seedOpts = typeof f.options === "function" ? f.options(items) : f.options;
       resolvedValues[f.param] = raw;
-      const groupVisible = !f.visibleWhen || f.visibleWhen(resolvedValues);
-      if (groupVisible && groupOpts.length > 0) {
+      const seedVisible = !f.visibleWhen || f.visibleWhen(resolvedValues);
+      if (seedVisible && seedOpts.length > 0) {
         displayConfigs.push({
-          type: "group",
+          type: "seed",
           value: raw,
-          options: groupOpts,
+          options: seedOpts,
           onChange: (v) => set(f.param, v),
           allLabel: f.allLabel,
         });

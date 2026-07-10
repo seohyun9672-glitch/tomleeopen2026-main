@@ -1,7 +1,8 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseClubCodesFromBody } from "@/lib/clubs";
-import { createTeamFromRegistration } from "@/lib/createTeam";
+import { createTeamFromRegistration, activateCategoryIfThresholdMet } from "@/lib/createTeam";
 import { resolveOrCreatePartner } from "@/lib/resolvePartner";
 
 async function setPlayerClubs(playerId: number, clubCodes: string[]) {
@@ -28,7 +29,7 @@ export async function PATCH(request: Request) {
     const year =
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
-        : new Date().getFullYear();
+        : getYear();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -177,6 +178,8 @@ export async function PATCH(request: Request) {
         playerId: player.id,
         partnerId,
       });
+
+      await activateCategoryIfThresholdMet(year, categoryId);
     }
 
     return NextResponse.json({ ok: true });

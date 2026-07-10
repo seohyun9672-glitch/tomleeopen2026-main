@@ -1,9 +1,12 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { getCategories } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
+import { applyPostCloseCategoryRules } from "@/lib/registrationStatus";
 
 export async function GET() {
   try {
+    await applyPostCloseCategoryRules(getYear());
     const categories = await getCategories();
     return NextResponse.json(categories);
   } catch (e) {
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const year: number = typeof body.year === "number" ? body.year : new Date().getFullYear();
+    const year: number = typeof body.year === "number" ? body.year : getYear();
     await prisma.categoryYearStatus.upsert({
       where: { tournamentYear_categoryId: { tournamentYear: year, categoryId: id } },
       create: { tournamentYear: year, categoryId: id, status: body.status ?? "Pending" },

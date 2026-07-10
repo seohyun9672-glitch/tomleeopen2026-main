@@ -77,6 +77,7 @@ export async function GET(request: Request) {
         set3T2: r.set3ScoreTeam2,
         comment: r.comment,
         ball: r.ball,
+        ballReceived: r.ballReceived,
       }))
     );
   } catch (e) {

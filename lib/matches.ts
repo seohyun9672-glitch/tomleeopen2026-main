@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import type { Prisma, Round } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { orderTeamMembersForDisplay } from "@/lib/utils";
+import { getToday, orderTeamMembersForDisplay, parseTimeToHHMM } from "@/lib/utils";
 
 export type Match = {
   id: string;
@@ -118,7 +118,7 @@ function normalizeMatchDate(dateStr: string | null, tournamentYear: number): str
   return `${tournamentYear}-${month}-${day}`;
 }
 
-function computeWinner(match: {
+export function computeWinner(match: {
   set1ScoreTeam1: string | null; set2ScoreTeam1: string | null; set3ScoreTeam1: string | null;
   set1ScoreTeam2: string | null; set2ScoreTeam2: string | null; set3ScoreTeam2: string | null;
 }): 1 | 2 | null {
@@ -157,7 +157,30 @@ function comparePublicMatchOrder(
   return a.id.localeCompare(b.id, undefined, { sensitivity: "base" });
 }
 
+/** Single source of truth for match status derivation used by API routes and display mapping. */
+export function computeMatchStatus(
+  storedStatus: string,
+  date: string | null,
+  time: string | null,
+  location: string | null,
+  set1ScoreTeam1: string | null,
+  set1ScoreTeam2: string | null,
+  set2ScoreTeam1: string | null,
+  set2ScoreTeam2: string | null,
+): string {
+  if (/^cancell?ed$/i.test(storedStatus.trim())) return "Cancelled";
+  const hasSchedule = Boolean(date) && Boolean(time) && Boolean(location);
+  const hasSet1 = Boolean(set1ScoreTeam1) && Boolean(set1ScoreTeam2);
+  const hasSet2 = Boolean(set2ScoreTeam1) && Boolean(set2ScoreTeam2);
+  if (hasSchedule && hasSet1 && hasSet2) return "Completed";
+  if (hasSchedule) return "Scheduled";
+  return "Pending";
+}
+
 function mapMatchRow(match: MatchRow): Match {
+  const date = normalizeMatchDate(match.date, match.tournamentYear) ?? match.date;
+  const time = match.time;
+  const location = match.location;
   return {
     id: match.id,
     tournamentYear: match.tournamentYear,
@@ -171,10 +194,10 @@ function mapMatchRow(match: MatchRow): Match {
     team2DisplayName: formatTeamName(match.team2 as TeamShape, "en"),
     team1DisplayNameKo: formatTeamName(match.team1 as TeamShape, "ko"),
     team2DisplayNameKo: formatTeamName(match.team2 as TeamShape, "ko"),
-    matchStatus: match.matchStatus,
-    date: normalizeMatchDate(match.date, match.tournamentYear) ?? match.date,
-    time: match.time,
-    location: match.location,
+    matchStatus: computeMatchStatus(match.matchStatus, date ?? null, time ?? null, location ?? null, match.set1ScoreTeam1, match.set1ScoreTeam2, match.set2ScoreTeam1, match.set2ScoreTeam2),
+    date,
+    time,
+    location,
     set1ScoreTeam1: match.set1ScoreTeam1,
     set2ScoreTeam1: match.set2ScoreTeam1,
     set3ScoreTeam1: match.set3ScoreTeam1,
@@ -198,10 +221,11 @@ export const getAllMatches = unstable_cache(
       .sort(comparePublicMatchOrder);
   },
   ["all-matches"],
-  { revalidate: 60 }
+  { revalidate: 10, tags: ["all-matches"] }
 );
 
-export function isoDateLocal(d = new Date()): string {
+export function isoDateLocal(d?: Date): string {
+  if (!d) return getToday();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -302,10 +326,57 @@ export function matchStatusChipClass(status: string): string {
   return `match-status-chip-${matchStatusVariant(status)}`;
 }
 
+const MATCH_STATUS_SORT_ORDER: Record<string, number> = {
+  scheduled: 0,
+  pending: 1,
+  completed: 2,
+  cancelled: 3,
+};
+
+/** Returns a numeric sort key for match status: scheduled < pending < completed < cancelled. */
+export function matchStatusSortOrder(status: string): number {
+  return MATCH_STATUS_SORT_ORDER[matchStatusVariant(status)] ?? 99;
+}
+
+/**
+ * Sorts matches for public display: status order (scheduled → pending → completed → cancelled),
+ * then time ascending within each status group (nulls last).
+ */
+export function sortMatchesForDisplay(matches: Match[]): Match[] {
+  return [...matches].sort((a, b) => {
+    const sd = matchStatusSortOrder(a.matchStatus) - matchStatusSortOrder(b.matchStatus);
+    if (sd !== 0) return sd;
+    const ta = parseTimeToHHMM(a.time) || "00:00"; // nulls first when descending
+    const tb = parseTimeToHHMM(b.time) || "00:00";
+    return tb.localeCompare(ta); // descending — most recent time first
+  });
+}
+
+/**
+ * Extract the numeric sequence from a match ID.
+ * Finds `roundCode` in the ID (using lastIndexOf), then reads past an optional
+ * group letter, and returns the trailing integer — e.g. "25MD-GPREA10" with
+ * roundCode "PRE" → 10.  Returns 0 if no number is found.
+ */
+export function matchSeqNumber(id: string, roundCode: string): number {
+  if (!roundCode) return 0;
+  const idx = id.lastIndexOf(roundCode);
+  if (idx === -1) return 0;
+  const after = id.slice(idx + roundCode.length);
+  const m = /^[A-Za-z]?(\d+)$/.exec(after);
+  return m ? parseInt(m[1]!, 10) : 0;
+}
+
 /** Format a time string (HH:MM 24h or H:MM AM/PM 12h) as 12h display, e.g. "8:41pm". */
 export function formatTimeDisplay(time: string | null | undefined): string {
   if (!time?.trim()) return "—";
   const t = time.trim();
+  // Range string (e.g. "7:00 – 9:00 PM") — extract start time and recurse
+  if (t.includes("–")) {
+    const [start] = t.split("–");
+    const period = t.match(/\b(am|pm)\b/i)?.[1] ?? "";
+    return formatTimeDisplay(period ? `${start.trim()} ${period}` : start.trim());
+  }
   // Check 12h format first (e.g. "8:00 PM", "8:41pm") — must check BEFORE 24h
   const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
   if (m12) {

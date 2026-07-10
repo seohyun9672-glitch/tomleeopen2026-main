@@ -5,8 +5,10 @@ import { useMemo, useState } from "react";
 import { Divider } from "@/app/components/ui/Divider";
 import type { Locale } from "@/lib/content";
 import type { ImportantDateEntry } from "@/lib/importantDatesData";
-import { importantDates } from "@/lib/importantDatesData";
+import { getImportantDates } from "@/lib/importantDatesData";
+import { getYear } from "@/lib/utils";
 import { useLocale } from "@/lib/locale-context";
+import { getToday } from "@/lib/utils";
 
 const CALENDAR_ACCENT_BG = [
   "bg-[var(--calendar-accent-0)]",
@@ -80,7 +82,7 @@ function getCalendarEntries(locale: Locale): CalendarEntryResolved[] {
   const result: CalendarEntryResolved[] = [];
   let sourceOrder = 0;
 
-  for (const entry of importantDates) {
+  for (const entry of getImportantDates(getYear())) {
     if (entry.type === "text") continue;
     if (CALENDAR_EXCLUDED_LABELS.has(entry.label)) continue;
 
@@ -173,15 +175,17 @@ function hasEntriesInMonth(year: number, month: number, entries: CalendarEntryRe
 }
 
 function getInitialCalendarView(entries: CalendarEntryResolved[]): { year: number; month: number } {
-  const now = new Date();
+  const todayParts = getToday().split("-").map(Number);
+  const nowYear = todayParts[0];
+  const nowMonth = todayParts[1] - 1;
 
   if (entries.length === 0) {
-    return { year: now.getFullYear(), month: now.getMonth() };
+    return { year: nowYear, month: nowMonth };
   }
 
   const firstDate = entries[0]?.type === "date" ? entries[0].date : entries[0]?.startDate;
   if (!firstDate) {
-    return { year: now.getFullYear(), month: now.getMonth() };
+    return { year: nowYear, month: nowMonth };
   }
 
   const [year, month] = firstDate.split("-").map(Number);

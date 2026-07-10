@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { Button } from "@/app/components/ui/Button";
 import { useLocale } from "@/lib/locale-context";
-import { importantDates } from "@/lib/importantDatesData";
+import { getImportantDates } from "@/lib/importantDatesData";
+import { getYear } from "@/lib/utils";
 import { getRegistrationStatus } from "@/lib/registrationStatus";
 
 function splitHeroTitle(title: string) {
@@ -23,15 +24,16 @@ export function Hero() {
 
   const { status } = getRegistrationStatus();
   const registrationOpen = status === "open";
+  const registrationClosed = status === "closed";
 
   const subtitle = (() => {
     if (registrationOpen) {
-      const entry = importantDates.find((e) => e.label === "Registration" && e.type === "range");
+      const entry = getImportantDates(getYear()).find((e) => e.label === "Registration" && e.type === "range");
       if (!entry || entry.type === "text") return "";
       const period = locale === "ko" ? (entry.valueDisplayKo ?? entry.valueDisplay) : entry.valueDisplay;
       return locale === "ko" ? `등록 접수 기간: ${period}` : `Registrations open: ${period}`;
     }
-    const entry = importantDates.find((e) => e.label === "Tournament");
+    const entry = getImportantDates(getYear()).find((e) => e.label === "Tournament");
     if (!entry || entry.type === "text") return "";
     return locale === "ko" ? (entry.valueDisplayKo ?? entry.valueDisplay) : entry.valueDisplay;
   })();
@@ -77,11 +79,11 @@ export function Hero() {
             </div>
           ) : navLinks.length > 0 && (
             <div className="flex flex-col gap-[var(--content-gap)] md:flex-row">
-              {navLinks.map(({ href, label }) => (
+              {navLinks.map(({ href, label }, i) => (
                 <Button
                   key={href}
                   href={href}
-                  variant="secondary"
+                  variant={i === 0 ? "primary" : "secondary"}
                   size="medium"
                   className="w-fit"
                 >

@@ -8,8 +8,10 @@ import { Section } from "@/app/components/Section";
 import { Table } from "@/app/components/ui/table/Table";
 import type { KeyValueRow } from "@/app/components/ui/table/Table";
 import { Button } from "@/app/components/ui/Button";
+import { Callout } from "@/app/components/ui/Callout";
 import { eligibilityContent } from "@/lib/content/registrationPage";
 import type { EligibilityGroup } from "@/lib/content/registrationPage";
+import { getRegistrationStatus } from "@/lib/registrationStatus";
 
 function renderEligibilityGroupValue(group: EligibilityGroup, depth = 0, index?: number): ReactNode {
   const isSingleItemNoSubs =
@@ -69,6 +71,9 @@ export function RegistrationHub() {
   const rp = t.registrationPage;
   const rd = t.registrationDetail;
 
+  const { status } = getRegistrationStatus();
+  const isClosed = status === "closed";
+
   const newRegHref = locale === "ko" ? "/ko/registration/new" : "/registration/new";
 
   const registrationTableRows: KeyValueRow[] = [
@@ -112,6 +117,9 @@ export function RegistrationHub() {
   return (
     <PageContainer>
       <div className="flex w-full flex-col gap-[var(--section-gap)]">
+        {isClosed && (
+          <Callout title={rp.closedTitle} message={rp.closedMessage} />
+        )}
         <Section title={rp.step1Title}>
           <Table variant="key-value" rows={registrationTableRows} />
         </Section>
@@ -120,8 +128,7 @@ export function RegistrationHub() {
           <p className="text-sm text-[var(--color-text-secondary)]">{eligibility.content}</p>
           <Table variant="key-value" rows={eligibilityTableRows} alignTop />
         </Section>
-
-        <Button variant="primary" size="large" href={newRegHref}>
+        <Button variant="primary" size="large" href={isClosed ? undefined : newRegHref} disabled={isClosed}>
           {rp.newRegistrationButton}
         </Button>
       </div>

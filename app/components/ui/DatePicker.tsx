@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconButton } from "@/app/components/ui/Button";
 import { formatDateLong } from "@/lib/utils";
+import { useLocale } from "@/lib/locale-context";
 
 export type DatePickerProps = {
   id?: string;
@@ -15,6 +16,7 @@ export type DatePickerProps = {
    */
   enabledDates?: Set<string>;
   placeholder?: string;
+  disabled?: boolean;
   "aria-label"?: string;
   "aria-label-dialog"?: string;
   "aria-label-prev"?: string;
@@ -52,11 +54,18 @@ function getDaysInMonth(year: number, month: number): number {
 }
 
 function getFirstDayOfMonth(year: number, month: number): number {
-  return new Date(year, month, 1).getDay();
+  const dow = new Date(year, month, 1).getDay(); // 0=Sun … 6=Sat
+  return dow === 0 ? 6 : dow - 1; // shift to Mon=0 … Sun=6
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const POPOVER_WIDTH = 288;
+const POPOVER_HEIGHT = 320; // approximate calendar height for flip calculation
+
+function getTodayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export function DatePicker({
   id,
@@ -64,14 +73,16 @@ export function DatePicker({
   onChange,
   enabledDates,
   placeholder = "Select date",
+  disabled = false,
   "aria-label": ariaLabel,
   "aria-label-dialog": ariaLabelDialog = "Calendar",
   "aria-label-prev": ariaLabelPrev = "Previous month",
   "aria-label-next": ariaLabelNext = "Next month",
   className = "",
 }: DatePickerProps) {
+  const { locale } = useLocale();
   const [open, setOpen] = useState(false);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; openUpward: boolean }>({ top: 0, left: 0, openUpward: false });
   const [viewYear, setViewYear] = useState(() => {
     const base = value ? new Date(value + "T12:00:00") : new Date();
     return base.getFullYear();
@@ -90,26 +101,26 @@ export function DatePicker({
       if (containerRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     }
-    function handleScroll(e: Event) {
-      if (containerRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    }
     function handleResize() { setOpen(false); }
     document.addEventListener("mousedown", handleOutside);
     window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleScroll, true);
     return () => {
       document.removeEventListener("mousedown", handleOutside);
       window.removeEventListener("resize", handleResize);
-      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [open]);
 
   function handleToggle() {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const left = Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - 8);
-      setPopoverPos({ top: rect.bottom + 4, left: Math.max(8, left) });
+      // Use visualViewport on mobile for accurate height (excludes browser chrome)
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const left = Math.min(rect.left, viewportWidth - POPOVER_WIDTH - 8);
+      const spaceBelow = viewportHeight - rect.bottom - 8;
+      const openUpward = spaceBelow < POPOVER_HEIGHT && rect.top > POPOVER_HEIGHT;
+      const top = openUpward ? rect.top - POPOVER_HEIGHT - 4 : rect.bottom + 4;
+      setPopoverPos({ top, left: Math.max(8, left), openUpward });
       const base = value ? new Date(value + "T12:00:00") : new Date();
       setViewYear(base.getFullYear());
       setViewMonth(base.getMonth());
@@ -138,7 +149,7 @@ export function DatePicker({
   const nextYear = viewMonth === 11 ? viewYear + 1 : viewYear;
 
   return (
-    <div className={`form-control-with-leading-icon ${className}`} ref={containerRef}>
+    <div className={`relative form-control-with-leading-icon ${className}`} ref={containerRef}>
       <span className="form-control-leading-icon" aria-hidden>
         <CalendarIcon />
       </span>
@@ -147,25 +158,39 @@ export function DatePicker({
         id={id}
         type="button"
         onClick={handleToggle}
-        className="form-input-match form-control-input--with-leading-icon w-full text-left"
+        disabled={disabled}
+        className="form-input-match form-control-input--with-leading-icon w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={ariaLabel}
       >
-        <span className="block min-w-0 truncate">
+        <span className={`block min-w-0 truncate ${value ? "pr-5" : ""}`}>
           {value ? (
-            formatDateLong(value)
+            formatDateLong(value, "short", locale)
           ) : (
             <span className="text-[var(--color-text-tertiary)]">{placeholder}</span>
           )}
         </span>
       </button>
+      {value && !disabled && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Clear date"
+          onClick={(e) => { e.stopPropagation(); onChange(""); }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden>
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+          </svg>
+        </button>
+      )}
 
       {open && (
         <div
           role="dialog"
           aria-label={ariaLabelDialog}
-          style={{ position: "fixed", top: popoverPos.top, left: popoverPos.left, width: POPOVER_WIDTH }}
+          style={{ position: "fixed", top: popoverPos.top, left: popoverPos.left, width: POPOVER_WIDTH, maxHeight: "calc(100dvh - env(safe-area-inset-bottom, 0px) - 16px)", overflowY: "auto" }}
           className="z-[9999] rounded-xl border border-[color:var(--outline-blue-default)] bg-[var(--color-surface-card)] p-3 shadow-lg"
         >
           {/* Month navigation */}
@@ -220,6 +245,29 @@ export function DatePicker({
               );
             })}
           </div>
+
+          {/* Today button */}
+          {(() => {
+            const todayIso = getTodayIso();
+            const todayEnabled = enabledDates === undefined || enabledDates.has(todayIso);
+            return (
+              <div className="mt-2 flex justify-center border-t border-[color:var(--color-border-ui)] pt-2">
+                <button
+                  type="button"
+                  disabled={!todayEnabled}
+                  onClick={() => {
+                    const d = new Date();
+                    setViewYear(d.getFullYear());
+                    setViewMonth(d.getMonth());
+                    if (todayEnabled) selectDate(todayIso);
+                  }}
+                  className="text-xs font-medium text-[var(--color-primary-blue-500)] hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Today
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

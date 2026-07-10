@@ -258,6 +258,11 @@
   --button-secondary-disabled-border: var(--color-border-ui-strong);
   --icon-button-text: var(--color-text-secondary);
 
+  /* Pill tab tokens (TabList) */
+  --chip-accent-text-inactive: var(--color-text-secondary);
+  --chip-accent-hover-bg: var(--color-surface-hover);
+  --chip-accent-hover-text: var(--color-text-primary);
+
   /* Semantic usage aliases */
   --header-bg: var(--color-bg-primary);
   --footer-bg: var(--header-bg);
@@ -287,6 +292,7 @@
   --table-row-hover-bg: var(--color-surface-muted);
   --table-row-min-height: 2.5rem;
   --table-group-border-width: 2px;
+  --table-group-border-color: color-mix(in srgb, var(--outline-blue-default) 60%, var(--outline-blue-subtle));
   --link-default: var(--color-secondary-blue-600);
   --link-hover: var(--color-primary-blue-600);
 
@@ -316,6 +322,7 @@
   --input-border: var(--outline-blue-soft);
   --input-text: var(--text-table);
   --input-focus-border: var(--outline-blue-focus);
+  --input-placeholder: var(--color-text-tertiary);
 
   /* Spacing scale */
   --space-2: 8px;
@@ -350,7 +357,7 @@
   --button-min-width: 7.5rem;
   --button-height-large: 2.75rem;
   --button-height-medium: 2.5rem;
-  --button-height-small: 2rem;
+  --button-height-small: 2.25rem;
   --button-px-large: 1.25rem;
   --button-px-medium: 1rem;
   --button-px-small: 0.75rem;
@@ -371,7 +378,7 @@
   --text-h3-weight: 400;
   --text-h3-size: clamp(0.9375rem, 0.85rem + 0.43vw, 1.125rem);
   --text-h3-display-size: clamp(1rem, 0.9rem + 0.35vw, 1.25rem);
-  --text-h3-letter-spacing: 0;
+  --text-h3-letter-spacing: 0.3;
   --text-h3-line-height: 1.1;
 
   --text-body-font: var(--font-body);
@@ -385,12 +392,12 @@
 
 /* ============================================================
    LANGUAGE-SPECIFIC FONT OVERRIDES
-   In Korean mode, Paperlogy replaces Anton for headings.
-   Body text uses IBM Plex Sans in both languages.
+   In Korean mode, Paperlogy is used for all text (headings and body).
    ============================================================ */
 
 html[lang="ko"] {
   --font-heading: "Paperlogy", sans-serif;
+  --font-body: "Paperlogy", sans-serif;
   --text-h1-weight: 800;
   --text-h2-weight: 800;
   --text-h3-weight: 400;
@@ -403,6 +410,7 @@ html[lang="ko"] {
 @theme {
   /* Breakpoints — xs is custom; sm/md/lg/xl/2xl mirror Tailwind v4 defaults */
   --breakpoint-xs: 320px;
+  --breakpoint-ms: 480px;
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
@@ -437,7 +445,7 @@ html[lang="ko"] {
     --table-radius: 0.5rem;
     --calendar-card-padding: var(--section-gap);
     --button-height-large: 2.875rem;
-    --button-height-medium: 2.625rem;
+    --button-height-medium: 2.5rem;
     --button-height-small: 2.125rem;
     --button-px-large: 1.5rem;
     --button-px-medium: 1.25rem;
@@ -510,14 +518,21 @@ html[lang="ko"] {
 .registration-status-chip-confirmed { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
 .registration-status-chip-cancelled { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
 
-.category-status-chip-active        { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
-.category-status-chip-inactive      { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
+.category-status-chip-active,
+.tumbler-status-chip-available,
+.court-chip-available               { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
+
+.category-status-chip-inactive,
+.tumbler-status-chip-unavailable,
+.court-chip-booked                  { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
+
+.court-chip-expired                 { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
+
+.court-chip-completed               { background-color: var(--status-info-bg);    color: var(--status-info-fg);    border: 1px solid color-mix(in srgb, var(--status-info-fg)    30%, transparent); }
+
 .category-status-chip-pending       { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
 
 .chip-neutral                       { background-color: var(--status-neutral-bg); color: var(--status-neutral-fg); }
-
-.court-chip-booked    { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
-.court-chip-available { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
 .chip-gender-female                 { background-color: color-mix(in srgb, #e91e8c 12%, white); color: #e91e8c; }
 .chip-gender-male                   { background-color: color-mix(in srgb, #304dd1 12%, white); color: #304dd1; }
 
@@ -765,6 +780,10 @@ td ul {
   padding-left: 1rem;
 }
 
+td ul.list-disc {
+  padding-left: 1.25rem;
+}
+
 /* Interactive buttons */
 button:enabled {
   cursor: pointer;
@@ -954,7 +973,7 @@ button:disabled {
 .table-data tbody tr.is-table-row-group-start td {
   border-top-width: var(--table-group-border-width);
   border-top-style: solid;
-  border-top-color: var(--table-border-row);
+  border-top-color: var(--table-group-border-color);
 }
 
 
@@ -993,6 +1012,9 @@ button:disabled {
 .form-control-input:focus,
 .form-control-input:focus-within {
   border-color: var(--input-focus-border);
+}
+.form-control-input::placeholder {
+  color: var(--input-placeholder);
 }
 
 textarea.form-control-input {
@@ -1049,6 +1071,9 @@ textarea.form-control-input {
 .form-input-match:hover {
   background-color: var(--color-surface-muted);
 }
+.form-input-match::placeholder {
+  color: var(--input-placeholder);
+}
 
 .form-control-with-leading-icon {
   position: relative;
@@ -1070,11 +1095,15 @@ textarea.form-control-input {
   padding-left: 2.5rem;
 }
 
-/* Prevent iOS from zooming in when focusing inputs with font-size < 16px */
+/* Prevent iOS from zooming in when focusing inputs with font-size < 16px.
+   Also force font-family:inherit so the typeface never resets on mobile. */
 @media (max-width: 639px) {
   input:not([type="hidden"]),
   textarea,
-  select {
-    font-size: 16px;
+  select,
+  .form-control-input,
+  .form-input-match {
+    font-size: 16px !important;
+    font-family: inherit !important;
   }
 }

@@ -14,15 +14,19 @@ import { useUrlParam } from "@/lib/hooks/useUrlParam";
 import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
 import type { CategoryRecord, CategoryYearStatusRow } from "@/lib/categories";
 import type { Match } from "@/lib/matches";
-import { isCancelledMatch, isoDateLocal } from "@/lib/matches";
+import { isoDateLocal, matchStatusSortOrder, matchSeqNumber, formatDateDisplay } from "@/lib/matches";
+import { computePrelimStats, buildPrelimRankMap, type PrelimStats } from "@/lib/prelim";
+import { getYear } from "@/lib/utils";
 import type { TeamRecord } from "@/lib/teams";
-import { ROUND_PRE, ROUND_F, ELIMINATION_ROUND_ORDER } from "@/lib/round";
+import { ROUND_PRE, ROUND_QF, ROUND_SF, ROUND_F, ELIMINATION_ROUND_ORDER } from "@/lib/round";
 import type { RoundRecord } from "@/lib/round";
 import { useLocale } from "@/lib/locale-context";
 import { DatabaseLayout, type FilterConfig } from "@/app/components/database";
 import { StageHeader } from "@/app/components/tree/StageHeader";
 import { MatchCard } from "@/app/components/MatchCard";
 import { Table } from "@/app/components/ui/table/Table";
+import { getImportantDates } from "@/lib/importantDatesData";
+import { Tabs, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -109,7 +113,9 @@ function buildAvailableRounds(matches: Match[]): RoundInfo[] {
   const map = new Map<string, RoundInfo>();
   for (const m of matches) {
     const r = m.round;
-    if (r && !map.has(r.code)) map.set(r.code, { code: r.code, labelEn: r.labelEn, labelKo: r.labelKo, sortOrder: r.sortOrder });
+    if (r && !map.has(r.code)) {
+      map.set(r.code, { code: r.code, labelEn: r.labelEn, labelKo: r.labelKo, sortOrder: r.sortOrder });
+    }
   }
   return [...map.values()].sort((a, b) => a.sortOrder - b.sortOrder);
 }
@@ -127,69 +133,130 @@ function computeDefaultStageCode(
   return latest ?? availableRounds[0]?.code ?? ROUND_PRE;
 }
 
-// ─── Prelim stats ──────────────────────────────────────────────────────────────
+// ─── Round date ranges ─────────────────────────────────────────────────────────
 
-type PrelimTeamStats = { w: number; l: number; sd: number; gd: number };
+function formatDateRange(start: string | null, end: string | null, locale: string): string {
+  if (!start) return "";
+  const s = formatDateDisplay(start, locale as "en" | "ko");
+  if (!end || end === start) return s;
+  const e = formatDateDisplay(end, locale as "en" | "ko");
+  return `${s} – ${e}`;
+}
 
-function computePrelimStats(matches: Match[]): Map<string, PrelimTeamStats> {
-  const prelims = matches.filter((m) => m.round?.code === ROUND_PRE);
-  const stats = new Map<string, PrelimTeamStats>();
-  const ensure = (id: string | null) => { if (id && !stats.has(id)) stats.set(id, { w: 0, l: 0, sd: 0, gd: 0 }); };
+function minDate(dates: (string | null | undefined)[]): string | null {
+  const valid = dates.filter((d): d is string => !!d);
+  return valid.length ? valid.sort()[0]! : null;
+}
 
-  for (const m of prelims) {
-    ensure(m.team1Id); ensure(m.team2Id);
-    if (isCancelledMatch(m.matchStatus)) {
-      const t1 = m.team1Id ? stats.get(m.team1Id) : null;
-      const t2 = m.team2Id ? stats.get(m.team2Id) : null;
-      if (t1) { t1.l += 1; t1.sd -= 2; t1.gd -= 12; }
-      if (t2) { t2.l += 1; t2.sd -= 2; t2.gd -= 12; }
-      continue;
+function maxDate(dates: (string | null | undefined)[]): string | null {
+  const valid = dates.filter((d): d is string => !!d);
+  return valid.length ? valid.sort().at(-1)! : null;
+}
+
+const ROUND_CODE_TO_IMPORTANT_DATE_LABEL: Partial<Record<string, string>> = {
+  [ROUND_PRE]: "Preliminaries",
+  [ROUND_QF]: "Quarterfinals",
+  [ROUND_SF]: "Semifinals",
+  [ROUND_F]: "Final",
+};
+
+function getImportantDateRange(roundCode: string, year: number): { start: string; end: string } | null {
+  const label = ROUND_CODE_TO_IMPORTANT_DATE_LABEL[roundCode];
+  if (!label) return null;
+  const entry = getImportantDates(year).find((e) => e.label === label);
+  if (!entry) return null;
+  if (entry.type === "range") return { start: entry.startDate, end: entry.endDate };
+  if (entry.type === "date") return { start: entry.date, end: entry.date };
+  return null;
+}
+
+/**
+ * Compute the display date range for each round code.
+ * For year 2026, uses importantDates fixed schedule.
+ * For PRE: if QF is absent, end extends through the QF period; if SF also absent, through SF period.
+ */
+function computeRoundDateRanges(
+  matches: Match[],
+  year: number,
+): Map<string, { start: string | null; end: string | null }> {
+  const byRound = new Map<string, string[]>();
+  const roundCodes = new Set<string>();
+  for (const m of matches) {
+    if (!m.round) continue;
+    const code = m.round.code;
+    roundCodes.add(code);
+    if (!m.date) continue;
+    if (!byRound.has(code)) byRound.set(code, []);
+    byRound.get(code)!.push(m.date);
+  }
+
+  const hasQF = roundCodes.has(ROUND_QF);
+  const hasSF = roundCodes.has(ROUND_SF);
+  const hasTournamentDates = getImportantDates(year).length > 0;
+
+  const result = new Map<string, { start: string | null; end: string | null }>();
+
+  if (hasTournamentDates) {
+    // Populate from importantDates for all rounds that appear in this category's matches
+    for (const code of [ROUND_PRE, ROUND_QF, ROUND_SF, ROUND_F]) {
+      if (!roundCodes.has(code) && code !== ROUND_PRE) continue;
+      const fixed = getImportantDateRange(code, year);
+      if (fixed) result.set(code, { start: fixed.start, end: fixed.end });
     }
-    if (m.winner == null || !m.team1Id || !m.team2Id) continue;
-    const t1 = stats.get(m.team1Id)!; const t2 = stats.get(m.team2Id)!;
-    if (m.winner === 1) { t1.w += 1; t2.l += 1; } else { t2.w += 1; t1.l += 1; }
-    for (const [a, b] of [
-      [m.set1ScoreTeam1, m.set1ScoreTeam2],
-      [m.set2ScoreTeam1, m.set2ScoreTeam2],
-      [m.set3ScoreTeam1, m.set3ScoreTeam2],
-    ] as Array<[string | null, string | null]>) {
-      const n1 = a != null ? parseInt(a, 10) : NaN; const n2 = b != null ? parseInt(b, 10) : NaN;
-      if (Number.isNaN(n1) || Number.isNaN(n2)) continue;
-      t1.gd += n1 - n2; t2.gd += n2 - n1;
-      if (n1 > n2) { t1.sd += 1; t2.sd -= 1; } else if (n2 > n1) { t2.sd += 1; t1.sd -= 1; }
+
+    // PRE extension: if no QF matches, prelim covers through QF period; if also no SF, through SF period
+    const preEntry = result.get(ROUND_PRE);
+    if (preEntry && !hasQF) {
+      const extendTo = !hasSF
+        ? getImportantDateRange(ROUND_SF, year)
+        : getImportantDateRange(ROUND_QF, year);
+      if (extendTo) preEntry.end = extendTo.end;
+    }
+  } else {
+    for (const [code, dates] of byRound) {
+      result.set(code, { start: minDate(dates), end: maxDate(dates) });
+    }
+
+    // PRE extension for non-2026: end at day before the next existing round
+    const preEntry = result.get(ROUND_PRE);
+    if (preEntry && !hasQF) {
+      const nextRoundFirstDate = !hasSF
+        ? minDate(byRound.get(ROUND_F) ?? [])
+        : minDate(byRound.get(ROUND_SF) ?? []);
+      if (nextRoundFirstDate) {
+        const d = new Date(`${nextRoundFirstDate}T12:00:00`);
+        d.setDate(d.getDate() - 1);
+        preEntry.end = d.toISOString().slice(0, 10);
+      }
     }
   }
-  return stats;
+
+  return result;
 }
 
-function buildPrelimRankMap(matches: Match[]): Map<string, number> {
-  const stats = computePrelimStats(matches);
-  if (stats.size === 0) return new Map();
-  const sorted = [...stats.keys()].sort((a, b) => {
-    const sa = stats.get(a)!; const sb = stats.get(b)!;
-    return sb.w !== sa.w ? sb.w - sa.w : sb.sd !== sa.sd ? sb.sd - sa.sd : sb.gd - sa.gd;
-  });
-  const out = new Map<string, number>();
-  sorted.forEach((id, i) => out.set(id, i + 1));
-  return out;
+// ─── Prelim stats ──────────────────────────────────────────────────────────────
+
+function computePrelimStatsFromMatches(matches: Match[]): Map<string, PrelimStats> {
+  const prelims = matches.filter((m) => m.round?.code === ROUND_PRE);
+  return computePrelimStats(prelims);
 }
+
 
 // ─── Prelim leaderboard ────────────────────────────────────────────────────────
 
 type LeaderboardRow = {
-  rank: number; group: string;
+  rank: number; seed: string;
   player1: string; player2?: string; player1Ko?: string; player2Ko?: string;
   w: number; l: number; sd: number; gd: number; teamId: string;
 };
 
-type DisplayInfo = { group: string; player1: string; player2?: string; player1Ko?: string; player2Ko?: string };
+type DisplayInfo = { seed: string; player1: string; player2?: string; player1Ko?: string; player2Ko?: string };
 
 function buildDisplayMapFromTeams(teams: TeamRecord[]): Map<string, DisplayInfo> {
   const map = new Map<string, DisplayInfo>();
   for (const t of teams) {
-    if (!t.seed) continue;
     map.set(t.id, {
-      group: t.seed,
+      seed: t.seed ?? "—",
       player1: t.member1NameEn || "—",
       player2: t.member2NameEn ?? undefined,
       player1Ko: t.member1NameKo ?? undefined,
@@ -211,7 +278,7 @@ function buildDisplayMapFromMatches(prelims: Match[]): Map<string, DisplayInfo> 
       const namesKo = (nameKo ?? "").trim() ? (nameKo ?? "").split(/\s*\/\s*/).filter(Boolean) : [];
       if (!map.has(teamId)) {
         map.set(teamId, {
-          group: (groupCode ?? "—").trim() || "—",
+          seed: (groupCode ?? "—").trim() || "—",
           player1: names[0] ?? "—", player2: names[1],
           player1Ko: namesKo[0], player2Ko: namesKo[1],
         });
@@ -226,13 +293,13 @@ function buildDisplayMapFromMatches(prelims: Match[]): Map<string, DisplayInfo> 
 }
 
 function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[]): LeaderboardRow[] | null {
-  const seededTeams = categoryTeams.filter((t) => t.seed);
-  const statsMap = computePrelimStats(categoryMatches);
+  const statsMap = computePrelimStatsFromMatches(categoryMatches);
 
-  // Primary: use team records as the authoritative source (shows teams with 0 matches)
-  if (seededTeams.length >= 2) {
-    const displayMap = buildDisplayMapFromTeams(seededTeams);
-    const allRows = seededTeams
+  // Primary: use team records as the authoritative source (shows teams with 0 matches,
+  // regardless of whether a seed has been assigned yet)
+  if (categoryTeams.length >= 2) {
+    const displayMap = buildDisplayMapFromTeams(categoryTeams);
+    const allRows = categoryTeams
       .filter((t) => displayMap.has(t.id))
       .map((t) => ({ teamId: t.id, rank: 0, ...displayMap.get(t.id)!, ...(statsMap.get(t.id) ?? { w: 0, l: 0, sd: 0, gd: 0 }) }));
     if (allRows.length < 2) return null;
@@ -240,7 +307,7 @@ function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[])
       b.w !== a.w ? b.w - a.w
       : b.sd !== a.sd ? b.sd - a.sd
       : b.gd !== a.gd ? b.gd - a.gd
-      : a.group.localeCompare(b.group) || a.player1.localeCompare(b.player1)
+      : a.seed.localeCompare(b.seed) || a.player1.localeCompare(b.player1)
     );
     let currentRank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
     return sorted.map((row, i) => {
@@ -264,7 +331,7 @@ function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[])
     b.w !== a.w ? b.w - a.w
     : b.sd !== a.sd ? b.sd - a.sd
     : b.gd !== a.gd ? b.gd - a.gd
-    : a.group.localeCompare(b.group) || a.player1.localeCompare(b.player1)
+    : a.seed.localeCompare(b.seed) || a.player1.localeCompare(b.player1)
   );
   let currentRank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
   return sorted.map((row, i) => {
@@ -277,25 +344,12 @@ function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[])
 
 // ─── Prelim match sorting ──────────────────────────────────────────────────────
 
-const PRELIM_STATUS_ORDER: Record<string, number> = {
-  Scheduled: 0,
-  Pending: 1,
-  Completed: 2,
-  Cancelled: 3,
-};
-
-function extractMatchSeq(id: string, roundCode = ROUND_PRE): number {
-  const idx = id.lastIndexOf(roundCode);
-  const after = idx !== -1 ? id.slice(idx + roundCode.length) : id;
-  return parseInt(/^[A-Za-z]?(\d+)$/.exec(after)?.[1] ?? "0", 10);
-}
-
 function sortPrelimMatches(matches: Match[]): Match[] {
   return [...matches].sort((a, b) => {
-    const seqDiff = extractMatchSeq(a.id) - extractMatchSeq(b.id);
-    if (seqDiff !== 0) return seqDiff;
-    const statusDiff = (PRELIM_STATUS_ORDER[a.matchStatus] ?? 99) - (PRELIM_STATUS_ORDER[b.matchStatus] ?? 99);
+    const statusDiff = matchStatusSortOrder(a.matchStatus) - matchStatusSortOrder(b.matchStatus);
     if (statusDiff !== 0) return statusDiff;
+    const seqDiff = matchSeqNumber(a.id, a.round?.code ?? ROUND_PRE) - matchSeqNumber(b.id, b.round?.code ?? ROUND_PRE);
+    if (seqDiff !== 0) return seqDiff;
     return a.id.localeCompare(b.id);
   });
 }
@@ -312,17 +366,23 @@ const STROKE = 1.5;
 
 function resolveBracketTeamDisplayRank(
   teamId: string | null | undefined,
+  seed: string | null | undefined,
   rankMap: Map<string, number>
 ): number | null {
   if (!teamId) return null;
-  return rankMap.get(teamId) ?? null;
+  const fromMap = rankMap.get(teamId);
+  if (fromMap != null) return fromMap;
+  const parsed = parseInt(seed ?? "", 10);
+  return isNaN(parsed) ? null : parsed;
 }
 
 
 type RoundGeom = { centers: number[]; height: number };
 
 function sortByMatchId(matches: Match[]): Match[] {
-  return [...matches].sort((a, b) => a.id.localeCompare(b.id));
+  return [...matches].sort((a, b) =>
+    matchSeqNumber(a.id, a.round?.code ?? "") - matchSeqNumber(b.id, b.round?.code ?? "")
+  );
 }
 
 function mergeCentersToCount(centers: number[], target: number, H: number): number[] {
@@ -453,8 +513,8 @@ const BracketAlignedColumn = memo(function BracketAlignedColumn({
             <MatchCard
               omitCategoryInHeader
               match={m}
-              team1Rank={resolveBracketTeamDisplayRank(m.team1Id, teamRankById)}
-              team2Rank={resolveBracketTeamDisplayRank(m.team2Id, teamRankById)}
+              team1GlobalRank={resolveBracketTeamDisplayRank(m.team1Id, m.team1Seed, teamRankById)}
+              team2GlobalRank={resolveBracketTeamDisplayRank(m.team2Id, m.team2Seed, teamRankById)}
             />
           </div>
         );
@@ -478,8 +538,8 @@ const BracketMobileStack = memo(function BracketMobileStack({
           <MatchCard
             omitCategoryInHeader
             match={m}
-            team1Rank={resolveBracketTeamDisplayRank(m.team1Id, teamRankById)}
-            team2Rank={resolveBracketTeamDisplayRank(m.team2Id, teamRankById)}
+            team1GlobalRank={resolveBracketTeamDisplayRank(m.team1Id, m.team1Seed, teamRankById)}
+            team2GlobalRank={resolveBracketTeamDisplayRank(m.team2Id, m.team2Seed, teamRankById)}
           />
         </div>
       ))}
@@ -494,9 +554,10 @@ type BracketViewProps = {
   teamRankById: Map<string, number>;
   activeRoundCode: string;
   locale: string;
+  roundDateRanges: Map<string, { start: string | null; end: string | null }>;
 };
 
-function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale }: BracketViewProps) {
+function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale, roundDateRanges }: BracketViewProps) {
   const sortedRounds = useMemo(
     () => knockoutRounds.map((r) => ({ ...r, matches: sortByMatchId(r.matches) })),
     [knockoutRounds],
@@ -548,14 +609,18 @@ function BracketView({ knockoutRounds, teamRankById, activeRoundCode, locale }: 
   const mobileRound = knockoutRounds.find((r) => r.code === activeRoundCode);
   const mobileMatches = mobileRound ? sortByMatchId(mobileRound.matches) : null;
 
-  const renderCol = (r: KnockoutRound & { matches: Match[] }) => (
+  const renderCol = (r: KnockoutRound & { matches: Match[] }) => {
+    const range = roundDateRanges.get(r.code);
+    const subtitle = range ? formatDateRange(range.start, range.end, locale) : undefined;
+    return (
     <div className={`flex flex-col self-start ${colClass}`}>
-      <StageHeader title={roundLabel(r, locale)} />
+      <StageHeader title={roundLabel(r, locale)} subtitle={subtitle || undefined} />
       <div className="pt-4 md:pt-5">
         <BracketAlignedColumn matches={r.matches} geom={geoms.get(r.code)} teamRankById={teamRankById} />
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -607,27 +672,20 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   );
   const [yearParamStr, setYearParam] = useUrlParam("year");
   const yearParamNum = Number(yearParamStr);
-  const year = yearParamNum > 0 && years.includes(yearParamNum) ? yearParamNum : (years[0] ?? new Date().getFullYear());
-  const setYear = useCallback((y: number) => setYearParam(String(y), { clear: ["stage", "group"] }), [setYearParam]);
+  const year = yearParamNum > 0 && years.includes(yearParamNum) ? yearParamNum : (years[0] ?? getYear());
+  const setYear = useCallback((y: number) => setYearParam(String(y), { clear: ["stage", "seed"] }), [setYearParam]);
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
-  const activeCategories = useMemo(() => {
-    const active = new Set(
-      categoryStatuses.filter((s) => s.status === "Active").map((s) => `${s.tournamentYear}:${s.categoryId}`)
-    );
-    return active;
-  }, [categoryStatuses]);
 
   const categoriesToShow = useMemo(
     () => categories.filter((c) =>
-      activeCategories.has(`${year}:${c.id}`) &&
       allMatches.some((m) => m.tournamentYear === year && m.categoryId === c.id)
     ),
-    [categories, year, allMatches, activeCategories],
+    [categories, year, allMatches],
   );
   const [rawCatParam, setCatParam] = useUrlParam("cat");
   const categoryId = categoriesToShow.some((c) => c.id === rawCatParam) ? rawCatParam : (categoriesToShow[0]?.id ?? "");
-  const setCategoryId = useCallback((id: string) => setCatParam(id), [setCatParam]);
+  const setCategoryId = useCallback((id: string) => setCatParam(id, { clear: ["seed"] }), [setCatParam]);
   const categoryOptions = useMemo(
     () => categoriesToShow.map((c) => ({ id: c.id, label: categoryLabelForId(categoriesById, c.id, locale) })),
     [categoriesToShow, categoriesById, locale],
@@ -642,10 +700,11 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     [allTeams, year, categoryId],
   );
 
-  const isElimination = useMemo(
-    () => categories.find((c) => c.id === categoryId)?.prelimFormat === "ELIMINATION",
-    [categories, categoryId],
-  );
+  const isElimination = useMemo(() => {
+    const yearStatus = categoryStatuses.find((s) => s.tournamentYear === year && s.categoryId === categoryId);
+    const format = yearStatus?.prelimFormat ?? categories.find((c) => c.id === categoryId)?.prelimFormat;
+    return format === "ELIMINATION";
+  }, [categoryStatuses, categories, year, categoryId]);
 
   const availableRounds = useMemo(() => buildAvailableRounds(categoryMatches), [categoryMatches]);
   const prelimMatches = useMemo(
@@ -687,7 +746,7 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   }, [stageParam, defaultStageCode, validStageCodes, hasPrelim, knockoutRounds]);
 
   const setStageCode = useCallback(
-    (code: string) => setStageParam(code, { clear: ["group"] }),
+    (code: string) => setStageParam(code, { clear: ["seed"] }),
     [setStageParam],
   );
 
@@ -698,8 +757,8 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [rawGroupParam, setGroupParam] = useUrlParam("group");
-  const groupOptions = useMemo(() => {
+  const [rawSeedParam, setSeedParam] = useUrlParam("seed");
+  const seedOptions = useMemo(() => {
     if (isElimination) return [];
     const fromTeams = categoryTeams.map((t) => t.seed).filter(Boolean) as string[];
     if (fromTeams.length > 0) return [...new Set(fromTeams)].sort();
@@ -710,10 +769,10 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     }
     return [...seen].sort();
   }, [isElimination, categoryTeams, prelimMatches]);
-  const activeGroup = groupOptions.includes(rawGroupParam ?? "") ? (rawGroupParam ?? "") : (groupOptions[0] ?? "");
+  const activeSeed = seedOptions.includes(rawSeedParam ?? "") ? (rawSeedParam ?? "") : (seedOptions[0] ?? "");
 
   const teamRankById = useMemo(
-    () => isElimination ? new Map<string, number>() : buildPrelimRankMap(categoryMatches),
+    () => isElimination ? new Map<string, number>() : buildPrelimRankMap(computePrelimStatsFromMatches(categoryMatches)),
     [isElimination, categoryMatches],
   );
 
@@ -731,6 +790,11 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   const mobilePrevCode = navIndex > 0 ? orderedRoundCodes[navIndex - 1] : null;
   const mobileNextCode = navIndex >= 0 && navIndex < orderedRoundCodes.length - 1 ? orderedRoundCodes[navIndex + 1] : null;
 
+  const roundDateRanges = useMemo(
+    () => computeRoundDateRanges(categoryMatches, year),
+    [categoryMatches, year],
+  );
+
   return {
     year, setYear, years,
     categoryId, setCategoryId, categoryOptions,
@@ -739,10 +803,11 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     isElimination,
     prelimMatches, knockoutRounds,
     hasPrelim, hasKnockout,
-    activeGroup, setGroupParam, groupOptions,
+    activeSeed, setSeedParam, seedOptions,
     teamRankById,
     orderedRoundCodes, mobilePrevCode, mobileNextCode,
     categoryMatches, categoryTeams, today,
+    roundDateRanges,
   };
 }
 
@@ -758,10 +823,11 @@ export function DrawsHub(props: Props) {
     isElimination,
     prelimMatches, knockoutRounds,
     hasPrelim, hasKnockout,
-    activeGroup, setGroupParam, groupOptions,
+    activeSeed, setSeedParam, seedOptions,
     teamRankById,
     orderedRoundCodes, mobilePrevCode, mobileNextCode,
     categoryMatches, categoryTeams, today,
+    roundDateRanges,
   } = useDrawsState(props);
 
   const isPrelim = !isElimination && isPrelimRound(stageCode);
@@ -771,6 +837,11 @@ export function DrawsHub(props: Props) {
     const r = availableRounds.find((r) => r.code === stageCode);
     return r ? roundLabel(r, locale) : "";
   }, [availableRounds, stageCode, locale]);
+
+  const stageDateLabel = useMemo(() => {
+    const range = roundDateRanges.get(stageCode);
+    return range ? formatDateRange(range.start, range.end, locale) : "";
+  }, [roundDateRanges, stageCode, locale]);
 
   // Prelim toggle + group filter — GRR / RR only
   const roundFilterOptions = useMemo(() => {
@@ -808,7 +879,7 @@ export function DrawsHub(props: Props) {
   }, [allLeaderboardRows]);
   const leaderboardRows = useMemo(() => {
     if (!allLeaderboardRows) return null;
-    const filtered = activeGroup ? allLeaderboardRows.filter((r) => r.group === activeGroup) : allLeaderboardRows;
+    const filtered = activeSeed ? allLeaderboardRows.filter((r) => r.seed === activeSeed) : allLeaderboardRows;
     let rank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
     return filtered.map((r, i) => {
       if (!prev || r.w !== prev.w || r.sd !== prev.sd || r.gd !== prev.gd) {
@@ -816,15 +887,15 @@ export function DrawsHub(props: Props) {
       }
       return { ...r, rank };
     });
-  }, [allLeaderboardRows, activeGroup]);
+  }, [allLeaderboardRows, activeSeed]);
 
   const prelimMatchesFiltered = useMemo(() => {
     if (isElimination) return [];
-    const filtered = activeGroup
-      ? prelimMatches.filter((m) => m.team1Seed?.trim() === activeGroup || m.team2Seed?.trim() === activeGroup)
+    const filtered = activeSeed
+      ? prelimMatches.filter((m) => m.team1Seed?.trim() === activeSeed || m.team2Seed?.trim() === activeSeed)
       : prelimMatches;
     return sortPrelimMatches(filtered);
-  }, [isElimination, prelimMatches, activeGroup]);
+  }, [isElimination, prelimMatches, activeSeed]);
 
   const drawsFilters: FilterConfig[] = [
     { type: "year", value: String(year), years, onChange: (v) => setYear(Number(v)) },
@@ -840,10 +911,8 @@ export function DrawsHub(props: Props) {
         desktopOnly: true,
       });
     }
-    if (isPrelim && groupOptions.length > 0) {
-      drawsFilters.push({ type: "group", value: activeGroup, options: groupOptions, onChange: setGroupParam });
-    }
   }
+  const showSeedTabs = !isElimination && isPrelim && seedOptions.length > 0;
 
   return (
     <DatabaseLayout
@@ -858,6 +927,7 @@ export function DrawsHub(props: Props) {
           <div className="md:hidden">
             <StageHeader
               title={stageTitle}
+              subtitle={stageDateLabel || undefined}
               navigation={{
                 onPrev: () => { if (mobilePrevCode) setStageCode(mobilePrevCode); },
                 onNext: () => { if (mobileNextCode) setStageCode(mobileNextCode); },
@@ -879,12 +949,22 @@ export function DrawsHub(props: Props) {
               teamRankById={teamRankById}
               activeRoundCode={stageCode}
               locale={locale}
+              roundDateRanges={roundDateRanges}
             />
           )
         ) : (
           <>
             {isPrelim && hasPrelim && (
               <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
+                {showSeedTabs && (
+                  <Tabs value={activeSeed} onValueChange={setSeedParam}>
+                    <TabsList>
+                      {seedOptions.map((s) => (
+                        <TabsTrigger key={s} value={s}>{s}</TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                )}
                 {leaderboardRows && leaderboardRows.length > 0 && (
                   <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
                     <Table
@@ -897,19 +977,22 @@ export function DrawsHub(props: Props) {
                         t.drawsPage.prelims.tableSD,
                         t.drawsPage.prelims.tableGD,
                       ]}
-                      dataRows={leaderboardRows.map((r) => {
-                        const p1 = locale === "ko" ? (r.player1Ko ?? r.player1) : r.player1;
-                        const p2 = r.player2 ? (locale === "ko" ? (r.player2Ko ?? r.player2) : r.player2) : undefined;
-                        return [
-                          r.rank,
-                          p2 ? <span key={r.teamId} className="flex flex-col gap-0.5"><span>{p1}</span><span>{p2}</span></span> : p1,
-                          r.w, r.l, r.sd, r.gd,
-                        ];
-                      })}
+                      dataRows={(() => {
+                        const anyCompleted = leaderboardRows.some((r) => r.w > 0 || r.l > 0);
+                        return leaderboardRows.map((r) => {
+                          const p1 = locale === "ko" ? (r.player1Ko ?? r.player1) : r.player1;
+                          const p2 = r.player2 ? (locale === "ko" ? (r.player2Ko ?? r.player2) : r.player2) : undefined;
+                          return [
+                            anyCompleted ? r.rank : "",
+                            p2 ? <span key={r.teamId} className="flex flex-col gap-0.5"><span>{p1}</span><span>{p2}</span></span> : p1,
+                            r.w, r.l, r.sd, r.gd,
+                          ];
+                        });
+                      })()}
                       columnNoWrap={[true, true, true, true, true, true]}
                     />
                     {locale !== "ko" && (
-                      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--foreground)]">
+                      <ul className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center gap-x-4 gap-y-1 text-xs text-[color:var(--foreground)]">
                         {[
                           `${t.drawsPage.prelims.tableW} - Wins`,
                           `${t.drawsPage.prelims.tableL} - Losses`,
@@ -932,8 +1015,8 @@ export function DrawsHub(props: Props) {
                           <MatchCard
                             match={match}
                             omitCategoryInHeader
-                            team1Rank={match.team1Id ? (rankMap.get(match.team1Id) ?? null) : null}
-                            team2Rank={match.team2Id ? (rankMap.get(match.team2Id) ?? null) : null}
+                            team1GlobalRank={match.team1Id ? (rankMap.get(match.team1Id) ?? null) : null}
+                            team2GlobalRank={match.team2Id ? (rankMap.get(match.team2Id) ?? null) : null}
                           />
                         </li>
                       ))}
@@ -952,6 +1035,7 @@ export function DrawsHub(props: Props) {
                   teamRankById={teamRankById}
                   activeRoundCode={stageCode}
                   locale={locale}
+                  roundDateRanges={roundDateRanges}
                 />
               )
             )}

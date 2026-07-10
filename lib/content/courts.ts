@@ -1,5 +1,5 @@
 import { EXTERNAL_LINKS } from "@/lib/externalLinks";
-import { addDays, getDayOfWeek } from "@/lib/utils";
+import { addDays, getDayOfWeek, SITE_TIMEZONE } from "@/lib/utils";
 
 export type Venue = {
   id: string;
@@ -11,6 +11,7 @@ export type Venue = {
   endDate: string;   // "YYYY-MM-DD"
   timeSlot: string;
   courts: number[];  // court numbers available at this venue
+  excludeDates?: readonly string[]; // "YYYY-MM-DD" dates to skip
 };
 
 export type CourtOption = {
@@ -24,6 +25,7 @@ export type CourtOption = {
   startDate: string;
   endDate: string;
   timeSlot: string;
+  excludeDates?: readonly string[];
 };
 
 export const VENUES: Venue[] = [
@@ -50,6 +52,17 @@ export const VENUES: Venue[] = [
     courts: [2],
   },
   {
+    id: "fraser-heights-north-tue",
+    name: "Fraser Heights North",
+    nameKo: "프레이저 하이츠 노스",
+    href: EXTERNAL_LINKS.fraserHeightsCourtNorth,
+    dayOfWeek: 2,
+    startDate: "2026-06-30",
+    endDate: "2026-08-18",
+    timeSlot: "7:00 – 9:00 PM",
+    courts: [2],
+  },
+  {
     id: "gates-park",
     name: "Gates Park Tennis Courts",
     nameKo: "게이츠 파크 테니스 코트",
@@ -59,14 +72,15 @@ export const VENUES: Venue[] = [
     endDate: "2026-08-15",
     timeSlot: "6:00 – 8:00 PM",
     courts: [1, 2],
+    excludeDates: ["2026-07-11"],
   },
 ];
 
 export const COURT_OPTIONS: CourtOption[] = VENUES.flatMap((venue) =>
   venue.courts.map((n) => ({
     id: `${venue.id}-${n}`,
-    name: `${venue.name} · Court ${n}`,
-    nameKo: `${venue.nameKo} · 코트 ${n}`,
+    name: `${venue.name.replace(/ Courts?$/i, "")} Court ${n}`,
+    nameKo: `${venue.nameKo.replace(/ 코트$/,  "")} 코트 ${n}`,
     venueId: venue.id,
     courtNumber: n,
     href: venue.href,
@@ -74,6 +88,7 @@ export const COURT_OPTIONS: CourtOption[] = VENUES.flatMap((venue) =>
     startDate: venue.startDate,
     endDate: venue.endDate,
     timeSlot: venue.timeSlot,
+    excludeDates: venue.excludeDates,
   }))
 );
 
@@ -103,6 +118,51 @@ export function getFirstBookingOpenDate(today: string, windowDays = 7): string |
   return earliest;
 }
 
+export function isExcludedDate(court: Pick<CourtOption, "excludeDates">, date: string): boolean {
+  return court.excludeDates?.includes(date) ?? false;
+}
+
+/**
+ * Returns true if a court slot's start time has passed in Vancouver time.
+ * timeSlot format: "5:00 – 7:00 PM" — the AM/PM suffix applies to both times.
+ */
+export function isCourtSlotExpired(date: string, timeSlot: string): boolean {
+  const now = new Date();
+  const vanDate = now.toLocaleDateString("en-CA", { timeZone: SITE_TIMEZONE });
+  if (date > vanDate) return false;
+  if (date < vanDate) return true;
+
+  const startMatch = timeSlot.match(/^(\d+):(\d+)/);
+  if (!startMatch) return false;
+  let startHour = parseInt(startMatch[1], 10);
+  const startMin = parseInt(startMatch[2], 10);
+  const isPm = /pm/i.test(timeSlot);
+  if (isPm && startHour !== 12) startHour += 12;
+  if (!isPm && startHour === 12) startHour = 0;
+
+  const vanParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: SITE_TIMEZONE,
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(now);
+  const vanHour = parseInt(vanParts.find((p) => p.type === "hour")?.value ?? "0", 10);
+  const vanMin = parseInt(vanParts.find((p) => p.type === "minute")?.value ?? "0", 10);
+
+  return vanHour > startHour || (vanHour === startHour && vanMin >= startMin);
+}
+
+export const COURT_BOOKING_STATUSES = ["Available", "Booked", "Completed", "Expired"] as const;
+export type CourtBookingStatus = typeof COURT_BOOKING_STATUSES[number];
+
+/** Derives the effective status, lazily accounting for a slot's start time having passed. */
+export function deriveCourtBookingStatus(status: string, date: string, timeSlot: string): CourtBookingStatus {
+  if (status === "Booked") return isCourtSlotExpired(date, timeSlot) ? "Completed" : "Booked";
+  if (status === "Available") return isCourtSlotExpired(date, timeSlot) ? "Expired" : "Available";
+  if (status === "Completed" || status === "Expired") return status;
+  return "Available";
+}
+
 /** Returns ISO date strings (YYYY-MM-DD) within [today, today+windowDays) where the court is available. */
 export function getAvailableDatesForCourt(court: CourtOption, today: string, windowDays = 7): string[] {
   const results: string[] = [];
@@ -110,6 +170,7 @@ export function getAvailableDatesForCourt(court: CourtOption, today: string, win
     const iso = addDays(today, i);
     if (iso < court.startDate || iso > court.endDate) continue;
     if (getDayOfWeek(iso) !== court.dayOfWeek) continue;
+    if (isExcludedDate(court, iso)) continue;
     results.push(iso);
   }
   return results;

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createTeamFromRegistration, renumberTeamsInCategory } from "@/lib/createTeam";
+import { createTeamFromRegistration, renumberTeamsInCategory, MIN_TEAMS_FOR_ACTIVE, activateCategoryIfThresholdMet } from "@/lib/createTeam";
 import { resolveOrCreatePartner } from "@/lib/resolvePartner";
-
-const MIN_TEAMS_FOR_ACTIVE = 4;
 
 async function revertCategoryStatusIfUnderThreshold(tournamentYear: number, categoryId: string) {
   const teamCount = await prisma.team.count({ where: { tournamentYear, categoryId } });
@@ -13,28 +11,6 @@ async function revertCategoryStatusIfUnderThreshold(tournamentYear: number, cate
       data: { status: "Pending" },
     });
   }
-}
-
-/** Derive registration status from paymentReceived + category status. */
-async function deriveStatus(
-  registrationId: string,
-  paymentReceived: boolean,
-  overrideCategoryId?: string
-): Promise<"Pending" | "Confirmed" | "Cancelled"> {
-  const reg = await prisma.tournamentRegistration.findUnique({
-    where: { id: registrationId },
-    select: { categoryId: true, tournamentYear: true },
-  });
-  if (!reg) return paymentReceived ? "Confirmed" : "Pending";
-
-  const categoryId = overrideCategoryId ?? reg.categoryId;
-  const catStatus = await prisma.categoryYearStatus.findFirst({
-    where: { categoryId, tournamentYear: reg.tournamentYear },
-    select: { status: true },
-  });
-
-  if (catStatus?.status === "Inactive") return "Cancelled";
-  return paymentReceived ? "Confirmed" : "Pending";
 }
 
 export async function PATCH(
@@ -60,11 +36,35 @@ export async function PATCH(
       data.partnerId = await resolveOrCreatePartner(body.partnerName, existing?.playerId ?? 0);
     }
 
-    // Derive status from paymentReceived (admin sets this; category inactivation overrides to Cancelled)
+    if (typeof body.playerId === "number" && body.playerId > 0) {
+      data.playerId = body.playerId;
+    }
+
     if ("paymentReceived" in body) {
-      const pr = Boolean(body.paymentReceived);
-      data.paymentReceived = pr;
-      data.status = await deriveStatus(id, pr, data.categoryId as string | undefined);
+      data.paymentReceived = Boolean(body.paymentReceived);
+    }
+
+    // Accept explicit status from admin; if category is Inactive, force Cancelled
+    if (typeof body.status === "string" && body.status.trim()) {
+      data.status = body.status.trim();
+    }
+
+    // Enforce Inactive category → Cancelled when status or category changes
+    if ("status" in body || "categoryId" in body) {
+      const reg = await prisma.tournamentRegistration.findUnique({
+        where: { id },
+        select: { categoryId: true, tournamentYear: true },
+      });
+      if (reg) {
+        const effectiveCatId = (data.categoryId as string | undefined) ?? reg.categoryId;
+        const catStatus = await prisma.categoryYearStatus.findFirst({
+          where: { categoryId: effectiveCatId, tournamentYear: reg.tournamentYear },
+          select: { status: true },
+        });
+        if (catStatus?.status === "Inactive") {
+          data.status = "Cancelled";
+        }
+      }
     }
 
     const current = await prisma.tournamentRegistration.findUnique({
@@ -139,10 +139,13 @@ export async function PATCH(
       }
     }
 
-    // When partnerId changes, delete the stale team and create the correct one.
+    // When playerId or partnerId changes, rebuild the team.
     // Skip if categoryId also changed — that block already handles team migration.
     const categoryChanged = current && typeof data.categoryId === "string" && data.categoryId !== current.categoryId;
-    if (!categoryChanged && current && "partnerId" in data) {
+    const needsTeamRebuild = !categoryChanged && current && ("playerId" in data || "partnerId" in data);
+    if (needsTeamRebuild && current) {
+      const effectivePlayerId = "playerId" in data ? (data.playerId as number) : current.playerId;
+      const effectivePartnerId = "partnerId" in data ? (data.partnerId as number | null) : current.partnerId;
       const effectiveCategoryId = (typeof data.categoryId === "string" ? data.categoryId : null) ?? current.categoryId;
       await prisma.team.deleteMany({
         where: {
@@ -157,10 +160,11 @@ export async function PATCH(
       await createTeamFromRegistration({
         tournamentYear: current.tournamentYear,
         categoryId: effectiveCategoryId,
-        playerId: current.playerId,
-        partnerId: (data.partnerId as number | null) ?? null,
+        playerId: effectivePlayerId,
+        partnerId: effectivePartnerId,
       });
       await revertCategoryStatusIfUnderThreshold(current.tournamentYear, effectiveCategoryId);
+      await activateCategoryIfThresholdMet(current.tournamentYear, effectiveCategoryId);
     }
 
     // If category changed, the old category may now have fewer teams.

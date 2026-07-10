@@ -23,6 +23,7 @@ type BaseButtonProps = {
   iconRight?: ReactNode;
   className?: string;
   children: ReactNode;
+  disabled?: boolean;
 };
 
 type LinkButtonProps = BaseButtonProps &
@@ -125,7 +126,7 @@ function ButtonContent({
 }) {
   return (
     <>
-      <span>{children}</span>
+      <span className="inline-flex items-center gap-2">{children}</span>
       {iconRight && (
         <span
           className="ml-1 inline-flex items-center [&_svg]:size-[1em]"
@@ -168,6 +169,7 @@ export function Button(props: ButtonProps) {
       className: _c,
       children: _ch,
       iconRight: _i,
+      disabled: _d,
       ...linkProps
     } = props;
 

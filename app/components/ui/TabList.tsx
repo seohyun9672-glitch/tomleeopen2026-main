@@ -11,8 +11,8 @@ const tabButtonBaseClass =
 
 function tabButtonAccentSurfaceClass(active: boolean) {
   return active
-    ? "bg-[var(--primary)] text-[var(--button-on-accent-text)]"
-    : "text-[color:var(--chip-accent-text-inactive)] hover:bg-[color:var(--chip-accent-hover-bg)] hover:text-[color:var(--chip-accent-hover-text)]";
+    ? "bg-[var(--primary)] text-[var(--button-on-accent-text)] font-semibold"
+    : "font-normal text-[color:var(--chip-accent-text-inactive)] hover:bg-[color:var(--chip-accent-hover-bg)] hover:text-[color:var(--chip-accent-hover-text)]";
 }
 
 function TabButton({

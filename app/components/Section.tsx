@@ -5,13 +5,14 @@ export interface SectionProps {
   id?: string;
   children: ReactNode;
   zebra?: boolean;
+  className?: string;
 }
 
-export function Section({ title, id, children, zebra }: SectionProps) {
+export function Section({ title, id, children, zebra, className }: SectionProps) {
   const inner = (
     <section
       id={zebra === undefined ? id : undefined}
-      className="flex flex-col gap-[var(--content-gap)] "
+      className={`flex flex-col gap-[var(--content-gap)] ${className ?? ""}`.trim()}
     >
       <h2>{title}</h2>
       {children}

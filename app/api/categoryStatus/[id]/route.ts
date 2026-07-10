@@ -1,11 +1,10 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateMatches } from "@/lib/generateMatches";
 
 /** PATCH /api/categoryStatus/[id] — upsert status for a category + year.
- *  Cascades to registrations:
- *  - Inactive → Cancelled for all non-cancelled regs
- *  - Active/Pending → re-derive from paymentReceived (Confirmed or Pending) */
+ *  Cascades to registrations only when going Inactive (cancel all non-cancelled).
+ *  Active/Pending transitions leave individual registration statuses untouched. */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -13,7 +12,7 @@ export async function PATCH(
   const { id } = await params;
   try {
     const body = await request.json();
-    const year: number = typeof body.year === "number" ? body.year : new Date().getFullYear();
+    const year: number = typeof body.year === "number" ? body.year : getYear();
     const status: string = body.status ?? "Pending";
 
     await prisma.categoryYearStatus.upsert({
@@ -23,21 +22,11 @@ export async function PATCH(
     });
 
     if (status === "Inactive") {
-      // Cancel all non-cancelled registrations
       await prisma.tournamentRegistration.updateMany({
         where: { tournamentYear: year, categoryId: id, NOT: { status: "Cancelled" } },
         data: { status: "Cancelled" },
       });
-    } else {
-      // Re-derive status from paymentReceived for non-cancelled regs
-      await prisma.tournamentRegistration.updateMany({
-        where: { tournamentYear: year, categoryId: id, NOT: { status: "Cancelled" }, paymentReceived: true },
-        data: { status: "Confirmed" },
-      });
-      await prisma.tournamentRegistration.updateMany({
-        where: { tournamentYear: year, categoryId: id, NOT: { status: "Cancelled" }, paymentReceived: false },
-        data: { status: "Pending" },
-      });
+      await prisma.team.deleteMany({ where: { tournamentYear: year, categoryId: id } });
     }
 
     return NextResponse.json({ ok: true });

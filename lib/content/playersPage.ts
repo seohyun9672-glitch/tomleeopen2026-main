@@ -3,12 +3,22 @@ export const playersPage = {
     playersPage: {
       heroTitle: "Players",
       emptyStateNoMatch: "No players match your search.",
+      emptyStateNoTeams: "No teams found.",
+      tabs: {
+        players: "Players",
+        teams: "Teams",
+      },
     },
   },
   ko: {
     playersPage: {
       heroTitle: "선수",
       emptyStateNoMatch: "검색 결과와 일치하는 선수가 없습니다.",
+      emptyStateNoTeams: "팀이 없습니다.",
+      tabs: {
+        players: "선수",
+        teams: "팀",
+      },
     },
   },
 } as const;

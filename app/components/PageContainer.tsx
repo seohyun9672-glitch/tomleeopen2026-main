@@ -41,7 +41,7 @@ export function PageContainer({ children, title, titleActions, beforeTitle, cont
 
   // Strip /ko prefix to get the locale-neutral path, then look up the locale-aware title.
   const cleanPath = pathname === "/ko" ? "/" : pathname.startsWith("/ko/") ? pathname.slice(3) : pathname;
-  const resolvedTitle = PATH_TITLES[cleanPath]?.(t) ?? title;
+  const resolvedTitle = title ?? PATH_TITLES[cleanPath]?.(t);
 
   const inner = (
     <>

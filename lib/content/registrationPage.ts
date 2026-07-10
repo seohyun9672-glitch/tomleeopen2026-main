@@ -1,5 +1,6 @@
-import { importantDates } from "@/lib/importantDatesData";
+import { getImportantDates } from "@/lib/importantDatesData";
 import { contactData } from "@/lib/contactData";
+import { getYear } from "@/lib/utils";
 
 export type EligibilityGroup = {
   label: string;
@@ -162,7 +163,8 @@ export const eligibilityContent: { en: EligibilityData; ko: EligibilityData } = 
   },
 };
 
-const regEntry = importantDates.find((e) => e.label === "Registration");
+const year = getYear();
+const regEntry = getImportantDates(year).find((e) => e.label === "Registration");
 
 function localDate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
@@ -185,7 +187,7 @@ export const registrationPage = {
       manageHeroTitle: "Manage registration",
       notYetOpenTitle: "Registration is not yet open",
       notYetOpenMessage: `Registration opens ${regStartEn}.`,
-      closedTitle: "Registration has closed",
+      closedTitle: `${year} Registration has closed`,
       closedMessage: `The registration period (${regPeriodEn}) has ended.`,
       step1Title: "Registration details",
       step2Title: "Eligibility notice",
@@ -220,7 +222,7 @@ export const registrationPage = {
         additionalDetails: "Additional details",
       },
       fields: {
-        categories: "Categories",
+        categories: "Category",
         searchCategoriesPlaceholder: "Select categories",
         searchClubsPlaceholder: "Select clubs",
         partnerName: "Partner name",
@@ -272,7 +274,7 @@ export const registrationPage = {
       manageHeroTitle: "등록 관리",
       notYetOpenTitle: "아직 등록 기간이 아닙니다",
       notYetOpenMessage: `등록은 ${regStartKo}부터 시작됩니다.`,
-      closedTitle: "등록이 마감되었습니다",
+      closedTitle: `${year}년 등록이 마감되었습니다`,
       closedMessage: `등록 기간(${regPeriodKo})이 종료되었습니다.`,
       step1Title: "등록 정보",
       step2Title: "참가 자격",

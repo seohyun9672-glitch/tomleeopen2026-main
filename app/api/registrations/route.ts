@@ -1,14 +1,15 @@
+import { getYear } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { RegistrationStatus } from "@/lib/registration";
 import { parseClubCodesFromBody } from "@/lib/clubs";
-import { createTeamFromRegistration } from "@/lib/createTeam";
+import { createTeamFromRegistration, activateCategoryIfThresholdMet } from "@/lib/createTeam";
 import { resolveOrCreatePartner } from "@/lib/resolvePartner";
 
 const NEW_REGISTRATION_STATUS: RegistrationStatus = "Pending";
 
-const DEFAULT_YEAR = new Date().getFullYear();
+const DEFAULT_YEAR = getYear();
 
 
 async function setPlayerClubs(playerId: number, clubCodes: string[]) {
@@ -222,7 +223,14 @@ export async function POST(request: Request) {
       // Submitter is always `playerId`; partner is `resolvedPartnerId`. Do not reorder by numeric id
       // (that made the lower Player.id appear as the "main" registrant and swapped names in the UI).
       const paymentReceived = Boolean(body.paymentReceived);
-      const derivedStatus = paymentReceived ? ("Confirmed" as const) : NEW_REGISTRATION_STATUS;
+
+      // Status defaults to Pending; Inactive category forces Cancelled
+      const catStatus = await prisma.categoryYearStatus.findFirst({
+        where: { tournamentYear, categoryId },
+        select: { status: true },
+      });
+      const registrationStatus: RegistrationStatus =
+        catStatus?.status === "Inactive" ? "Cancelled" : NEW_REGISTRATION_STATUS;
 
       const registrationUpdateFields = {
         nameOnEtransfer: body.nameOnEtransfer?.trim() || undefined,
@@ -243,7 +251,7 @@ export async function POST(request: Request) {
           tournamentYear,
           playerId,
           categoryId,
-          status: derivedStatus,
+          status: registrationStatus,
           nameOnEtransfer: body.nameOnEtransfer?.trim() || null,
           partnerId: resolvedPartnerId,
           photoVideoConsent: Boolean(body.photoVideoConsent),
@@ -253,7 +261,6 @@ export async function POST(request: Request) {
         update: {
           ...registrationUpdateFields,
           partnerId: resolvedPartnerId ?? undefined,
-          status: derivedStatus,
         },
       });
 
@@ -263,6 +270,8 @@ export async function POST(request: Request) {
         playerId,
         partnerId: resolvedPartnerId,
       });
+
+      await activateCategoryIfThresholdMet(tournamentYear, categoryId);
 
       created.push({ id: reg.id, categoryId: reg.categoryId });
     }

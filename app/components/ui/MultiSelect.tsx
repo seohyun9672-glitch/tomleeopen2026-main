@@ -75,7 +75,7 @@ export function MultiSelect({
     return available.filter((o) => o.label.toLowerCase().includes(q));
   }, [available, search, searchable]);
   const groupedItems = React.useMemo(() => buildGroupedItems(filtered), [filtered]);
-  const placement = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
+  const { placement, maxHeight } = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
   useDismissOnOutsidePointerDown(open, containerRef, () => setOpen(false));
 
   const toggleOption = React.useCallback(
@@ -196,7 +196,7 @@ export function MultiSelect({
               onBlur={() => onSearchBlur?.()}
               onClick={(e) => e.stopPropagation()}
               placeholder=""
-              className="min-h-[1.25rem] min-w-[8rem] max-w-none flex-1 cursor-text border-0 bg-transparent [color:var(--input-text)]"
+              className="min-h-[1.25rem] min-w-0 max-w-none flex-1 cursor-text border-0 bg-transparent [color:var(--input-text)] [font-family:inherit]"
               autoComplete="off"
               role="searchbox"
               aria-controls={listId}
@@ -208,16 +208,17 @@ export function MultiSelect({
           <input
             ref={hiddenInputRef}
             type="text"
+            inputMode="none"
+            readOnly
             aria-hidden="true"
             tabIndex={-1}
             onKeyDown={handleHiddenInputKeyDown}
             className="sr-only"
-            style={{ fontSize: '16px' }}
           />
         )}
 
         {open && (
-          <Popover placement={placement} maxHeightClass="max-h-48">
+          <Popover placement={placement} maxHeightPx={maxHeight}>
             <ul ref={listRef} id={listId} role="listbox" aria-multiselectable="true">
               {filtered.length === 0 ? (
                 <li className="px-4 py-2 text-sm text-[var(--color-text-tertiary)]">{noMatchesText}</li>

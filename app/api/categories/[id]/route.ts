@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { generateMatches } from "@/lib/generateMatches";
 
@@ -41,6 +42,7 @@ export async function PATCH(
         select: { tournamentYear: true },
       });
       await Promise.all(activeYears.map((r) => generateMatches(r.tournamentYear, id)));
+      revalidateTag("all-matches", "default");
     }
 
     return NextResponse.json({ id });

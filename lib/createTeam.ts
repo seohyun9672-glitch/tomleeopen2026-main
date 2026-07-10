@@ -11,6 +11,21 @@ async function nextTeamId(tournamentYear: number, categoryId: string): Promise<s
   return `${tournamentYear}${categoryId}${n}`;
 }
 
+export const MIN_TEAMS_FOR_ACTIVE = 4;
+
+export async function activateCategoryIfThresholdMet(tournamentYear: number, categoryId: string): Promise<void> {
+  const teamCount = await prisma.team.count({ where: { tournamentYear, categoryId } });
+  const activeRegCount = await prisma.tournamentRegistration.count({
+    where: { tournamentYear, categoryId, NOT: { status: "Cancelled" } },
+  });
+  if (teamCount >= MIN_TEAMS_FOR_ACTIVE && activeRegCount > 0) {
+    await prisma.categoryYearStatus.updateMany({
+      where: { tournamentYear, categoryId, status: "Pending" },
+      data: { status: "Active" },
+    });
+  }
+}
+
 export async function renumberTeamsInCategory(tournamentYear: number, categoryId: string): Promise<void> {
   const teams = await prisma.team.findMany({
     where: { tournamentYear, categoryId },
@@ -67,10 +82,7 @@ export async function createTeamFromRegistration({
       m2 = Math.max(playerId, partnerId);
     }
   } else {
-    [m1, m2] =
-      partnerId != null
-        ? [Math.min(playerId, partnerId), Math.max(playerId, partnerId)]
-        : [playerId, null];
+    [m1, m2] = partnerId != null ? [playerId, partnerId] : [playerId, null];
   }
 
   const existing = await prisma.team.findFirst({
