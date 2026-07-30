@@ -27,11 +27,11 @@ export function TournamentStatsSection(props: TournamentStatsProps) {
   return (
     <div className="w-full border-y border-[var(--color-border-ui)] bg-[var(--color-surface-card)]">
       <div className="w-full py-0">
-        <div className="grid grid-cols-1 xs:grid-cols-2 ms:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-[var(--color-border-ui)]">
+        <div className="grid grid-cols-1 xs:grid-cols-2 ms:grid-cols-3 md:grid-cols-6 gap-px bg-[var(--color-border-ui)]">
           {stats.map(({ label, value }) => (
             <div
               key={label}
-              className="aspect-square flex flex-col justify-between px-[var(--content-gap)] py-[var(--content-gap)] items-center text-center"
+              className="md:aspect-square flex flex-col justify-between gap-2 px-[var(--content-gap)] py-6 md:py-[var(--content-gap)] items-center text-center bg-[var(--color-surface-card)]"
             >
               <span className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">
                 {label}

@@ -316,18 +316,14 @@ export function OverviewHub({ categories, hostSponsorWebsite, showCategories }: 
         <section id="final-venue" className="scroll-mt-14 flex flex-col gap-[var(--content-gap)]">
           <h2>{venueAndCourts.finalHeading}</h2>
           <Table
-            variant="data"
-            headers={[...venueAndCourts.prelimHeaders]}
-            dataRows={[[
-              <span key="final-location-cell">
-                <a href={venueAndCourts.finals.href} target="_blank" rel="noreferrer" className="link-default">
-                  {venueAndCourts.finals.location}
-                </a>
-              </span>,
-              venueAndCourts.finals.dateDisplay,
-              venueAndCourts.finals.day,
-              venueAndCourts.finals.time,
-            ]]}
+            variant="key-value"
+            rows={[
+              { label: venueAndCourts.prelimHeaders[0], value: venueAndCourts.finals.location, href: venueAndCourts.finals.href },
+              { label: venueAndCourts.prelimHeaders[1], value: venueAndCourts.finals.date },
+              { label: venueAndCourts.prelimHeaders[2], value: venueAndCourts.finals.day },
+              { label: venueAndCourts.prelimHeaders[3], value: venueAndCourts.finals.time },
+            ]}
+            alignTop
           />
         </section>
 

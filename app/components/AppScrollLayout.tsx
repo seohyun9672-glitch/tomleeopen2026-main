@@ -65,7 +65,7 @@ export function AppScrollLayout({ children }: { children: ReactNode }) {
         className="scrollbar-none min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-clip overscroll-y-contain scroll-smooth"
       >
         <div className="flex min-h-full w-full min-w-0 flex-col">
-          <main className="flex w-full min-w-0 max-w-none flex-1 flex-col items-stretch justify-start pt-14">
+          <main className="flex w-full min-w-0 max-w-none flex-1 min-h-0 flex-col items-stretch justify-start pt-[var(--header-height)]">
             {children}
           </main>
         </div>

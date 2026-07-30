@@ -1,7 +1,7 @@
-export { DatabaseLayout } from "./DatabaseLayout";
+export { DatabaseLayout, EmptyState } from "./DatabaseLayout";
 export type { DatabaseLayoutProps, FilterConfig, CardViewConfig, ManagedCardViewConfig } from "./DatabaseLayout";
 export type { DateFilterConfig, YearFilterConfig, CategoryFilterConfig, SeedFilterConfig, RoundFilterConfig, SearchFilterConfig, ClubFilterConfig } from "./DatabaseLayout";
-export type { ManagedFilterConfig, ManagedDateFilterConfig, ManagedYearFilterConfig, ManagedCategoryFilterConfig, ManagedSearchFilterConfig, ManagedRoundFilterConfig, ManagedSeedFilterConfig, ManagedClubFilterConfig } from "./DatabaseLayout";
+export type { ManagedFilterConfig, ManagedDateFilterConfig, ManagedYearFilterConfig, ManagedCategoryFilterConfig, ManagedSearchFilterConfig, ManagedRoundFilterConfig, ManagedSeedFilterConfig, ManagedClubFilterConfig, ManagedSortConfig, SortOption } from "./DatabaseLayout";
 export { CardView } from "./CardView";
 // Filter utilities — re-exported so hubs only need one import
 export { filterByValue, deriveYearOptions, deriveDateOptions, createSearchMatcher } from "./Filters";

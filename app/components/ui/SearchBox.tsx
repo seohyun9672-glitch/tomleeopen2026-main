@@ -14,6 +14,7 @@ type Props = {
   showLeadingIcon?: boolean;
   className?: string;
   placeholder?: string;
+  autoFocus?: boolean;
 };
 
 /**
@@ -27,6 +28,7 @@ export function SearchBox({
   showLeadingIcon = true,
   className = "",
   placeholder = "Search",
+  autoFocus = false,
 }: Props) {
   return (
     <div className={cn("form-control-with-leading-icon w-full sm:max-w-[var(--filter-control-max-w)]", className)}>
@@ -43,6 +45,7 @@ export function SearchBox({
         onChange={onChange}
         aria-label={ariaLabel}
         autoComplete="off"
+        autoFocus={autoFocus}
         className={cn(
           "form-input-match",
           showLeadingIcon ? "form-control-input--with-leading-icon" : "",

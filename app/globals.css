@@ -117,7 +117,7 @@
    * --color-background → page base (body, canvas).
    * --color-surface → cards, panels, tables. */
   --color-text-primary: #111111;
-  --color-text-secondary: #525252;
+  --color-text-secondary: #262626;
   --color-background: #fafafa;
   --color-surface: #fcfcfd;
   --color-text-tertiary: color-mix(in srgb, var(--color-text-secondary) 72%, var(--color-background));
@@ -180,6 +180,9 @@
 
   /* Overlays */
   --overlay-scrim-strong: color-mix(in srgb, var(--color-primary-blue-900) 88%, black);
+  /* Translucent scrim (mixed toward transparent, not black) — for overlays like a
+     slide-in drawer where the dimmed page underneath should stay visible. */
+  --overlay-scrim: color-mix(in srgb, var(--color-primary-blue-900) 55%, transparent);
   --media-thumb-drop-shadow: color-mix(in srgb, var(--color-text-primary) 52%, transparent);
   --media-thumb-filter: drop-shadow(0 0 1px var(--media-thumb-drop-shadow))
     drop-shadow(0 1px 2px color-mix(in srgb, var(--media-thumb-drop-shadow) 72%, transparent));
@@ -264,6 +267,7 @@
   --chip-accent-hover-text: var(--color-text-primary);
 
   /* Semantic usage aliases */
+  --header-height: 56px;
   --header-bg: var(--color-bg-primary);
   --footer-bg: var(--header-bg);
   --home-zebra-blue: color-mix(in srgb, var(--color-secondary-blue-500) 6.5%, var(--color-background));
@@ -513,6 +517,8 @@ html[lang="ko"] {
 .match-status-chip-cancelled        { background-color: var(--status-error-bg);   color: var(--status-error-fg);   border: 1px solid color-mix(in srgb, var(--status-error-fg)   30%, transparent); }
 .match-status-chip-pending          { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
 .player-status-withdrew             { background-color: color-mix(in srgb, var(--color-status-warning) 22%, var(--color-surface-card)); color: color-mix(in srgb, var(--color-status-warn) 55%, black); border: 1px solid color-mix(in srgb, var(--color-status-warning) 45%, var(--color-surface-card)); }
+.team-status-advancing              { background-color: var(--color-primary-blue-50); color: var(--color-primary-blue-600); border: 1px solid color-mix(in srgb, var(--color-primary-blue-600) 30%, transparent); }
+.team-status-tied                   { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
 
 .registration-status-chip-pending   { background-color: var(--status-warning-bg); color: var(--status-warning-fg); border: 1px solid color-mix(in srgb, var(--status-warning-fg) 30%, transparent); }
 .registration-status-chip-confirmed { background-color: var(--status-success-bg); color: var(--status-success-fg); border: 1px solid color-mix(in srgb, var(--status-success-fg) 30%, transparent); }
@@ -739,6 +745,25 @@ body {
   width: 0;
   height: 0;
   display: none;
+}
+
+/* Force a thin, always-visible scrollbar (instead of the OS's auto-hiding
+   overlay scrollbar, which only appears while actively scrolling). */
+.scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-text-tertiary) transparent;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  display: block;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background-color: var(--color-text-tertiary);
+  border-radius: 9999px;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Token-based focus outline */
@@ -998,6 +1023,7 @@ button:disabled {
 }
 
 .form-control-input {
+  box-sizing: border-box;
   width: 100%;
   height: var(--button-height-medium);
   border-radius: 0.5rem;
@@ -1053,6 +1079,7 @@ textarea.form-control-input {
 
 /* Single-class alternative to form-control-input + form-control-button-match */
 .form-input-match {
+  box-sizing: border-box;
   width: 100%;
   height: var(--button-height-medium);
   border-radius: 0.5rem;

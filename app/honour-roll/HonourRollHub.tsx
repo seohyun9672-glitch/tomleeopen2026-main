@@ -2,6 +2,10 @@
 
 import { useMemo } from "react";
 import type { CategoryRecord } from "@/lib/categories";
+import {
+  buildCategoryByIdMap,
+  deriveGroupedCategoryOptions,
+} from "@/lib/categories";
 import type { Match } from "@/lib/matches";
 import { useLocale } from "@/lib/locale-context";
 import { DatabaseLayout } from "@/app/components/database";
@@ -17,6 +21,7 @@ type Props = {
 
 export function HonourRollHub({ categories, allMatches }: Props) {
   const { t, locale } = useLocale();
+  const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
   // Only finals where a winner has been determined.
   const allEntries = useMemo(
@@ -91,12 +96,9 @@ export function HonourRollHub({ categories, allMatches }: Props) {
       managedFilters={[
         {
           type: "category" as const,
-          options: (filtered: HonourEntry[]) => {
-            const ids = new Set(filtered.map((e) => e.match.categoryId));
-            return categories
-              .filter((c) => ids.has(c.id))
-              .map((c) => ({ id: c.id, label: c.label, labelKo: c.labelKo }));
-          },
+          param: "cat",
+          options: (filtered: HonourEntry[]) =>
+            deriveGroupedCategoryOptions(filtered.map((e) => e.match.categoryId), categoriesById),
           apply: (items: HonourEntry[], categoryId: string) =>
             categoryId ? items.filter((e) => e.match.categoryId === categoryId) : items,
           allLabel: t.shared.labels.allCategories,

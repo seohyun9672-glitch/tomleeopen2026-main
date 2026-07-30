@@ -1,11 +1,16 @@
+import { menuLabelForHref } from "./menu";
+
 /** Rules page content (EN + KO), modeled after other lib/content page modules. */
 export const rulesPage = {
   en: {
     rulesPage: {
-      heroTitle: "Rules",
+      heroTitle: menuLabelForHref("/rules", "en"),
       sectionTitles: {
         matchGuidelines: "Match guidelines",
+        scheduleAndAttendance: "Schedule changes & no-shows",
+        retirementAndDisqualification: "Retirement & disqualification policy",
         matchRules: "Local rules",
+        conductAndEtiquette: "Conduct & etiquette",
       },
       matchGuidelines: {
         table: [
@@ -24,6 +29,40 @@ export const rulesPage = {
               "In a deuce situation, the No-Ad (No Advantage) rule applies after the first deuce. For the deciding point, the receiving team chooses the receiver.",
               "At set point and match point, the No-Ad rule is not used — play continues using the traditional deuce format.",
               "In mixed doubles, the receiver must be the same gender as the server (i.e., male vs. male / female vs. female) during No-Ad points.",
+            ],
+          },
+        ],
+      },
+      scheduleAndAttendance: {
+        table: [
+          {
+            label: "Schedule adjustments",
+            items: [
+              "Once the draw is finalized, any schedule change due to personal circumstances must be communicated to the opposing team at least 48 hours before the match.",
+            ],
+          },
+          {
+            label: "Default loss policy",
+            items: [
+              "Arriving more than 30 minutes late without notice will be treated as a no-show, resulting in a default loss (6-0, 6-0 in favor of the opposing team).",
+              "Exception: Notwithstanding the above, teams may freely adjust the match time or schedule by mutual agreement, provided the opposing team's understanding is obtained.",
+            ],
+          },
+        ],
+      },
+      retirementAndDisqualification: {
+        table: [
+          {
+            label: "Retirement",
+            items: [
+              "If a team retires during a match, all remaining games will be considered a loss for that team.",
+              "Example: If Team A retires when the score is 4-2 in the first set, the final score will be recorded as 6-4, 6-0 in favor of Team B.",
+            ],
+          },
+          {
+            label: "Disqualification",
+            items: [
+              "Matches played against a disqualified team will be considered null and void.",
             ],
           },
         ],
@@ -91,14 +130,10 @@ export const rulesPage = {
               "Points played before the error remain valid, and the match continues normally according to the established rules.",
             ],
           },
-          {
-            label: "Retirement & disqualification policy",
-            items: [
-              "If a team retires during a match, all remaining games will be considered a loss for that team.",
-              "Example: If Team A retires when the score is 4-2 in the first set, the final score will be recorded as 6-4, 6-0 in favor of Team B.",
-              "Matches played against a disqualified team will be considered null and void.",
-            ],
-          },
+        ],
+      },
+      conductAndEtiquette: {
+        table: [
           {
             label: "Cheering etiquette",
             items: [
@@ -123,10 +158,13 @@ export const rulesPage = {
   },
   ko: {
     rulesPage: {
-      heroTitle: "규칙",
+      heroTitle: menuLabelForHref("/rules", "ko"),
       sectionTitles: {
         matchGuidelines: "경기 가이드라인",
+        scheduleAndAttendance: "일정 변경 및 노쇼 안내",
+        retirementAndDisqualification: "기권 및 실격",
         matchRules: "동호인 대회 로컬 룰 안내",
+        conductAndEtiquette: "매너 및 유의 사항",
       },
       matchGuidelines: {
         table: [
@@ -145,6 +183,40 @@ export const rulesPage = {
               "듀스 상황에서는 첫 번째 듀스 이후 노애드(No-Ad, 노 어드밴티지) 방식으로 진행되며, 결정 포인트에서는 리시빙 팀이 리시버를 선택합니다.",
               "단, 세트 포인트 및 매치 포인트 상황에서는 노애드 룰이 적용되지 않고, 기존 듀스 방식으로 계속 진행됩니다.",
               "혼합복식 경기에서는 노애드 상황에서 서버와 동일한 성별의 선수가 리시버로 나서야 합니다. 예: 남자 vs. 남자 / 여자 vs. 여자",
+            ],
+          },
+        ],
+      },
+      scheduleAndAttendance: {
+        table: [
+          {
+            label: "스케줄 조정",
+            items: [
+              "대진표 확정 이후의 개인 사정에 따른 일정 변경은 경기 48시간 전까지 상대 팀에 고지하는 것을 원칙으로 합니다.",
+            ],
+          },
+          {
+            label: "몰수패 기준",
+            items: [
+              "경기 시작 시간 기준 30분 이상 통보 없이 무단 지각 시 노쇼로 간주하여 몰수패(6-0, 6-0 상대 팀 승리) 처리됩니다.",
+              "예외 조항: 위 규정에도 불구하고, 상대팀에 양해를 구하고 양 팀이 상호 합의한 경우에는 시간 및 일정 조정을 자율적으로 진행하실 수 있습니다.",
+            ],
+          },
+        ],
+      },
+      retirementAndDisqualification: {
+        table: [
+          {
+            label: "기권",
+            items: [
+              "경기 도중 기권 시, 진행된 경기 이후는 모두 패한 것으로 간주합니다.",
+              "예시: 1세트 4-2 상황에서 A팀이 기권하면 최종 스코어는 6-4, 6-0으로 B팀 승리로 처리합니다.",
+            ],
+          },
+          {
+            label: "실격",
+            items: [
+              "실격된 팀과 치른 경기는 모두 무효로 처리됩니다.",
             ],
           },
         ],
@@ -212,14 +284,10 @@ export const rulesPage = {
               "착오 이전에 진행된 포인트는 그대로 유효하며, 이후 경기는 정해진 규정에 따라 정상적으로 이어집니다.",
             ],
           },
-          {
-            label: "기권/실격 관련 규정",
-            items: [
-              "경기 도중 기권 시, 진행된 경기 이후는 모두 패한 것으로 간주합니다.",
-              "예시: 1세트 4-2 상황에서 A팀이 기권하면 최종 스코어는 6-4, 6-0으로 B팀 승리로 처리합니다.",
-              "실격된 팀과 치른 경기는 모두 무효로 처리됩니다.",
-            ],
-          },
+        ],
+      },
+      conductAndEtiquette: {
+        table: [
           {
             label: "응원 매너 및 관중 에티켓",
             items: [

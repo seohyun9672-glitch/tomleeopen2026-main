@@ -207,6 +207,34 @@ model Media {
   @@index([type, tournamentYear, categoryId])
 }
 
+model CommunityMediaPost {
+  id             String                  @id @default(cuid())
+  title          String
+  content        String                  @default("")
+  nickname       String
+  imageUrl       String
+  ipAddress      String?
+  createdAt      DateTime                @default(now())
+  viewCount      Int                     @default(0)
+  likeCount      Int                     @default(0)
+  isAwardWinner  Boolean                 @default(false)
+  tournamentYear Int                     @default(2026)
+  comments       CommunityMediaComment[]
+
+  @@index([tournamentYear])
+}
+
+model CommunityMediaComment {
+  id                   String             @id @default(cuid())
+  communityMediaPostId String
+  communityMediaPost   CommunityMediaPost @relation(fields: [communityMediaPostId], references: [id], onDelete: Cascade)
+  nickname             String
+  body                 String
+  createdAt            DateTime           @default(now())
+
+  @@index([communityMediaPostId])
+}
+
 model Ntrp {
   level     String @id
   sortOrder Int    @default(0)
@@ -263,12 +291,19 @@ model Sponsor {
 }
 
 model Team {
-  id              String
-  tournamentYear  Int
-  categoryId      String
-  seed            String?
-  member1PlayerId Int
-  member2PlayerId Int?
+  id               String
+  tournamentYear   Int
+  categoryId       String
+  seed             String?
+  withdrawn        Boolean  @default(false)
+  // Manual resolution for a prelim standings tie that survives every real
+  // criterion (win% / SD / SD-among-tied / GD / GD-among-tied / super
+  // tiebreak) — a literal "drawing of lots" the app can't decide on its own.
+  // Lower value ranks higher. Only takes effect once every team in the tied
+  // cluster has a value set; otherwise the tie is still flagged.
+  tiebreakOverride Int?
+  member1PlayerId  Int
+  member2PlayerId  Int?
   matchesAsTeam1  Match[]  @relation("Match_tournamentYear_team1IdToTeam")
   matchesAsTeam2  Match[]  @relation("Match_tournamentYear_team2IdToTeam")
   category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)

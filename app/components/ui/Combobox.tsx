@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type FocusEvent } from "react";
 import {
   Popover,
+  useCloseOnScroll,
   useDismissOnOutsidePointerDown,
   usePopoverPlacement,
 } from "@/app/components/ui/Popover";
@@ -65,6 +66,7 @@ export function Combobox<TOption>({
   const [highlighted, setHighlighted] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const loadSeqRef = useRef(0);
   const listId = useId();
 
@@ -108,7 +110,11 @@ export function Combobox<TOption>({
     });
   }, [options]);
 
-  useDismissOnOutsidePointerDown(open, containerRef, () => {
+  useDismissOnOutsidePointerDown(open, [containerRef, popoverRef], () => {
+    setOpen(false);
+    setHighlighted(-1);
+  });
+  useCloseOnScroll(open, [containerRef, popoverRef], () => {
     setOpen(false);
     setHighlighted(-1);
   });
@@ -117,7 +123,7 @@ export function Combobox<TOption>({
   const queryOk = q.length >= minQueryLength;
   const canShowInitial = showInitialOptions && q.length === 0;
   const showPanel = open && (queryOk || canShowInitial);
-  const { placement, maxHeight } = usePopoverPlacement(showPanel, triggerRef, COMBO_DROPDOWN_MAX_PX);
+  const { placement, maxHeight, anchorRect } = usePopoverPlacement(showPanel, triggerRef, COMBO_DROPDOWN_MAX_PX);
 
   const selectOption = (option: TOption) => {
     onSelect?.(option);
@@ -192,7 +198,7 @@ export function Combobox<TOption>({
       />
 
       {showPanel && (
-        <Popover placement={placement} maxHeightPx={maxHeight}>
+        <Popover ref={popoverRef} placement={placement} maxHeightPx={maxHeight} anchorRect={anchorRect}>
           <ul id={listId} role="listbox" aria-label={listAriaLabel}>
           {loading ? (
             <li className="px-4 py-2 text-sm text-[var(--color-text-tertiary)]" role="presentation">

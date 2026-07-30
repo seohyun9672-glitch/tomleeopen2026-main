@@ -14,10 +14,13 @@ type CommunityPartnersSectionProps = {
   communityPartners: CommunityPartner[];
 };
 
-function communityColSpan(index: number, total: number): string {
-  if (total % 2 === 0) return "col-span-1 sm:col-span-3";
-  return index < 4 ? "col-span-1 sm:col-span-3" : "col-span-1 sm:col-span-4";
-}
+// One card fills the whole row, two split it in half, and so on up to a
+// max of 4 per row on desktop (3 on tablet, 2 on mobile) — `grow` lets each
+// flex line's items expand to fill any leftover width, so a row with fewer
+// items than that max (e.g. only 2 cards total, or a trailing row) still
+// stretches to fill the full width instead of leaving empty space or
+// forcing a fixed column count when there aren't enough cards to fill it.
+const COMMUNITY_CARD_CLASS = "grow basis-1/2 md:basis-1/3 lg:basis-1/4 min-w-0";
 
 export function CommunityPartnersSection({ communityPartners }: CommunityPartnersSectionProps) {
   const { t } = useLocale();
@@ -26,18 +29,17 @@ export function CommunityPartnersSection({ communityPartners }: CommunityPartner
 
   return (
     <Section title={title} zebra={false}>
-      <div className="grid grid-cols-2 gap-0 sm:grid-cols-12">
+      <div className="flex flex-wrap gap-0">
         {communityPartners.map((item, i) => (
-          <div key={i} className={communityColSpan(i, communityPartners.length)}>
-            <Card
-              imageOnly
-              image={item.image}
-              imageAlt={item.name}
-              href={item.href}
-              hrefAriaLabel={visit(item.name)}
-              className="h-full"
-            />
-          </div>
+          <Card
+            key={i}
+            imageOnly
+            image={item.image}
+            imageAlt={item.name}
+            href={item.href}
+            hrefAriaLabel={visit(item.name)}
+            className={COMMUNITY_CARD_CLASS}
+          />
         ))}
       </div>
     </Section>

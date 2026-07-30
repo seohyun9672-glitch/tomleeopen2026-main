@@ -7,6 +7,7 @@ import type { Match } from "@/lib/matches";
 import { matchStatusLabel, matchStatusChipClass, formatTimeDisplay, matchSeqNumber } from "@/lib/matches";
 import { ROUND_PRE } from "@/lib/round";
 import { cn } from "@/lib/utils";
+import { useMatchWeather } from "@/lib/hooks/useWeather";
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -41,6 +42,13 @@ function parseScore(score: string | null): number | null {
 }
 
 function getWithdrew(match: Match): { team1: boolean; team2: boolean } {
+  // A 0-6/0-6 score is how a walkover is recorded — but only when the match
+  // was never actually scheduled. The same score on a match that has a real
+  // location/date/time is a legitimately played (if lopsided) result, not a
+  // withdrawal.
+  const wasScheduled = Boolean(match.location?.trim()) && Boolean(match.date?.trim()) && Boolean(match.time?.trim());
+  if (wasScheduled) return { team1: false, team2: false };
+
   const s1t1 = parseScore(match.set1ScoreTeam1);
   const s1t2 = parseScore(match.set1ScoreTeam2);
   const s2t1 = parseScore(match.set2ScoreTeam1);
@@ -83,7 +91,7 @@ function rankBadgeClass(isLoser: boolean): string {
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 
-const LOSER_TEXT = "text-[var(--color-text-tertiary)]";
+const LOSER_TEXT = "text-[var(--color-text-tertiary)] opacity-70";
 const WINNER_TEXT = "text-[var(--color-text-primary)]";
 
 const CARD_CLASS =
@@ -341,6 +349,29 @@ function TimeIcon() {
   );
 }
 
+// ─── Weather icon (Open-Meteo WMO weather codes, day/night-aware emoji) ────────
+
+function weatherEmoji(code: number, isDay: boolean): string {
+  if (code === 0) return isDay ? "🌞" : "🌛";
+  if (code === 1) return isDay ? "🌤️" : "🌛";
+  if (code === 2) return isDay ? "⛅" : "☁️";
+  if (code === 3) return "☁️";
+  if (code === 45 || code === 48) return "🌫️";
+  if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "☔";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "⛄";
+  if ([95, 96, 99].includes(code)) return "⛈️";
+  return "☁️";
+}
+
+function WeatherIcon({ code, isDay }: { code: number; isDay: boolean }) {
+  return (
+    <span className="text-base leading-none" aria-hidden>
+      {weatherEmoji(code, isDay)}
+    </span>
+  );
+}
+
 // ─── MatchCard ────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -349,6 +380,9 @@ type Props = {
   team2GlobalRank?: number | null;
   fillHeight?: boolean;
   omitCategoryInHeader?: boolean;
+  hideFooter?: boolean;
+  /** Prefixes the header with the match's tournament year and shows category as "group – tier" (e.g. "2026 · 남자 복식 – 은배 · PRE#C3"). */
+  showYear?: boolean;
 };
 
 export function MatchCard({
@@ -357,9 +391,12 @@ export function MatchCard({
   team2GlobalRank,
   fillHeight = false,
   omitCategoryInHeader = false,
+  hideFooter = false,
+  showYear = false,
 }: Props) {
   const { t, locale } = useLocale();
   const mUi = t.matchUi;
+  const weather = useMatchWeather(match.date, match.time);
 
   const isCancelled = /^cancell?ed$/i.test(match.matchStatus?.trim() ?? "");
 
@@ -385,8 +422,9 @@ export function MatchCard({
   const team1Name = getLocalizedTeamName(match, 1, locale);
   const team2Name = getLocalizedTeamName(match, 2, locale);
 
-  const categoryPart =
-    locale === "ko"
+  const categoryPart = showYear
+    ? match.categoryId
+    : locale === "ko"
       ? (match.categoryDisplayLabelKo ?? match.categoryDisplayLabel ?? match.categoryId)
       : (match.categoryDisplayLabel ?? match.categoryId);
   const roundPart = match.round?.code ?? "—";
@@ -405,7 +443,9 @@ export function MatchCard({
   const roundWithIdentifier = matchIdentifier ? `${roundPart}${matchIdentifier}` : roundPart;
   const headerLine = omitCategoryInHeader
     ? roundWithIdentifier
-    : [categoryPart, roundWithIdentifier].filter(Boolean).join(" · ");
+    : showYear
+      ? [String(match.tournamentYear), categoryPart, roundWithIdentifier].filter(Boolean).join(" · ")
+      : [categoryPart, roundWithIdentifier].filter(Boolean).join(" · ");
 
   const displayLocation = match.location?.trim() || null;
   const displayDate = formatDateDisplay(match.date ?? null, locale);
@@ -478,11 +518,18 @@ export function MatchCard({
         ))}
       </div>
 
-      {(displayLocation || displayDate || displayTime) ? (
+      {!hideFooter && (displayLocation || displayDate || displayTime) ? (
         <div className={FOOTER_CLASS}>
           <Label icon={<LocationIcon />} value={displayLocation} truncate className="min-w-0" />
           <Label icon={<DateIcon />} value={displayDate} className="shrink-0" />
           <Label icon={<TimeIcon />} value={displayTime} className="shrink-0" />
+          {weather && (
+            <Label
+              icon={<WeatherIcon code={weather.code} isDay={weather.isDay} />}
+              value={`${Math.round(weather.tempC)}°C`}
+              className="shrink-0"
+            />
+          )}
         </div>
       ) : null}
     </article>

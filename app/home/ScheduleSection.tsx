@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { TournamentCalendar } from "@/app/components/TournamentCalendar";
 import { MatchCard } from "@/app/components/MatchCard";
+import { TextLink } from "@/app/components/ui/TextLink";
 import { useLocale } from "@/lib/locale-context";
 import type { Match } from "@/lib/matches";
 
@@ -12,6 +13,7 @@ type ScheduleSectionProps = {
 };
 
 const INNER_CARD = "flex min-h-0 flex-1 flex-col rounded-xl bg-[var(--section-bg)] p-[var(--calendar-card-padding)] text-[var(--foreground-on-light)] shadow-sm";
+const PANEL_CLASS = "flex min-w-0 w-full flex-1 flex-col gap-[var(--element-gap)] rounded-2xl p-[var(--content-gap)]";
 
 export function ScheduleSection({ todayMatches }: ScheduleSectionProps) {
   const { t } = useLocale();
@@ -19,26 +21,14 @@ export function ScheduleSection({ todayMatches }: ScheduleSectionProps) {
   const scheduleHref = hp.hero.navLinks.find((l) => /\/schedule$/.test(l.href))?.href ?? hp.hero.navLinks[0].href;
 
   return (
-    <div className="py-[var(--layout-gap)]">
+    <div className="w-full py-[var(--layout-gap)]">
       <div className="page-shell">
         <div className="flex flex-col gap-[var(--section-gap)] md:flex-row md:items-stretch md:gap-[var(--content-gap)]">
 
-          <div className="flex min-w-0 flex-1 flex-col gap-[var(--content-gap)] md:gap-[var(--section-gap)]">
-            <h2>{hp.sectionTitles.tournamentSchedules}</h2>
-            <div className={INNER_CARD}>
-              <TournamentCalendar />
-            </div>
-          </div>
-
-          <div className="flex min-w-0 w-full flex-1 flex-col gap-[var(--content-gap)] md:gap-[var(--section-gap)]">
+          <div className={`${PANEL_CLASS} bg-page-with-grid`}>
             <div className="flex items-center justify-between">
               <h2 className="m-0">{hp.sectionTitles.todaysMatches}</h2>
-              <Link
-                href={scheduleHref}
-                className="text-sm font-medium text-[var(--foreground-on-light)] hover:text-[var(--color-primary-blue)] transition-colors duration-150"
-              >
-                {hp.buttons.viewAll}
-              </Link>
+              <TextLink href={scheduleHref}>{hp.buttons.viewAll}</TextLink>
             </div>
             <div className="flex min-h-0 flex-1 flex-col text-[var(--foreground-on-light)]">
               {todayMatches.length === 0 ? (
@@ -61,6 +51,13 @@ export function ScheduleSection({ todayMatches }: ScheduleSectionProps) {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className={`${PANEL_CLASS} bg-home-zebra-with-grid`}>
+            <h2 className="m-0">{hp.sectionTitles.tournamentSchedules}</h2>
+            <div className={INNER_CARD}>
+              <TournamentCalendar />
             </div>
           </div>
 

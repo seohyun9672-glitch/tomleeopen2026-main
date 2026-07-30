@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useLocale } from "@/lib/locale-context";
 import { MatchCard } from "@/app/components/MatchCard";
 import { DatePicker } from "@/app/components/ui/DatePicker";
@@ -30,6 +31,25 @@ function ChevronRightIcon() {
 
 export function ScheduleHub({ allMatches }: Props) {
   const { t } = useLocale();
+  const router = useRouter();
+
+  // `allMatches` is a server prop (cached via `getAllMatches`'s "all-matches"
+  // tag) — a court booking elsewhere already revalidates that tag and this
+  // route, but an already-open tab has no way to know that happened until
+  // it re-fetches. Refreshing on tab-focus/visibility picks up the newly
+  // revalidated schedule without requiring a manual page reload.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") router.refresh();
+    }
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [router]);
+
   const todayStr = useMemo(() => getToday(), []);
 
   const calendarIndex = useMemo(() => getMatchCalendarIndex(allMatches), [allMatches]);
@@ -82,6 +102,7 @@ export function ScheduleHub({ allMatches }: Props) {
           value={selectedDate}
           onChange={(v) => setParam("date", v || defaultDate)}
           enabledDates={enabledDates}
+          clearable={false}
           placeholder={t.schedulePage.selectDatePlaceholder}
           aria-label={t.schedulePage.chooseDateAria}
           aria-label-dialog={t.schedulePage.calendarDialogAria}

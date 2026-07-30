@@ -7,6 +7,7 @@ import type { CategoryRecord } from "@/lib/categories";
 import { displayName } from "@/lib/names";
 import { REGISTRATION_STATUSES, registrationStatusLabel, registrationStatusChipClass } from "@/lib/registration";
 import { fuzzyScore } from "@/lib/fuzzySearch";
+import { matchStatusLabel, matchStatusChipClass } from "@/lib/matches";
 
 // ─── Shared fields ────────────────────────────────────────────────────────────
 
@@ -166,6 +167,34 @@ export function adminUserFields(t: Messages): FieldConfig[] {
   ];
 }
 
+// ─── Media (Articles/Videos/Photos) ────────────────────────────────────────────
+
+export function mediaFields(t: Messages, categories: CategoryRecord[]): FieldConfig[] {
+  const m = t.adminPage.media;
+  return [
+    { key: "title", label: m.fields.title, type: "text", required: true },
+    { key: "titleKo", label: m.fields.titleKo, type: "text" },
+    { key: "subtitle", label: m.fields.subtitle, type: "textarea", rows: 2 },
+    { key: "subtitleKo", label: m.fields.subtitleKo, type: "textarea", rows: 2 },
+    { key: "image", label: m.fields.image, type: "text", placeholder: "https://…" },
+    { key: "media", label: m.fields.media, type: "text", placeholder: "https://…" },
+    { key: "outlet", label: m.fields.outlet, type: "text" },
+    { key: "outletKo", label: m.fields.outletKo, type: "text" },
+    { key: "date", label: m.fields.date, type: "text", placeholder: "YYYY-MM-DD" },
+    {
+      key: "categoryId",
+      label: m.fields.category,
+      type: "select",
+      options: [
+        { value: "", label: m.fields.noCategory },
+        ...categories.map((c) => ({ value: c.id, label: c.label })),
+      ],
+    },
+    { key: "sortOrder", label: m.fields.sortOrder, type: "number" },
+    { key: "tournamentYear", label: m.fields.tournamentYear, type: "number" },
+  ];
+}
+
 // ─── Category ─────────────────────────────────────────────────────────────────
 
 export function categoryFields(t: Messages, locale: "en" | "ko", year?: number): FieldConfig[] {
@@ -235,12 +264,23 @@ export function matchFields(
   locationOptions: string[],
   team1Label: string,
   team2Label: string,
+  ballOptions: { value: string; label: string }[],
+  locale: "en" | "ko",
 ): FieldConfig[] {
   const mo = t.adminPage.matches.modal;
-  const ballOptions = [...team1Label.split(" / "), ...team2Label.split(" / ")].filter(Boolean);
-  const isCancelledDisabled = (v: Record<string, string | string[] | null | undefined>) => v.isCancelled === "true";
+  const isCancelledDisabled = (v: Record<string, string | string[] | null | undefined>) => v.matchStatus === "Cancelled";
   return [
-    { key: "isCancelled", label: mo.cancelled ?? "Cancelled", type: "checkbox" },
+    {
+      key: "matchStatus",
+      label: mo.status ?? "Status",
+      type: "select",
+      withChips: true,
+      options: (["Pending", "Scheduled", "Completed", "Cancelled"] as const).map((s) => ({
+        value: s,
+        label: matchStatusLabel(s, locale),
+        chipClassName: matchStatusChipClass(s),
+      })),
+    },
     { key: "date", label: mo.date, type: "datepicker", disabledWhen: isCancelledDisabled },
     { key: "time", label: mo.time, type: "timepicker", disabledWhen: isCancelledDisabled },
     {
@@ -274,7 +314,7 @@ export function matchFields(
       type: "select",
       disabledWhen: isCancelledDisabled,
       placeholder: "Select a player",
-      options: ballOptions.map((n) => ({ value: n, label: n })),
+      options: ballOptions,
     },
     { key: "comment", label: mo.comment, type: "textarea", rows: 2 },
   ];

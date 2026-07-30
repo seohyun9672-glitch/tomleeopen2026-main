@@ -11,7 +11,6 @@ import {
   NavDropdown,
   type HeaderNavItem,
   isHeaderNavGroup,
-  isHeaderNavLeaf,
   isNavRouteActive,
 } from "@/app/components/topheader/NavDropdown";
 import { MobileMenu } from "@/app/components/topheader/MobileMenu";
@@ -92,19 +91,10 @@ export function TopHeader() {
     return menu.nav as HeaderNavItem[];
   }, [locale]);
 
-  const { tournamentGroup, leafItems} = useMemo(() => {
-    const first = navItems[0];
-    if (first && isHeaderNavGroup(first)) {
-      return {
-        tournamentGroup: first,
-        leafItems: navItems.slice(1).filter(isHeaderNavLeaf),
-      };
-    }
-    return {
-      tournamentGroup: null as null,
-      leafItems: navItems.filter(isHeaderNavLeaf),
-    };
-  }, [navItems]);
+  // The dropdown group can appear anywhere in `navItems` (menu.ts controls the
+  // order) — find it by type rather than assuming it's first, and render the
+  // desktop nav by iterating `navItems` in order so its position is honored.
+  const tournamentGroup = useMemo(() => navItems.find(isHeaderNavGroup) ?? null, [navItems]);
 
   const tournamentActive = useMemo(
     () => !!tournamentGroup?.children.some((child) => isNavRouteActive(pathname, child.href)),
@@ -164,13 +154,14 @@ export function TopHeader() {
         <div className="w-full overflow-x-clip">
           <div
             ref={headerBarRef}
-            className="relative z-[111] mx-auto flex h-14 w-full max-w-[var(--container-max-w)] items-center justify-between gap-[var(--element-gap)] bg-[var(--header-bg)] px-[var(--page-inline-padding)] sm:gap-[var(--content-gap)]"
+            className="relative z-[111] mx-auto flex h-[var(--header-height)] w-full max-w-[var(--container-max-w)] items-center justify-between gap-[var(--element-gap)] bg-[var(--header-bg)] px-[var(--page-inline-padding)] sm:gap-[var(--content-gap)]"
           >
             <div className="flex min-w-0 flex-1 items-center gap-1 lg:gap-1.5">
               <Link
                 href={localePrefix || "/"}
                 className="site-logo site-logo--footer"
                 aria-label="Tomlee Open — Home"
+                onClick={closeMenu}
               >
                 <img src="/logo.svg" alt="Tomlee Open" className="site-logo__img" />
               </Link>
@@ -205,30 +196,31 @@ export function TopHeader() {
 
             {/* Desktop nav */}
             <nav className="hidden shrink-0 items-center gap-[var(--element-gap)] lg:flex">
-              {tournamentGroup && (
-                <div className="relative shrink-0" ref={tournamentRef}>
+              {navItems.map((item) =>
+                isHeaderNavGroup(item) ? (
+                  <div key="nav-group" className="relative shrink-0" ref={tournamentRef}>
+                    <NavItem
+                      label={item.label}
+                      isActive={tournamentActive}
+                      buttonRef={tournamentButtonRef}
+                      onClick={toggleTournament}
+                      aria-expanded={tournamentOpen}
+                      aria-haspopup="menu"
+                      aria-label={t.header.tournamentMenu}
+                    >
+                      <span className="ml-1 text-[0.9em] opacity-80" aria-hidden>▾</span>
+                    </NavItem>
+                  </div>
+                ) : (
                   <NavItem
-                    label={tournamentGroup.label}
-                    isActive={tournamentActive}
-                    buttonRef={tournamentButtonRef}
-                    onClick={toggleTournament}
-                    aria-expanded={tournamentOpen}
-                    aria-haspopup="menu"
-                    aria-label={t.header.tournamentMenu}
-                  >
-                    <span className="ml-1 text-[0.9em] opacity-80" aria-hidden>▾</span>
-                  </NavItem>
-                </div>
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    isActive={isNavRouteActive(pathname, item.href)}
+                    className="shrink-0"
+                  />
+                )
               )}
-              {leafItems.map((item) => (
-                <NavItem
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  isActive={isNavRouteActive(pathname, item.href)}
-                  className="shrink-0"
-                />
-              ))}
             </nav>
           </div>
         </div>

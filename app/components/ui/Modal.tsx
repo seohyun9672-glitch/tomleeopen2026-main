@@ -36,6 +36,8 @@ export type ModalProps = {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;
+  /** Secondary line rendered under the title in the header (e.g. court/date/time context). */
+  description?: ReactNode;
   children: ReactNode;
   /** Primary (right) footer action. When provided, the footer renders. */
   primaryAction?: ModalAction;
@@ -54,6 +56,7 @@ export function Modal({
   open,
   onClose,
   title,
+  description,
   children,
   primaryAction,
   secondaryAction,
@@ -88,8 +91,15 @@ export function Modal({
         aria-modal="true"
       >
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between gap-4 px-6 pt-5 pb-4">
-          {title ? <h2 className="text-h2">{title}</h2> : <span />}
+        <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-5 pb-4">
+          {title ? (
+            <div className="flex flex-col gap-1 min-w-0">
+              <h2 className="text-h2">{title}</h2>
+              {description && (
+                <p className="text-sm text-[var(--color-text-secondary)]">{description}</p>
+              )}
+            </div>
+          ) : <span />}
           <div className="flex items-center gap-1 shrink-0">
             {onDestructive && (
               <IconButton

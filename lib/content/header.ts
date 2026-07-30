@@ -8,8 +8,8 @@ export const header = {
       openMenu: "Open menu",
       tournamentMenu: "Tournament menu",
       language: {
-        en: "English",
-        ko: "한국어",
+        en: "EN",
+        ko: "KO",
         toggle: "Language",
       },
     },
@@ -18,13 +18,13 @@ export const header = {
     header: {
       siteName: "탐리 오픈",
       registerButton: "등록하기",
-      register: "등록하기",
+      register: "참가 등록",
       closeMenu: "메뉴 닫기",
       openMenu: "메뉴 열기",
       tournamentMenu: "대회 메뉴",
       language: {
-        en: "English",
-        ko: "한국어",
+        en: "EN",
+        ko: "KO",
         toggle: "언어",
       },
     },

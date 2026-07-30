@@ -7,6 +7,10 @@ export type TeamRecord = {
   tournamentYear: number;
   categoryId: string;
   seed: string | null;
+  withdrawn: boolean;
+  tiebreakOverride: number | null;
+  member1PlayerId: number;
+  member2PlayerId: number | null;
   member1NameEn: string;
   member1NameKo: string | null;
   member2NameEn: string | null;
@@ -21,6 +25,10 @@ export const getAllTeams = unstable_cache(
         tournamentYear: true,
         categoryId: true,
         seed: true,
+        withdrawn: true,
+        tiebreakOverride: true,
+        member1PlayerId: true,
+        member2PlayerId: true,
         member1: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
         member2: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
       },
@@ -32,6 +40,10 @@ export const getAllTeams = unstable_cache(
         tournamentYear: t.tournamentYear,
         categoryId: t.categoryId,
         seed: t.seed?.trim() || null,
+        withdrawn: t.withdrawn,
+        tiebreakOverride: t.tiebreakOverride,
+        member1PlayerId: t.member1PlayerId,
+        member2PlayerId: t.member2PlayerId,
         member1NameEn: m1.fullNameEn.trim() || m1.fullNameKo?.trim() || "",
         member1NameKo: m1.fullNameKo?.trim() || null,
         member2NameEn: m2?.fullNameEn.trim() || m2?.fullNameKo?.trim() || null,

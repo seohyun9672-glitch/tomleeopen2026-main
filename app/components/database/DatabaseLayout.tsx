@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useState, type ReactNode } from "react";
+import { Search, X } from "lucide-react";
+import { cn, getToday, getYear } from "@/lib/utils";
 import { useLocale } from "@/lib/locale-context";
 import {
   Filter,
@@ -11,13 +12,30 @@ import {
   SeedFilter,
   ClubFilter,
   StatusFilter,
+  type FilterControlKind,
 } from "./Filters";
 import { SearchBox } from "@/app/components/ui/SearchBox";
 import { DatePicker } from "@/app/components/ui/DatePicker";
+import { Tabs, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { CardView } from "./CardView";
 import { TableView } from "@/app/components/ui/table/Table";
 import type { TableViewConfig } from "@/app/components/ui/table/Table";
 import { useUrlParams } from "@/lib/hooks/useUrlParams";
+
+/**
+ * The same "no results" chrome DatabaseLayout falls back to automatically —
+ * exported so a hub using the `children` render-prop path (which owns its
+ * own filtering, e.g. status tabs layered on top of the managed filters)
+ * can render a matching empty state when *its* narrowing yields zero rows,
+ * instead of that case silently rendering nothing.
+ */
+export function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-[color:var(--color-border-ui-strong)] p-8 text-center text-sm text-[var(--color-text-tertiary)]">
+      {text}
+    </div>
+  );
+}
 
 // ─── Caller-managed filter config types ───────────────────────────────────────
 // Hub passes current value + onChange; hub owns the URL param state.
@@ -27,6 +45,10 @@ export type DateFilterConfig = {
   value: string;
   onChange: (v: string) => void;
   enabledDates?: Set<string>;
+  /** When no date is picked yet, the calendar opens to this ISO date (e.g.
+   * the most recent enabled date within a sibling "year" filter's current
+   * value) instead of today. */
+  defaultViewDate?: string;
 };
 
 export type YearFilterConfig = {
@@ -40,9 +62,14 @@ export type YearFilterConfig = {
 export type CategoryFilterConfig = {
   type: "category";
   value: string;
-  options: { id: string; label: string; labelKo?: string | null }[];
+  /** `group`/`groupKo` render a section header above consecutive options sharing that group, in place of a flat list. */
+  options: { id: string; label: string; labelKo?: string | null; group?: string; groupKo?: string | null }[];
   onChange: (v: string) => void;
   allLabel?: string;
+  /** Accessible label override — defaults to "Category". Pass a tier label when reusing this filter shape for a tier dropdown. */
+  label?: ReactNode;
+  /** Sizing override — defaults to "category" (stretches). Pass "round" to hug content width instead. */
+  control?: FilterControlKind;
 };
 
 export type SeedFilterConfig = {
@@ -77,6 +104,7 @@ export type ClubFilterConfig = {
   onChange: (values: string[]) => void;
   placeholder?: string;
   singleSelect?: boolean;
+  unitLabel?: string;
 };
 
 export type StatusFilterConfig = {
@@ -128,6 +156,14 @@ export type ManagedDateFilterConfig<T> = {
   enabledDates?: Set<string>;
   /** Fallback when the URL param is absent. Receives the full dataset. */
   defaultValue?: (data: T[]) => string;
+  /**
+   * Extracts an item's date, used only to pick which year/month the calendar
+   * opens to when nothing's selected yet (see `defaultViewDate` below) — not
+   * a selectability constraint like `enabledDates`. Needed whenever
+   * `enabledDates` isn't provided, since otherwise there's nothing to derive
+   * "most recent date for the selected year" from.
+   */
+  dateAccessor?: (item: T) => string | null | undefined;
   apply: (items: T[], date: string) => T[];
 };
 
@@ -153,8 +189,8 @@ export type ManagedCategoryFilterConfig<T> = {
    * by earlier filters in the array (e.g. year-filtered matches → available categories).
    */
   options:
-    | { id: string; label: string; labelKo?: string | null }[]
-    | ((prevItems: T[]) => { id: string; label: string; labelKo?: string | null }[]);
+    | { id: string; label: string; labelKo?: string | null; group?: string; groupKo?: string | null }[]
+    | ((prevItems: T[]) => { id: string; label: string; labelKo?: string | null; group?: string; groupKo?: string | null }[]);
   apply: (items: T[], categoryId: string) => T[];
   /**
    * When true, if the current URL value is absent or not in the option list,
@@ -164,6 +200,10 @@ export type ManagedCategoryFilterConfig<T> = {
   allLabel?: string;
   /** Additional params to clear when this filter changes. */
   clearParams?: string[];
+  /** Accessible label override — defaults to "Category". Pass a tier label when reusing this filter shape for a tier dropdown. */
+  label?: ReactNode;
+  /** Sizing override — defaults to "category" (stretches). Pass "round" to hug content width instead. */
+  control?: FilterControlKind;
 };
 
 export type ManagedSearchFilterConfig<T> = {
@@ -216,6 +256,8 @@ export type ManagedClubFilterConfig<T> = {
   /** Receives the decoded string array (comma-separated in URL). */
   apply: (items: T[], selected: string[]) => T[];
   placeholder?: string;
+  unitLabel?: string;
+  singleSelect?: boolean;
 };
 
 export type ManagedFilterConfig<T> =
@@ -228,13 +270,32 @@ export type ManagedFilterConfig<T> =
   | ManagedClubFilterConfig<T>
   | ManagedStatusFilterConfig<T>;
 
+// ─── Sort — a distinct concept from filters: it reorders rather than narrows ──
+
+export type SortOption = { value: string; label: string };
+
+/**
+ * "Pick one of N" sort control, rendered via `Tabs` on its own row above
+ * the filter bar. Deliberately not a `ManagedFilterConfig` variant —
+ * sorting reorders `items`, it never removes any, and it isn't
+ * user-narrowing in the way a filter is.
+ */
+export type ManagedSortConfig<T> = {
+  /** URL search param key. Defaults to "sort". */
+  param?: string;
+  options: SortOption[];
+  /** Falls back to `options[0].value` when the URL param is absent/invalid. */
+  defaultValue?: string;
+  apply: (items: T[], value: string) => T[];
+};
+
 // ─── View config types ─────────────────────────────────────────────────────────
 
 export type CardViewConfig<T> = {
   type: "card";
   items: T[];
   getKey: (item: T) => string | number;
-  renderItem: (item: T) => ReactNode;
+  renderItem: (item: T, index: number) => ReactNode;
   groupBy?: (item: T) => string;
   renderGroupHeader?: (key: string) => ReactNode;
   gridClass?: string;
@@ -256,6 +317,8 @@ type SharedProps = {
   loading?: boolean;
   /** When provided, renders "Total N {label}" below the table. Pass [singular, plural] for correct inflection. */
   rowCountLabel?: string | [string, string];
+  /** Always shows the search box (no collapsible search-icon toggle). */
+  searchAlwaysOpen?: boolean;
 };
 
 // Caller-managed mode: hub owns filter state, passes pre-filtered data via view.items.
@@ -279,6 +342,8 @@ type CallerManagedChildren = SharedProps & {
 type ManagedView<T> = SharedProps & {
   data: T[];
   managedFilters?: ManagedFilterConfig<T>[];
+  /** Sort control, rendered via `Tabs` on its own row above the filter bar. */
+  sort?: ManagedSortConfig<T>;
   isEmpty?: never;
   filters?: never;
   /** Card layout (fields match CardViewConfig minus items) or table layout. */
@@ -288,10 +353,12 @@ type ManagedView<T> = SharedProps & {
 type ManagedChildren<T> = SharedProps & {
   data: T[];
   managedFilters?: ManagedFilterConfig<T>[];
+  /** Sort control, rendered via `Tabs` on its own row above the filter bar. */
+  sort?: ManagedSortConfig<T>;
   isEmpty?: never;
   filters?: never;
   view?: never;
-  /** Receives the filtered dataset; can render any custom layout. */
+  /** Receives the filtered (and sorted, if `sort` is set) dataset; can render any custom layout. */
   children: (filteredData: T[]) => ReactNode;
 };
 
@@ -315,12 +382,13 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
             value={config.value}
             onChange={config.onChange}
             enabledDates={config.enabledDates}
+            defaultViewDate={config.defaultViewDate}
             placeholder={t.schedulePage.selectDatePlaceholder}
             aria-label={t.schedulePage.chooseDateAria}
             aria-label-dialog={t.schedulePage.calendarDialogAria}
             aria-label-prev={t.schedulePage.previousMonth}
             aria-label-next={t.schedulePage.nextMonth}
-            className="w-full md:w-fit"
+            className="w-full"
           />
         </Filter>
       );
@@ -342,9 +410,12 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
           options={config.options.map((o) => ({
             id: o.id,
             label: locale === "ko" ? o.labelKo || o.label : o.label,
+            group: o.group != null ? (locale === "ko" ? o.groupKo || o.group : o.group) : undefined,
           }))}
           onChange={config.onChange}
           allLabel={config.allLabel}
+          label={config.label}
+          control={config.control}
         />
       );
     case "seed":
@@ -389,6 +460,7 @@ function FilterSlot({ config, id }: { config: FilterConfig; id: string }) {
           onChange={config.onChange}
           placeholder={config.placeholder}
           singleSelect={config.singleSelect}
+          unitLabel={config.unitLabel}
         />
       );
     case "status":
@@ -441,11 +513,43 @@ function computeManaged<T>(
     if (f.type === "date") {
       const value = raw || f.defaultValue?.(data) || "";
       resolvedValues[f.param] = value;
+      // A sibling year filter (default param "year") resolves earlier in this
+      // loop when it's listed first — point the calendar at that year until
+      // an actual date is picked, instead of defaulting to today's year. Land
+      // on the most recent enabled date within that year (not Jan 1), so the
+      // calendar opens where the actual matches are.
+      const yearRaw = resolvedValues["year"];
+      let defaultViewDate: string | undefined;
+      if (yearRaw) {
+        // Prefer enabledDates (already the definitive selectable set); fall
+        // back to scanning the year-scoped items (via dateAccessor) when no
+        // enabledDates was given, so this still works for date filters that
+        // don't restrict which days are pickable.
+        const datesInYear = f.enabledDates
+          ? [...f.enabledDates].filter((d) => d.startsWith(yearRaw)).sort()
+          : f.dateAccessor
+            ? items.map((it) => f.dateAccessor!(it)).filter((d): d is string => !!d && d.startsWith(yearRaw)).sort()
+            : [];
+        if (datesInYear.length === 0) {
+          defaultViewDate = `${yearRaw}-01-01`;
+        } else if (yearRaw === String(getYear())) {
+          // Current year: land on whichever enabled date is closest to today
+          // (could be before or after), not just the latest one — "most
+          // recent" only makes sense as "latest" for a past year.
+          const today = getToday();
+          defaultViewDate = datesInYear.reduce((closest, d) =>
+            Math.abs(Date.parse(d) - Date.parse(today)) < Math.abs(Date.parse(closest) - Date.parse(today)) ? d : closest
+          );
+        } else {
+          defaultViewDate = datesInYear[datesInYear.length - 1];
+        }
+      }
       displayConfigs.push({
         type: "date",
         value,
         onChange: (v) => set(f.param, v),
         enabledDates: f.enabledDates,
+        defaultViewDate,
       });
       if (value) items = f.apply(items, value);
 
@@ -481,6 +585,8 @@ function computeManaged<T>(
         options: opts,
         onChange: (v) => set(f.param, v, { clear: f.clearParams }),
         allLabel: f.allLabel,
+        label: f.label,
+        control: f.control,
       });
       if (value) items = f.apply(items, value);
 
@@ -543,6 +649,8 @@ function computeManaged<T>(
         options: f.options,
         onChange: (values) => set(f.param, values.join(",")),
         placeholder: f.placeholder,
+        unitLabel: f.unitLabel,
+        singleSelect: f.singleSelect,
       });
       items = f.apply(items, selected);
     }
@@ -563,7 +671,15 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
 
   const managedFilters = resolveFilterParams(rawFilters);
 
-  const [urlValues, setUrlValue] = useUrlParams(managedFilters.map((f) => f.param));
+  // Sort is a distinct concept from filters (it reorders `items`, never
+  // narrows them), so it isn't part of `managedFilters` — but it shares the
+  // same URL-param mechanism and renders in the same filter-bar row.
+  const managedSort = isManaged ? (props as ManagedView<T> | ManagedChildren<T>).sort : undefined;
+  const sortParamName = managedSort?.param ?? "sort";
+
+  const [urlValues, setUrlValue] = useUrlParams(
+    managedSort ? [...managedFilters.map((f) => f.param), sortParamName] : managedFilters.map((f) => f.param),
+  );
 
   // Compute filtered items + display configs for managed mode.
   // Computed fresh each render — managedFilters are stable in practice.
@@ -575,6 +691,12 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
         setUrlValue,
       )
     : null;
+
+  const sortValue = managedSort
+    ? (managedSort.options.some((o) => o.value === urlValues[sortParamName])
+        ? urlValues[sortParamName]
+        : (managedSort.defaultValue ?? managedSort.options[0]?.value ?? ""))
+    : undefined;
 
   // Sync auto-corrected values (e.g. category autoSelect) back to the URL.
   const resolvedStr = managed ? JSON.stringify(managed.resolvedValues) : null;
@@ -588,19 +710,46 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
     }
   }, [resolvedStr, urlStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { emptyText, className, contentClassName, loading, rowCountLabel } = props;
+  const { emptyText, className, contentClassName, loading, rowCountLabel, searchAlwaysOpen } = props;
 
   const activeFilters = managed
     ? managed.displayConfigs
     : ((props as CallerManagedView<T> | CallerManagedChildren).filters ?? []);
-  const hasFilters = activeFilters.length > 0;
+
+  const searchConfig = activeFilters.find(
+    (c): c is SearchFilterConfig => c.type === "search",
+  );
+  const nonSearchFilters = activeFilters.filter((c) => c.type !== "search");
+
+  const [searchOpen, setSearchOpen] = useState(() => !!searchAlwaysOpen || !!searchConfig?.value);
+  useEffect(() => {
+    if (searchConfig?.value) setSearchOpen(true);
+  }, [searchConfig?.value]);
+
+  const hasSortRow = !!managedSort && sortValue !== undefined;
+  const hasFilterRow = nonSearchFilters.length > 0 || (!!searchConfig && !searchAlwaysOpen);
+  // On mobile the search field collapses behind a toggle button (visible
+  // only when `searchOpen`); on desktop it's always shown inline — there's
+  // no toggle there — so the field itself always has DOM presence whenever
+  // a search config exists, with `searchVisible` only controlling the
+  // mobile CSS show/hide, not whether it renders at all.
+  const searchVisible = !!searchConfig && (searchOpen || !!searchAlwaysOpen);
+  const hasFilters = hasSortRow || hasFilterRow || !!searchConfig;
 
   const content = (() => {
     if (managed) {
-      const filteredItems = managed.filteredItems as T[];
+      const filteredItems = managedSort
+        ? managedSort.apply(managed.filteredItems as T[], sortValue!)
+        : (managed.filteredItems as T[]);
       const p = props as ManagedView<T> | ManagedChildren<T>;
-      if (filteredItems.length === 0) return loading ? null : <EmptyState text={emptyText ?? ""} />;
+      // Only short-circuit to the generic empty state for the `view` path —
+      // the `children` render-prop path is used specifically so a hub can
+      // render its own chrome (e.g. status tabs) around the result set, and
+      // that chrome (plus a hub-local empty message) should stay visible
+      // even when the current filter combination has zero matches, instead
+      // of the whole tab silently disappearing.
       if ("view" in p && p.view) {
+        if (filteredItems.length === 0) return loading ? null : <EmptyState text={emptyText ?? ""} />;
         const v = p.view;
         if ("type" in v && v.type === "table") {
           return <TableView<T> items={filteredItems} {...v} />;
@@ -651,30 +800,80 @@ export function DatabaseLayout<T = unknown>(props: DatabaseLayoutProps<T>) {
     return null;
   })();
 
-  function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-[color:var(--color-border-ui-strong)] p-8 text-center text-sm text-[var(--color-text-tertiary)]">
-      {text}
-    </div>
-  );
-}
-
-
   return (
     <div className={className}>
       {hasFilters && (
-        <div className="flex flex-wrap items-end gap-[var(--content-gap)]">
-          {activeFilters.map((config, i) => (
-            <FilterSlot key={i} config={config} id={`db-filter-${i}`} />
-          ))}
+        <div className="flex flex-col gap-2">
+
+          {hasSortRow && (
+            <Tabs value={sortValue!} onValueChange={(v) => setUrlValue(sortParamName, v)}>
+              <TabsList>
+                {managedSort!.options.map((o) => (
+                  <TabsTrigger key={o.value} value={o.value}>{o.label}</TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+          {(hasFilterRow || !!searchConfig) && (
+            <div className="flex flex-wrap items-start gap-2">
+              {nonSearchFilters.length > 0 && (
+                // Omitted entirely (not just left empty) when there's no
+                // filter group — an empty `flex-1` box here would still
+                // claim equal width alongside the search box below, pushing
+                // it to start at the row's midpoint instead of the left edge.
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  {nonSearchFilters.map((config, i) => (
+                    <FilterSlot key={i} config={config} id={`db-filter-${i}`} />
+                  ))}
+                </div>
+              )}
+              {searchConfig && !searchAlwaysOpen && (
+                <button
+                  type="button"
+                  aria-label={searchOpen ? t.shared.labels.closeSearch : t.shared.labels.search}
+                  aria-expanded={searchOpen}
+                  onClick={() => {
+                    const next = !searchOpen;
+                    setSearchOpen(next);
+                    if (!next) searchConfig.onChange("");
+                  }}
+                  // Desktop always shows the search field inline (below), so
+                  // this toggle only exists on mobile, where the field
+                  // collapses behind it to save space.
+                  className="sm:hidden flex h-[var(--button-height-medium)] w-[var(--button-height-medium)] shrink-0 items-center justify-center rounded-lg border border-[color:var(--input-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                >
+                  {searchOpen ? <X className="size-4" aria-hidden /> : <Search className="size-4" aria-hidden />}
+                </button>
+              )}
+              {searchConfig && (
+                // Always rendered (not conditional on `searchVisible`) so
+                // it always has DOM presence — a sibling of the filters
+                // wrapper, not nested inside its flex-1 box, otherwise its
+                // "100%" width is 100% of (row width minus the toggle
+                // button's reserved space), not the full row, once it wraps
+                // onto its own line. `searchVisible` only controls the
+                // mobile show/hide; desktop (`sm:`) always shows it,
+                // regardless of the mobile-only open/closed state.
+                // `sm:flex-1` (matching the filters wrapper's own flex-1)
+                // splits the row evenly between the two instead of the
+                // component's own default `sm:max-w-[var(--filter-control-max-w)]`
+                // capping it to a fixed width — `sm:max-w-none` cancels that cap.
+                <SearchBox
+                  id="db-search"
+                  value={searchConfig.value}
+                  onChange={(e) => searchConfig.onChange(e.target.value)}
+                  className={cn(
+                    "w-full sm:max-w-none sm:w-auto sm:flex-1",
+                    !searchVisible && "hidden sm:block",
+                    searchConfig.className,
+                  )}
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
-      <div
-        className={cn(
-          hasFilters && "mt-[var(--content-gap)]",
-          contentClassName,
-        )}
-      >
+      <div className={cn(hasFilters && "mt-[var(--section-gap)]", contentClassName)}>
         {content}
       </div>
       {rowCountLabel && managed && (() => {

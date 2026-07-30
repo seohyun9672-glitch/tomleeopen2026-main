@@ -1,10 +1,12 @@
+import { menuLabelForHref } from "./menu";
+
 export const schedulePage = {
   en: {
     schedulePage: {
-      heroTitle: "Schedule",
-      chooseDateAria: "Choose date",
+      heroTitle: menuLabelForHref("/schedule", "en"),
+      chooseDateAria: "Date",
       calendarDialogAria: "Calendar",
-      selectDatePlaceholder: "Select date",
+      selectDatePlaceholder: "Date",
       previousMonth: "Previous month",
       nextMonth: "Next month",
       thisWeek: "This Week",
@@ -22,10 +24,10 @@ export const schedulePage = {
   },
   ko: {
     schedulePage: {
-      heroTitle: "일정",
-      chooseDateAria: "날짜 선택",
+      heroTitle: menuLabelForHref("/schedule", "ko"),
+      chooseDateAria: "날짜",
       calendarDialogAria: "달력",
-      selectDatePlaceholder: "날짜 선택",
+      selectDatePlaceholder: "날짜",
       previousMonth: "이전 달",
       nextMonth: "다음 달",
       thisWeek: "이번 주",

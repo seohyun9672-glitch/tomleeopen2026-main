@@ -3,6 +3,7 @@
 import React from "react";
 import {
   Popover,
+  useCloseOnScroll,
   useDismissOnOutsidePointerDown,
   usePopoverPlacement,
 } from "@/app/components/ui/Popover";
@@ -67,6 +68,7 @@ export function MultiSelect({
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const hiddenInputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
   const selectedIds = React.useMemo(() => selected.map((o) => o.id), [selected]);
   const selectedIdSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
   const filtered = React.useMemo(() => {
@@ -75,8 +77,9 @@ export function MultiSelect({
     return available.filter((o) => o.label.toLowerCase().includes(q));
   }, [available, search, searchable]);
   const groupedItems = React.useMemo(() => buildGroupedItems(filtered), [filtered]);
-  const { placement, maxHeight } = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
-  useDismissOnOutsidePointerDown(open, containerRef, () => setOpen(false));
+  const { placement, maxHeight, anchorRect } = usePopoverPlacement(open, triggerRef, MULTISELECT_DROPDOWN_MAX_PX);
+  useDismissOnOutsidePointerDown(open, [containerRef, popoverRef], () => setOpen(false));
+  useCloseOnScroll(open, [containerRef, popoverRef], () => setOpen(false));
 
   const toggleOption = React.useCallback(
     (optionId: string) => {
@@ -218,7 +221,7 @@ export function MultiSelect({
         )}
 
         {open && (
-          <Popover placement={placement} maxHeightPx={maxHeight}>
+          <Popover ref={popoverRef} placement={placement} maxHeightPx={maxHeight} anchorRect={anchorRect}>
             <ul ref={listRef} id={listId} role="listbox" aria-multiselectable="true">
               {filtered.length === 0 ? (
                 <li className="px-4 py-2 text-sm text-[var(--color-text-tertiary)]">{noMatchesText}</li>

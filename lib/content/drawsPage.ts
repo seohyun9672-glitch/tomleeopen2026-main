@@ -1,7 +1,9 @@
+import { menuLabelForHref } from "./menu";
+
 export const drawsPage = {
   en: {
     drawsPage: {
-      heroTitle: "Draws",
+      heroTitle: menuLabelForHref("/draws", "en"),
       tabs: {
         Draw: "Draws",
         Matches: "Matches",
@@ -34,6 +36,8 @@ export const drawsPage = {
         inProgress: "In progress",
         matchesWord: "matches",
         currentStage: "Current stage:",
+        progressHeading: "Progress",
+        standingsHeading: "Standings",
         prelimsLeaderboard: "Prelims leaderboard",
         prelimsMatches: "Prelims matches",
         noPrelimsMatches: "No prelims matches yet.",
@@ -41,11 +45,16 @@ export const drawsPage = {
         tablePlayers: "Players",
         tableW: "W",
         tableL: "L",
+        tableWL: "W-L",
+        tableWinPct: "Win%",
         tableSD: "SD",
         tableGD: "GD",
+        tiedPendingDraw: "Tied",
         finalScoreLabel: "Final score",
-        statsLegend: "W — Wins · L — Losses · SD — Set difference · GD — Game difference",
+        statsLegend: "Win% — Win percentage · W-L — Wins-Losses · SD — Set difference · GD — Game difference",
         allGroups: "All",
+        matchesProgress: (completed: number, total: number) => `${completed}/${total} matches played`,
+        advancingCount: (current: number, total: number) => `${total} advancing`,
         championsByCategory: "Champions by category",
         championsCategoryCol: "Category",
         championsChampionCol: "Champion",
@@ -59,7 +68,7 @@ export const drawsPage = {
   },
   ko: {
     drawsPage: {
-      heroTitle: "대진",
+      heroTitle: menuLabelForHref("/draws", "ko"),
       tabs: {
         Draw: "대진",
         Matches: "경기",
@@ -92,6 +101,8 @@ export const drawsPage = {
         inProgress: "진행 중",
         matchesWord: "경기",
         currentStage: "현재 단계:",
+        progressHeading: "진행 상황",
+        standingsHeading: "순위",
         prelimsLeaderboard: "예선 순위",
         prelimsMatches: "예선 경기",
         noPrelimsMatches: "예선 경기가 아직 없습니다.",
@@ -99,11 +110,16 @@ export const drawsPage = {
         tablePlayers: "선수",
         tableW: "승",
         tableL: "패",
+        tableWL: "승-패",
+        tableWinPct: "승률",
         tableSD: "세트차",
         tableGD: "게임차",
+        tiedPendingDraw: "동률",
         finalScoreLabel: "결승 스코어",
-        statsLegend: "승 — 승수 · 패 — 패수 · 세트차 — 세트 득실 · 게임차 — 게임 득실",
+        statsLegend: "승률 — 승률 · 승-패 — 승-패 · 세트차 — 세트 득실 · 게임차 — 게임 득실",
         allGroups: "전체",
+        matchesProgress: (completed: number, total: number) => `${completed}/${total}경기 완료`,
+        advancingCount: (current: number, total: number) => `총 ${total}명 진출`,
         championsByCategory: "부문별 우승",
         championsCategoryCol: "부문",
         championsChampionCol: "우승",

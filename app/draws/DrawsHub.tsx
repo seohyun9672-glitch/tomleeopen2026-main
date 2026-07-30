@@ -11,11 +11,11 @@ import {
   type ReactNode,
 } from "react";
 import { useUrlParam } from "@/lib/hooks/useUrlParam";
-import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
+import { buildCategoryByIdMap, deriveGroupedCategoryOptions } from "@/lib/categories";
 import type { CategoryRecord, CategoryYearStatusRow } from "@/lib/categories";
 import type { Match } from "@/lib/matches";
-import { isoDateLocal, matchStatusSortOrder, matchSeqNumber, formatDateDisplay } from "@/lib/matches";
-import { computePrelimStats, buildPrelimRankMap, type PrelimStats } from "@/lib/prelim";
+import { isoDateLocal, matchStatusSortOrder, matchSeqNumber, formatDateDisplay, isCancelledMatch } from "@/lib/matches";
+import { computePrelimStats, rankPrelimTeams, computeAdvancingRanks, computeExpectedAdvancingCount, type PrelimStats } from "@/lib/prelim";
 import { getYear } from "@/lib/utils";
 import type { TeamRecord } from "@/lib/teams";
 import { ROUND_PRE, ROUND_QF, ROUND_SF, ROUND_F, ELIMINATION_ROUND_ORDER } from "@/lib/round";
@@ -24,9 +24,13 @@ import { useLocale } from "@/lib/locale-context";
 import { DatabaseLayout, type FilterConfig } from "@/app/components/database";
 import { StageHeader } from "@/app/components/tree/StageHeader";
 import { MatchCard } from "@/app/components/MatchCard";
+import { Chip } from "@/app/components/ui/Chip";
+import { Divider } from "@/app/components/ui/Divider";
+import { ProgressBar } from "@/app/components/ui/ProgressBar";
 import { Table } from "@/app/components/ui/table/Table";
 import { getImportantDates } from "@/lib/importantDatesData";
 import { Tabs, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import { ArrowUp } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -122,15 +126,25 @@ function buildAvailableRounds(matches: Match[]): RoundInfo[] {
 
 function computeDefaultStageCode(
   availableRounds: RoundInfo[],
-  matches: Match[],
+  roundDateRanges: Map<string, { start: string | null; end: string | null }>,
   today: string,
 ): string {
-  let latest: string | null = null;
+  // Whichever round's date range today actually falls inside — e.g. today
+  // sitting in the prelim window defaults to prelim, in the SF window
+  // defaults to SF, etc.
   for (const { code } of availableRounds) {
-    const hasStarted = matches.some((m) => m.round?.code === code && m.date != null && m.date <= today);
-    if (hasStarted) latest = code;
+    const range = roundDateRanges.get(code);
+    if (range?.start && range.end && today >= range.start && today <= range.end) return code;
   }
-  return latest ?? availableRounds[0]?.code ?? ROUND_PRE;
+  // Today doesn't land inside any round's window (e.g. between two rounds,
+  // or past the last one) — fall back to the latest round whose window has
+  // already started.
+  let latestStarted: string | null = null;
+  for (const { code } of availableRounds) {
+    const range = roundDateRanges.get(code);
+    if (range?.start && range.start <= today) latestStarted = code;
+  }
+  return latestStarted ?? availableRounds[0]?.code ?? ROUND_PRE;
 }
 
 // ─── Round date ranges ─────────────────────────────────────────────────────────
@@ -236,9 +250,66 @@ function computeRoundDateRanges(
 
 // ─── Prelim stats ──────────────────────────────────────────────────────────────
 
+function prelimMatchesOf(matches: Match[]): Match[] {
+  return matches.filter((m) => m.round?.code === ROUND_PRE);
+}
+
 function computePrelimStatsFromMatches(matches: Match[]): Map<string, PrelimStats> {
-  const prelims = matches.filter((m) => m.round?.code === ROUND_PRE);
-  return computePrelimStats(prelims);
+  return computePrelimStats(prelimMatchesOf(matches));
+}
+
+/** True once every prelim match involving any of `ids` has a result (completed or cancelled).
+ * Standings — and especially a "tied, needs a draw" verdict — are only meaningful for seeding
+ * the next round once the group is actually finished; mid-tournament, an apparent tie can still
+ * be broken by matches that haven't been played yet. */
+function isGroupDecided(ids: string[], prelims: Match[]): boolean {
+  const idSet = new Set(ids);
+  const relevant = prelims.filter((m) => (m.team1Id != null && idSet.has(m.team1Id)) || (m.team2Id != null && idSet.has(m.team2Id)));
+  return relevant.length > 0 && relevant.every((m) => m.matchStatus === "Completed" || isCancelledMatch(m.matchStatus));
+}
+
+/** Ranks `ids` per the tie-break priority (win% → SD → SD-among-tied → GD → GD-among-tied → super TB → lots).
+ *
+ * While the group is still in progress, forcing a strict order via tie-break refinements that
+ * depend on matches not yet played would be misleading — teams tied on their current stats just
+ * share a rank number, same as any live standings table.
+ *
+ * Once the group is fully decided, the rank becomes what actually seeds the next round: teams
+ * are given a distinct, sequential rank UNLESS they're still tied after every real criterion
+ * (win% → SD → SD-among-tied → GD → GD-among-tied → super TB) — that's a genuine "drawing of
+ * lots" case, so those teams share a rank and get flagged via `tied` instead of an invented order. */
+function rankAndAssign<T extends { teamId: string }>(rows: T[], prelims: Match[], tiebreakOverrides?: Map<string, number>): (T & { rank: number; tied: boolean })[] {
+  const ids = rows.map((r) => r.teamId);
+  const rowById = new Map(rows.map((r) => [r.teamId, r]));
+
+  if (!isGroupDecided(ids, prelims)) {
+    const stats = computePrelimStats(prelims);
+    const statOf = (id: string) => stats.get(id) ?? { w: 0, l: 0, sd: 0, gd: 0, td: 0 };
+    const winPctOf = (id: string) => { const s = statOf(id); return s.w + s.l > 0 ? s.w / (s.w + s.l) : -1; };
+    const order = [...ids].sort((a, b) => {
+      const sa = statOf(a); const sb = statOf(b);
+      return winPctOf(b) - winPctOf(a) || sb.sd - sa.sd || sb.gd - sa.gd || sb.td - sa.td;
+    });
+    let currentRank = 0; let prevKey: string | null = null;
+    return order.map((teamId, i) => {
+      const s = statOf(teamId);
+      const key = `${winPctOf(teamId)}|${s.sd}|${s.gd}|${s.td}`;
+      if (prevKey !== key) currentRank = i + 1;
+      prevKey = key;
+      return { ...rowById.get(teamId)!, rank: currentRank, tied: false };
+    });
+  }
+
+  const { order, tiedGroups } = rankPrelimTeams(ids, prelims, tiebreakOverrides);
+  const tiedGroupOf = new Map<string, number>();
+  tiedGroups.forEach((g, gi) => g.forEach((id) => tiedGroupOf.set(id, gi)));
+  let currentRank = 0; let prevGroup: number | undefined;
+  return order.map((teamId, i) => {
+    const myGroup = tiedGroupOf.get(teamId);
+    if (myGroup === undefined || myGroup !== prevGroup) currentRank = i + 1;
+    prevGroup = myGroup;
+    return { ...rowById.get(teamId)!, rank: currentRank, tied: myGroup !== undefined };
+  });
 }
 
 
@@ -247,10 +318,11 @@ function computePrelimStatsFromMatches(matches: Match[]): Map<string, PrelimStat
 type LeaderboardRow = {
   rank: number; seed: string;
   player1: string; player2?: string; player1Ko?: string; player2Ko?: string;
-  w: number; l: number; sd: number; gd: number; teamId: string;
+  w: number; l: number; sd: number; gd: number; td: number; teamId: string; withdrawn: boolean;
+  tied: boolean;
 };
 
-type DisplayInfo = { seed: string; player1: string; player2?: string; player1Ko?: string; player2Ko?: string };
+type DisplayInfo = { seed: string; player1: string; player2?: string; player1Ko?: string; player2Ko?: string; withdrawn: boolean };
 
 function buildDisplayMapFromTeams(teams: TeamRecord[]): Map<string, DisplayInfo> {
   const map = new Map<string, DisplayInfo>();
@@ -261,6 +333,7 @@ function buildDisplayMapFromTeams(teams: TeamRecord[]): Map<string, DisplayInfo>
       player2: t.member2NameEn ?? undefined,
       player1Ko: t.member1NameKo ?? undefined,
       player2Ko: t.member2NameKo ?? undefined,
+      withdrawn: t.withdrawn,
     });
   }
   return map;
@@ -281,6 +354,7 @@ function buildDisplayMapFromMatches(prelims: Match[]): Map<string, DisplayInfo> 
           seed: (groupCode ?? "—").trim() || "—",
           player1: names[0] ?? "—", player2: names[1],
           player1Ko: namesKo[0], player2Ko: namesKo[1],
+          withdrawn: false,
         });
       } else {
         const info = map.get(teamId)!;
@@ -294,6 +368,7 @@ function buildDisplayMapFromMatches(prelims: Match[]): Map<string, DisplayInfo> 
 
 function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[]): LeaderboardRow[] | null {
   const statsMap = computePrelimStatsFromMatches(categoryMatches);
+  const prelims = prelimMatchesOf(categoryMatches);
 
   // Primary: use team records as the authoritative source (shows teams with 0 matches,
   // regardless of whether a seed has been assigned yet)
@@ -301,45 +376,23 @@ function buildLeaderboard(categoryMatches: Match[], categoryTeams: TeamRecord[])
     const displayMap = buildDisplayMapFromTeams(categoryTeams);
     const allRows = categoryTeams
       .filter((t) => displayMap.has(t.id))
-      .map((t) => ({ teamId: t.id, rank: 0, ...displayMap.get(t.id)!, ...(statsMap.get(t.id) ?? { w: 0, l: 0, sd: 0, gd: 0 }) }));
+      .map((t) => ({ teamId: t.id, ...displayMap.get(t.id)!, ...(statsMap.get(t.id) ?? { w: 0, l: 0, sd: 0, gd: 0, td: 0 }) }));
     if (allRows.length < 2) return null;
-    const sorted = [...allRows].sort((a, b) =>
-      b.w !== a.w ? b.w - a.w
-      : b.sd !== a.sd ? b.sd - a.sd
-      : b.gd !== a.gd ? b.gd - a.gd
-      : a.seed.localeCompare(b.seed) || a.player1.localeCompare(b.player1)
+    const overrides = new Map(
+      categoryTeams.filter((t): t is TeamRecord & { tiebreakOverride: number } => t.tiebreakOverride != null).map((t) => [t.id, t.tiebreakOverride])
     );
-    let currentRank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
-    return sorted.map((row, i) => {
-      if (!prev || row.w !== prev.w || row.sd !== prev.sd || row.gd !== prev.gd) {
-        currentRank = i + 1; prev = { w: row.w, sd: row.sd, gd: row.gd };
-      }
-      return { ...row, rank: currentRank };
-    });
+    return rankAndAssign(allRows, prelims, overrides);
   }
 
   // Fallback: derive from match data (legacy path when no team records have seeds)
-  const prelims = categoryMatches.filter((m) => m.round?.code === ROUND_PRE);
   if (prelims.length === 0) return null;
   if (statsMap.size < 2) return null;
   const displayMap = buildDisplayMapFromMatches(prelims);
   const allRows = [...statsMap.keys()]
     .filter((id) => displayMap.has(id))
-    .map((teamId) => ({ teamId, rank: 0, ...displayMap.get(teamId)!, ...statsMap.get(teamId)! }));
+    .map((teamId) => ({ teamId, ...displayMap.get(teamId)!, ...statsMap.get(teamId)! }));
   if (allRows.length < 2) return null;
-  const sorted = [...allRows].sort((a, b) =>
-    b.w !== a.w ? b.w - a.w
-    : b.sd !== a.sd ? b.sd - a.sd
-    : b.gd !== a.gd ? b.gd - a.gd
-    : a.seed.localeCompare(b.seed) || a.player1.localeCompare(b.player1)
-  );
-  let currentRank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
-  return sorted.map((row, i) => {
-    if (!prev || row.w !== prev.w || row.sd !== prev.sd || row.gd !== prev.gd) {
-      currentRank = i + 1; prev = { w: row.w, sd: row.sd, gd: row.gd };
-    }
-    return { ...row, rank: currentRank };
-  });
+  return rankAndAssign(allRows, prelims);
 }
 
 // ─── Prelim match sorting ──────────────────────────────────────────────────────
@@ -663,7 +716,6 @@ type Props = { categories: CategoryRecord[]; allMatches: Match[]; allTeams: Team
 // ─── Hub state ────────────────────────────────────────────────────────────────
 
 function useDrawsState({ categories, allMatches, allTeams, allRounds, categoryStatuses }: Props) {
-  const { locale } = useLocale();
   const today = isoDateLocal();
 
   const years = useMemo(
@@ -673,7 +725,10 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   const [yearParamStr, setYearParam] = useUrlParam("year");
   const yearParamNum = Number(yearParamStr);
   const year = yearParamNum > 0 && years.includes(yearParamNum) ? yearParamNum : (years[0] ?? getYear());
-  const setYear = useCallback((y: number) => setYearParam(String(y), { clear: ["stage", "seed"] }), [setYearParam]);
+  // Deliberately doesn't clear any other params — switching years shouldn't
+  // reset the URL; category/stage/seed just gracefully fall back to their
+  // own defaults below if they're no longer valid for the new year.
+  const setYear = useCallback((y: number) => setYearParam(String(y)), [setYearParam]);
 
   const categoriesById = useMemo(() => buildCategoryByIdMap(categories), [categories]);
 
@@ -683,13 +738,26 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     ),
     [categories, year, allMatches],
   );
-  const [rawCatParam, setCatParam] = useUrlParam("cat");
-  const categoryId = categoriesToShow.some((c) => c.id === rawCatParam) ? rawCatParam : (categoriesToShow[0]?.id ?? "");
-  const setCategoryId = useCallback((id: string) => setCatParam(id, { clear: ["seed"] }), [setCatParam]);
+  const presentCategoryIds = useMemo(() => categoriesToShow.map((c) => c.id), [categoriesToShow]);
+  const allCategoryIds = useMemo(() => categories.map((c) => c.id), [categories]);
+
+  // Single grouped category+tier filter (not split into two cascading
+  // dropdowns) — each option is a real category id, grouped visually by
+  // category-group in the popover.
+  const [rawCategoryParam, setCategoryParam] = useUrlParam("cat");
   const categoryOptions = useMemo(
-    () => categoriesToShow.map((c) => ({ id: c.id, label: categoryLabelForId(categoriesById, c.id, locale) })),
-    [categoriesToShow, categoriesById, locale],
+    () => deriveGroupedCategoryOptions(presentCategoryIds, categoriesById),
+    [presentCategoryIds, categoriesById],
   );
+  // Validate against every known category (not just ones with matches for
+  // this particular year) so switching years doesn't silently snap the
+  // selection to "first available" just because the new year's matches
+  // haven't been generated yet — only fall back if the param isn't a real
+  // category at all.
+  const categoryId = allCategoryIds.includes(rawCategoryParam)
+    ? rawCategoryParam
+    : (categoriesToShow[0]?.id ?? "");
+  const setCategoryId = useCallback((id: string) => setCategoryParam(id, { clear: ["seed"] }), [setCategoryParam]);
 
   const categoryMatches = useMemo(
     () => allMatches.filter((m) => m.tournamentYear === year && m.categoryId === categoryId),
@@ -721,23 +789,42 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   const hasPrelim = !isElimination && (prelimMatches.length > 0 || categoryTeams.some((t) => t.seed));
   const hasKnockout = knockoutRounds.length > 0;
 
+  const roundDateRanges = useMemo(
+    () => computeRoundDateRanges(categoryMatches, year),
+    [categoryMatches, year],
+  );
+
   const defaultStageCode = useMemo(
-    () => computeDefaultStageCode(availableRounds, categoryMatches, today),
+    () => computeDefaultStageCode(availableRounds, roundDateRanges, today),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [availableRounds, categoryMatches],
+    [availableRounds, roundDateRanges],
   );
 
   const [stageParam, setStageParam] = useUrlParam("stage");
 
   // For elimination, valid stages include the full skeleton (R16/R32–F), even rounds
-  // without matches yet. For other formats, only rounds with actual matches are valid.
+  // without matches yet. For other formats, only rounds with actual matches are valid —
+  // a round is reachable as soon as its placeholder row exists, regardless of whether
+  // teams have been assigned into it yet.
   const validStageCodes = useMemo(
     () => new Set(isElimination ? knockoutRounds.map((r) => r.code) : availableRounds.map((r) => r.code)),
     [isElimination, knockoutRounds, availableRounds],
   );
 
+  // Every round now has a pre-generated placeholder Match row from the
+  // start (regardless of whether it's actually been played), so
+  // `validStageCodes` includes every round code almost immediately — it can
+  // no longer be used to tell "the user picked this" apart from "this is a
+  // stale/leftover URL param". Track whether the user has ever explicitly
+  // picked a round in this session (not scoped to a particular year or
+  // category — an explicit pick should survive switching either filter),
+  // so a stale `stage` param (old link, previous session) doesn't outrank
+  // today's date-based default on first load, but a deliberate choice
+  // isn't silently discarded just because another filter changed.
+  const hasExplicitStagePickRef = useRef(false);
+
   const stageCode: string = useMemo(() => {
-    const isValid = validStageCodes.has(stageParam ?? "");
+    const isValid = hasExplicitStagePickRef.current && validStageCodes.has(stageParam ?? "");
     const resolved = isValid ? stageParam! : defaultStageCode;
     if (isPrelimRound(resolved) && !hasPrelim) {
       return knockoutRounds[0]?.code ?? resolved;
@@ -746,16 +833,23 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   }, [stageParam, defaultStageCode, validStageCodes, hasPrelim, knockoutRounds]);
 
   const setStageCode = useCallback(
-    (code: string) => setStageParam(code, { clear: ["seed"] }),
+    (code: string) => {
+      hasExplicitStagePickRef.current = true;
+      setStageParam(code, { clear: ["seed"] });
+    },
     [setStageParam],
   );
 
   useLayoutEffect(() => {
-    const isValid = validStageCodes.has(stageParam ?? "");
+    const isValid = hasExplicitStagePickRef.current && validStageCodes.has(stageParam ?? "");
     if (!isValid || (isPrelimRound(stageParam ?? "") && !hasPrelim)) {
       setStageParam(defaultStageCode);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Re-run whenever the valid stage set changes (e.g. switching year or
+    // category without a remount) — not just on mount — so a stale "stage"
+    // URL param (and the derived prelim/knockout Round toggle) self-corrects
+    // instead of only fixing the *displayed* fallback while the URL lags.
+  }, [year, categoryId, stageParam, validStageCodes, hasPrelim, defaultStageCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [rawSeedParam, setSeedParam] = useUrlParam("seed");
   const seedOptions = useMemo(() => {
@@ -769,11 +863,28 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     }
     return [...seen].sort();
   }, [isElimination, categoryTeams, prelimMatches]);
-  const activeSeed = seedOptions.includes(rawSeedParam ?? "") ? (rawSeedParam ?? "") : (seedOptions[0] ?? "");
+  // "all" is the sentinel URL value for the "All groups" tab — it resolves to
+  // an empty activeSeed (no group filter). That's also the default when the
+  // param is unset/invalid, so the prelim board opens on the global view.
+  const activeSeed = rawSeedParam === "all"
+    ? ""
+    : seedOptions.includes(rawSeedParam ?? "")
+      ? (rawSeedParam ?? "")
+      : "";
+  const activeSeedTab = activeSeed || "all";
 
-  const teamRankById = useMemo(
-    () => isElimination ? new Map<string, number>() : buildPrelimRankMap(computePrelimStatsFromMatches(categoryMatches)),
-    [isElimination, categoryMatches],
+  const hasSemis = useMemo(
+    () => categoryMatches.some((m) => m.round?.code === ROUND_SF),
+    [categoryMatches],
+  );
+  const advancingResult = useMemo(
+    () => isElimination ? { ranks: new Map<string, number>(), tiedGroups: [] } : computeAdvancingRanks(prelimMatches, categoryTeams, hasSemis),
+    [isElimination, prelimMatches, categoryTeams, hasSemis],
+  );
+  const teamRankById = advancingResult.ranks;
+  const expectedAdvancingCount = useMemo(
+    () => isElimination ? 0 : computeExpectedAdvancingCount(categoryTeams, hasSemis),
+    [isElimination, categoryTeams, hasSemis],
   );
 
   // For elimination: mobile nav uses only knockout rounds in canonical order (R16/R32 → QF → SF → F).
@@ -790,11 +901,6 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
   const mobilePrevCode = navIndex > 0 ? orderedRoundCodes[navIndex - 1] : null;
   const mobileNextCode = navIndex >= 0 && navIndex < orderedRoundCodes.length - 1 ? orderedRoundCodes[navIndex + 1] : null;
 
-  const roundDateRanges = useMemo(
-    () => computeRoundDateRanges(categoryMatches, year),
-    [categoryMatches, year],
-  );
-
   return {
     year, setYear, years,
     categoryId, setCategoryId, categoryOptions,
@@ -803,8 +909,8 @@ function useDrawsState({ categories, allMatches, allTeams, allRounds, categorySt
     isElimination,
     prelimMatches, knockoutRounds,
     hasPrelim, hasKnockout,
-    activeSeed, setSeedParam, seedOptions,
-    teamRankById,
+    activeSeed, activeSeedTab, setSeedParam, seedOptions,
+    teamRankById, expectedAdvancingCount,
     orderedRoundCodes, mobilePrevCode, mobileNextCode,
     categoryMatches, categoryTeams, today,
     roundDateRanges,
@@ -823,8 +929,8 @@ export function DrawsHub(props: Props) {
     isElimination,
     prelimMatches, knockoutRounds,
     hasPrelim, hasKnockout,
-    activeSeed, setSeedParam, seedOptions,
-    teamRankById,
+    activeSeed, activeSeedTab, setSeedParam, seedOptions,
+    teamRankById, expectedAdvancingCount,
     orderedRoundCodes, mobilePrevCode, mobileNextCode,
     categoryMatches, categoryTeams, today,
     roundDateRanges,
@@ -879,15 +985,16 @@ export function DrawsHub(props: Props) {
   }, [allLeaderboardRows]);
   const leaderboardRows = useMemo(() => {
     if (!allLeaderboardRows) return null;
-    const filtered = activeSeed ? allLeaderboardRows.filter((r) => r.seed === activeSeed) : allLeaderboardRows;
-    let rank = 0; let prev: { w: number; sd: number; gd: number } | null = null;
-    return filtered.map((r, i) => {
-      if (!prev || r.w !== prev.w || r.sd !== prev.sd || r.gd !== prev.gd) {
-        rank = i + 1; prev = { w: r.w, sd: r.sd, gd: r.gd };
-      }
-      return { ...r, rank };
-    });
-  }, [allLeaderboardRows, activeSeed]);
+    if (!activeSeed) return allLeaderboardRows;
+    // Re-rank within just this group's members — a group's matches never
+    // cross with another group's, so this is equivalent to (and safer than)
+    // renumbering a slice of the already-computed global order.
+    const filtered = allLeaderboardRows.filter((r) => r.seed === activeSeed);
+    const overrides = new Map(
+      categoryTeams.filter((t): t is TeamRecord & { tiebreakOverride: number } => t.tiebreakOverride != null).map((t) => [t.id, t.tiebreakOverride])
+    );
+    return rankAndAssign(filtered, prelimMatches, overrides);
+  }, [allLeaderboardRows, activeSeed, prelimMatches, categoryTeams]);
 
   const prelimMatchesFiltered = useMemo(() => {
     if (isElimination) return [];
@@ -896,6 +1003,15 @@ export function DrawsHub(props: Props) {
       : prelimMatches;
     return sortPrelimMatches(filtered);
   }, [isElimination, prelimMatches, activeSeed]);
+
+  const prelimProgress = useMemo(() => {
+    const scoped = activeSeed
+      ? prelimMatches.filter((m) => m.team1Seed?.trim() === activeSeed || m.team2Seed?.trim() === activeSeed)
+      : prelimMatches;
+    const total = scoped.length;
+    const completed = scoped.filter((m) => m.matchStatus === "Completed" || m.matchStatus === "Cancelled").length;
+    return { total, completed, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+  }, [prelimMatches, activeSeed]);
 
   const drawsFilters: FilterConfig[] = [
     { type: "year", value: String(year), years, onChange: (v) => setYear(Number(v)) },
@@ -929,10 +1045,8 @@ export function DrawsHub(props: Props) {
               title={stageTitle}
               subtitle={stageDateLabel || undefined}
               navigation={{
-                onPrev: () => { if (mobilePrevCode) setStageCode(mobilePrevCode); },
-                onNext: () => { if (mobileNextCode) setStageCode(mobileNextCode); },
-                prevDisabled: mobilePrevCode == null,
-                nextDisabled: mobileNextCode == null,
+                onPrev: mobilePrevCode ? () => setStageCode(mobilePrevCode) : undefined,
+                onNext: mobileNextCode ? () => setStageCode(mobileNextCode) : undefined,
                 prevLabel: t.drawsPage.bracketPrevRound,
                 nextLabel: t.drawsPage.bracketNextRound,
               }}
@@ -957,23 +1071,40 @@ export function DrawsHub(props: Props) {
             {isPrelim && hasPrelim && (
               <div className="space-y-[var(--content-gap)] md:space-y-[var(--section-gap)]">
                 {showSeedTabs && (
-                  <Tabs value={activeSeed} onValueChange={setSeedParam}>
+                  <Tabs value={activeSeedTab} onValueChange={setSeedParam}>
                     <TabsList>
+                      <TabsTrigger value="all">{t.drawsPage.prelims.allGroups}</TabsTrigger>
                       {seedOptions.map((s) => (
                         <TabsTrigger key={s} value={s}>{s}</TabsTrigger>
                       ))}
                     </TabsList>
                   </Tabs>
                 )}
+                {prelimProgress.total > 0 && (
+                  <div className="space-y-[var(--element-gap)]">
+                    <h3 className="text-base font-semibold text-[var(--color-text-secondary)]">{t.drawsPage.prelims.progressHeading}</h3>
+                    <div className="space-y-1.5 rounded-lg border border-[var(--color-border-ui)] bg-[var(--color-surface-card)] p-3">
+                      <ProgressBar value={prelimProgress.pct} />
+                      <div className="flex items-center justify-between text-xs text-[var(--color-text-tertiary)]">
+                        <span>{t.drawsPage.prelims.matchesProgress(prelimProgress.completed, prelimProgress.total)}</span>
+                        {!activeSeed && expectedAdvancingCount > 0 && <span>{t.drawsPage.prelims.advancingCount(teamRankById.size, expectedAdvancingCount)}</span>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {prelimProgress.total > 0 && leaderboardRows && leaderboardRows.length > 0 && (
+                  <Divider />
+                )}
                 {leaderboardRows && leaderboardRows.length > 0 && (
-                  <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
+                  <div className="space-y-[var(--element-gap)]">
+                    <h3 className="text-base font-semibold text-[var(--color-text-secondary)]">{t.drawsPage.prelims.standingsHeading}</h3>
                     <Table
                       variant="data"
                       headers={[
                         t.drawsPage.prelims.tableRank,
                         t.drawsPage.prelims.tablePlayers,
-                        t.drawsPage.prelims.tableW,
-                        t.drawsPage.prelims.tableL,
+                        t.drawsPage.prelims.tableWinPct,
+                        t.drawsPage.prelims.tableWL,
                         t.drawsPage.prelims.tableSD,
                         t.drawsPage.prelims.tableGD,
                       ]}
@@ -982,30 +1113,69 @@ export function DrawsHub(props: Props) {
                         return leaderboardRows.map((r) => {
                           const p1 = locale === "ko" ? (r.player1Ko ?? r.player1) : r.player1;
                           const p2 = r.player2 ? (locale === "ko" ? (r.player2Ko ?? r.player2) : r.player2) : undefined;
+                          const advancing = teamRankById.has(r.teamId);
+                          const winPct = r.w + r.l > 0 ? `${Math.round((r.w / (r.w + r.l)) * 100)}%` : "—";
+                          const names = (
+                            <span className="flex items-center gap-1.5">
+                              <span className="flex flex-col gap-0.5">
+                                <span>{p1}</span>
+                                {p2 && <span>{p2}</span>}
+                              </span>
+                              {advancing && (
+                                <Chip
+                                  label={<ArrowUp className="size-3" aria-hidden />}
+                                  aria-label={t.matchUi.advancing}
+                                  size="sm"
+                                  shape="rounded"
+                                  className="shrink-0 h-5 items-center justify-center team-status-advancing"
+                                />
+                              )}
+                              {r.tied && (
+                                <Chip
+                                  label={t.drawsPage.prelims.tiedPendingDraw}
+                                  size="sm"
+                                  shape="rounded"
+                                  className="shrink-0 h-5 items-center justify-center team-status-tied"
+                                />
+                              )}
+                              {r.withdrawn && (
+                                <Chip
+                                  label={t.matchUi.withdrew}
+                                  size="sm"
+                                  shape="rounded"
+                                  className="shrink-0 h-5 items-center justify-center player-status-withdrew"
+                                />
+                              )}
+                            </span>
+                          );
                           return [
                             anyCompleted ? r.rank : "",
-                            p2 ? <span key={r.teamId} className="flex flex-col gap-0.5"><span>{p1}</span><span>{p2}</span></span> : p1,
-                            r.w, r.l, r.sd, r.gd,
+                            <Fragment key={r.teamId}>{names}</Fragment>,
+                            winPct, `${r.w}-${r.l}`, r.sd, r.gd,
                           ];
                         });
                       })()}
                       columnNoWrap={[true, true, true, true, true, true]}
                     />
                     {locale !== "ko" && (
-                      <ul className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center gap-x-4 gap-y-1 text-xs text-[color:var(--foreground)]">
+                      <ul className="grid grid-cols-2 items-start gap-x-4 gap-y-1 text-xs text-[var(--color-text-tertiary)] md:flex md:flex-row md:flex-wrap md:items-center">
                         {[
-                          `${t.drawsPage.prelims.tableW} - Wins`,
-                          `${t.drawsPage.prelims.tableL} - Losses`,
+                          `${t.drawsPage.prelims.tableWinPct} - Win percentage`,
+                          `${t.drawsPage.prelims.tableWL} - Wins-Losses`,
                           `${t.drawsPage.prelims.tableSD} - Set difference`,
                           `${t.drawsPage.prelims.tableGD} - Game difference`,
                         ].map((item) => (
-                          <li key={item} className="flex items-center before:mr-2 before:content-['•']">{item}</li>
+                          <li key={item} className="flex items-center text-xs before:mr-2 before:content-['•']">{item}</li>
                         ))}
                       </ul>
                     )}
                   </div>
                 )}
-                <div className="space-y-[var(--element-gap)] md:space-y-[var(--content-gap)]">
+                {(prelimProgress.total > 0 || (leaderboardRows && leaderboardRows.length > 0)) && (
+                  <Divider />
+                )}
+                <div className="space-y-[var(--element-gap)]">
+                  <h3 className="text-base font-semibold text-[var(--color-text-secondary)]">{t.drawsPage.tabs.Matches}</h3>
                   {prelimMatchesFiltered.length === 0 ? (
                     <p className="text-sm text-[var(--color-text-tertiary)]">{t.drawsPage.prelims.noPrelimsMatches}</p>
                   ) : (

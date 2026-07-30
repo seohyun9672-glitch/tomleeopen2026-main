@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isCancelledMatch } from "@/lib/matches";
-import { computePrelimStats, sortByStats } from "@/lib/prelim";
+import { rankPrelimTeams } from "@/lib/prelim";
 
 type TeamRow = { id: string; seed: string | null };
 
@@ -162,11 +162,32 @@ export async function generateMatches(
 
 // ── Auto-fill knockout slots when all prelims in a group complete ─────────────
 
+/**
+ * A next-round match is "locked" once it has actually started — completed,
+ * cancelled, or has any set score recorded. Locked matches are never
+ * overwritten even if the freshly-computed ranking would seed them
+ * differently; only a still-`Pending`, no-score slot gets (re)synced. This
+ * is what keeps already-played brackets (e.g. past tournament years) safe
+ * without needing any year-specific special-casing.
+ */
+function isMatchLocked(m: {
+  matchStatus: string;
+  set1ScoreTeam1: string | null; set2ScoreTeam1: string | null; set3ScoreTeam1: string | null;
+  set1ScoreTeam2: string | null; set2ScoreTeam2: string | null; set3ScoreTeam2: string | null;
+}): boolean {
+  return (
+    m.matchStatus === "Completed" ||
+    isCancelledMatch(m.matchStatus) ||
+    m.set1ScoreTeam1 != null || m.set2ScoreTeam1 != null || m.set3ScoreTeam1 != null ||
+    m.set1ScoreTeam2 != null || m.set2ScoreTeam2 != null || m.set3ScoreTeam2 != null
+  );
+}
+
 export async function autoFillKnockoutSlots(
   tournamentYear: number,
   categoryId: string,
   format: string
-): Promise<{ updated: string[] }> {
+): Promise<{ updated: string[]; blocked: string[]; pendingTies: string[] }> {
   const [allMatches, allTeams] = await Promise.all([
     prisma.match.findMany({
       where: { tournamentYear, categoryId },
@@ -176,13 +197,46 @@ export async function autoFillKnockoutSlots(
         set1ScoreTeam2: true, set2ScoreTeam2: true, set3ScoreTeam2: true,
       },
     }),
-    prisma.team.findMany({ where: { tournamentYear, categoryId }, select: { id: true, seed: true } }),
+    prisma.team.findMany({ where: { tournamentYear, categoryId }, select: { id: true, seed: true, withdrawn: true, tiebreakOverride: true } }),
   ]);
+  const withdrawnIds = new Set(allTeams.filter((t) => t.withdrawn).map((t) => t.id));
+  const overrides = new Map(
+    allTeams.filter((t): t is typeof t & { tiebreakOverride: number } => t.tiebreakOverride != null).map((t) => [t.id, t.tiebreakOverride])
+  );
 
   const prelims = allMatches.filter((m) => m.round === "PRE");
   const updated: string[] = [];
+  const blocked: string[] = [];
+  const pendingTies: string[] = [];
 
   const prefix = yy(tournamentYear) + categoryId;
+
+  // Writes (or blocks) a next-round slot's teams: skipped entirely if the
+  // match already started. If the ranking feeding this slot is still
+  // genuinely tied (needs a manual drawing of lots), the slot is cleared
+  // back to empty rather than guessing a pairing — any team ids it was
+  // previously (wrongly) filled with are undone here.
+  async function syncSlot(matchId: string, round: string, newT1: string | null, newT2: string | null, tied: boolean) {
+    const existing = allMatches.find((m) => m.id === matchId);
+    if (existing && isMatchLocked(existing)) {
+      if (existing.team1Id !== newT1 || existing.team2Id !== newT2) blocked.push(matchId);
+      return;
+    }
+    if (tied) {
+      pendingTies.push(matchId);
+      if (existing?.team1Id != null || existing?.team2Id != null) {
+        await prisma.match.update({ where: { id: matchId }, data: { team1Id: null, team2Id: null } });
+      }
+      return;
+    }
+    if (existing?.team1Id === newT1 && existing?.team2Id === newT2) return;
+    await prisma.match.upsert({
+      where: { id: matchId },
+      update: { team1Id: newT1, team2Id: newT2 },
+      create: { id: matchId, tournamentYear, categoryId, round, team1Id: newT1, team2Id: newT2, matchStatus: "Pending" },
+    });
+    updated.push(matchId);
+  }
 
   if (format === "GROUP_ROUND_ROBIN") {
     const groups = new Map<string, string[]>();
@@ -194,15 +248,18 @@ export async function autoFillKnockoutSlots(
     }
 
     // Wait until ALL prelims across all groups are completed
-    if (prelims.some((m) => m.matchStatus !== "Completed" && !isCancelledMatch(m.matchStatus))) return { updated };
+    if (prelims.some((m) => m.matchStatus !== "Completed" && !isCancelledMatch(m.matchStatus))) return { updated, blocked, pendingTies };
 
-    const globalStats = computePrelimStats(prelims);
-
-    // Rank within each group; collect advancing teams and third-place finishers
+    // Rank within each group; collect advancing teams and third-place finishers.
+    // Same-group teams always have real head-to-head data (they play each other
+    // in PRE), so a within-group tie needing a manual draw is not checked here —
+    // only the final cross-group seeding step below can produce a genuine tie.
     const advancing: string[] = [];
     const thirdPlace: string[] = [];
     for (const [, ids] of groups) {
-      const ranked = sortByStats(ids, globalStats);
+      // A withdrawn team is never a candidate to advance — the next-ranked
+      // team in the group fills that slot instead.
+      const ranked = rankPrelimTeams(ids, prelims, overrides).order.filter((id) => !withdrawnIds.has(id));
       if (ranked[0]) advancing.push(ranked[0]);
       if (ranked[1]) advancing.push(ranked[1]);
       if (ranked[2]) thirdPlace.push(ranked[2]);
@@ -210,56 +267,35 @@ export async function autoFillKnockoutSlots(
 
     // For 3 groups: add the best 2 third-place finishers to reach 8
     if (groups.size === 3 && thirdPlace.length > 0) {
-      advancing.push(...sortByStats(thirdPlace, globalStats).slice(0, 2));
+      advancing.push(...rankPrelimTeams(thirdPlace, prelims, overrides).order.slice(0, 2));
     }
 
     const nextRound = advancing.length >= 8 ? "QF" : advancing.length >= 4 ? "SF" : "F";
-    const globalRanked = sortByStats(advancing, globalStats);
+    const { order: globalRanked, tiedGroups } = rankPrelimTeams(advancing, prelims, overrides);
+    const anyTie = tiedGroups.length > 0;
     const n = globalRanked.length;
 
     for (let i = 0; i < Math.floor(n / 2); i++) {
       const matchId = nextRound === "F" ? `${prefix}F` : `${prefix}${nextRound}${i + 1}`;
-      const existing = allMatches.find((m) => m.id === matchId);
-      if (existing?.team1Id || existing?.team2Id) continue;
-      await prisma.match.upsert({
-        where: { id: matchId },
-        update: { team1Id: globalRanked[i], team2Id: globalRanked[n - 1 - i] },
-        create: { id: matchId, tournamentYear, categoryId, round: nextRound, team1Id: globalRanked[i], team2Id: globalRanked[n - 1 - i], matchStatus: "Pending" },
-      });
-      updated.push(matchId);
+      await syncSlot(matchId, nextRound, globalRanked[i], globalRanked[n - 1 - i], anyTie);
     }
   } else if (format === "ROUND_ROBIN") {
-    if (prelims.some((m) => m.matchStatus !== "Completed" && !isCancelledMatch(m.matchStatus))) return { updated };
+    if (prelims.some((m) => m.matchStatus !== "Completed" && !isCancelledMatch(m.matchStatus))) return { updated, blocked, pendingTies };
 
-    const allIds = allTeams.map((t) => t.id);
-    const rrStats = computePrelimStats(prelims);
-    const ranked = sortByStats(allIds, rrStats);
+    const allIds = allTeams.map((t) => t.id).filter((id) => !withdrawnIds.has(id));
+    const { order: ranked, tiedGroups } = rankPrelimTeams(allIds, prelims, overrides);
+    const anyTie = tiedGroups.length > 0;
 
     if (allTeams.length === 5) {
-      if (ranked.length < 4) return { updated };
+      if (ranked.length < 4) return { updated, blocked, pendingTies };
 
       const sf1Id = `${prefix}SF1`;
       const sf2Id = `${prefix}SF2`;
       const finalId = `${prefix}F`;
 
-      const existingSF1 = allMatches.find((m) => m.id === sf1Id);
-      if (!existingSF1?.team1Id && !existingSF1?.team2Id) {
-        await prisma.match.upsert({
-          where: { id: sf1Id },
-          update: { team1Id: ranked[0], team2Id: ranked[3] },
-          create: { id: sf1Id, tournamentYear, categoryId, round: "SF", team1Id: ranked[0], team2Id: ranked[3], matchStatus: "Pending" },
-        });
-        updated.push(sf1Id);
-      }
-      const existingSF2 = allMatches.find((m) => m.id === sf2Id);
-      if (!existingSF2?.team1Id && !existingSF2?.team2Id) {
-        await prisma.match.upsert({
-          where: { id: sf2Id },
-          update: { team1Id: ranked[1], team2Id: ranked[2] },
-          create: { id: sf2Id, tournamentYear, categoryId, round: "SF", team1Id: ranked[1], team2Id: ranked[2], matchStatus: "Pending" },
-        });
-        updated.push(sf2Id);
-      }
+      await syncSlot(sf1Id, "SF", ranked[0], ranked[3], anyTie);
+      await syncSlot(sf2Id, "SF", ranked[1], ranked[2], anyTie);
+
       const existingF = allMatches.find((m) => m.id === finalId);
       if (!existingF) {
         await prisma.match.upsert({
@@ -269,21 +305,13 @@ export async function autoFillKnockoutSlots(
         });
       }
     } else {
-      if (ranked.length < 2) return { updated };
+      if (ranked.length < 2) return { updated, blocked, pendingTies };
       const finalId = `${prefix}F`;
-      const existing = allMatches.find((m) => m.id === finalId);
-      if (!existing?.team1Id && !existing?.team2Id) {
-        await prisma.match.upsert({
-          where: { id: finalId },
-          update: { team1Id: ranked[0], team2Id: ranked[1] },
-          create: { id: finalId, tournamentYear, categoryId, round: "F", team1Id: ranked[0], team2Id: ranked[1], matchStatus: "Pending" },
-        });
-        updated.push(finalId);
-      }
+      await syncSlot(finalId, "F", ranked[0], ranked[1], anyTie);
     }
   }
 
-  return { updated };
+  return { updated, blocked, pendingTies };
 }
 
 // ── Advance knockout winner to next round slot ────────────────────────────────

@@ -6,7 +6,11 @@ export const homePage = {
       heroTitle: "Tomlee Open",
       hero: {
         title: "Tomlee Open",
-        navLinks: [getMenuData("en").courtBooking, getMenuData("en").schedule, getMenuData("en").draws],
+        navLinks: [
+          getMenuData("en").courtBooking,
+          getMenuData("en").schedule,
+          getMenuData("en").draws,
+        ],
       },
       sectionTitles: {
         tournamentSchedules: "Tournament schedules",
@@ -15,6 +19,13 @@ export const homePage = {
         communityPartners: "Community partners",
         clubs: "Clubs",
         lessons: "Lessons",
+        event: "Event",
+      },
+      event: {
+        title: "Best Photo Awards",
+        blurb:
+          "Share your favourite moments from the Tomlee Open ’26. The standout photos will be selected for the Best Photo Awards.",
+        cta: "Go to photo album",
       },
       buttons: {
         viewAll: "View all",
@@ -27,7 +38,15 @@ export const homePage = {
       matchListCourtPrefix: "Court",
       matchListVersus: "vs",
       calendar: {
-        weekdayShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const,
+        weekdayShort: [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri",
+          "Sat",
+        ] as const,
       },
       sponsorTierLabels: {
         gold: "Gold Sponsor",
@@ -80,7 +99,11 @@ export const homePage = {
       heroTitle: "탐리 오픈",
       hero: {
         title: "탐리 오픈",
-        navLinks: [getMenuData("ko").courtBooking, getMenuData("ko").schedule, getMenuData("ko").draws],
+        navLinks: [
+          getMenuData("ko").courtBooking,
+          getMenuData("ko").schedule,
+          getMenuData("ko").draws,
+        ],
       },
       sectionTitles: {
         tournamentSchedules: "대회 일정",
@@ -89,6 +112,13 @@ export const homePage = {
         communityPartners: "커뮤니티 파트너",
         clubs: "클럽",
         lessons: "레슨",
+        event: "이벤트",
+      },
+      event: {
+        title: "베스트 포토 어워드",
+        blurb:
+          "탐리 오픈 '26에서의 소중한 순간을 포토 앨범에 공유해 주세요. 가장 돋보이는 사진은 베스트 포토 어워드를 통해 소개됩니다.",
+        cta: "자세히 보기",
       },
       buttons: {
         viewAll: "전체 보기",

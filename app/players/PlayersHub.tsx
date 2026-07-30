@@ -9,6 +9,11 @@ import { makeGroupBreakBefore } from "@/lib/utils";
 import type { ManagedFilterConfig } from "@/app/components/database";
 import type { TeamRow } from "@/app/admin/AdminHub";
 import { deriveYearOptions } from "@/app/components/database";
+import {
+  buildCategoryByIdMap,
+  deriveGroupedCategoryOptions,
+} from "@/lib/categories";
+import type { CategoryRecord } from "@/lib/categories";
 
 export type PlayerRow = {
   id: number;
@@ -23,12 +28,13 @@ export type PlayerRow = {
   }[];
 };
 
-export function PlayersHub({ teams }: { rows: PlayerRow[]; teams: TeamRow[] }) {
+export function PlayersHub({ teams, categories }: { rows: PlayerRow[]; teams: TeamRow[]; categories: CategoryRecord[] }) {
   const { t, locale } = useLocale();
   const p = t.playersPage;
   const a = t.adminPage;
 
   const teamYears = deriveYearOptions(teams.map((r) => r.tournamentYear));
+  const categoriesById = buildCategoryByIdMap(categories);
 
   const [teamCatParams] = useUrlParams(["cat"] as const);
 
@@ -45,16 +51,12 @@ export function PlayersHub({ teams }: { rows: PlayerRow[]; teams: TeamRow[] }) {
     },
     {
       type: "category" as const,
-      options: (prevItems: TeamRow[]) => {
-        const map = new Map<string, { id: string; label: string; labelKo: string | null }>();
-        for (const r of prevItems) {
-          if (!map.has(r.categoryId))
-            map.set(r.categoryId, { id: r.categoryId, label: r.categoryLabel, labelKo: r.categoryLabelKo ?? null });
-        }
-        return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
-      },
-      apply: (items: TeamRow[], catId: string) => (catId ? items.filter((r) => r.categoryId === catId) : items),
+      param: "cat",
+      options: (prevItems: TeamRow[]) => deriveGroupedCategoryOptions(prevItems.map((r) => r.categoryId), categoriesById),
+      apply: (items: TeamRow[], categoryId: string) =>
+        categoryId ? items.filter((r) => r.categoryId === categoryId) : items,
       allLabel: t.shared.labels.allCategories,
+      clearParams: ["seed"],
     },
     {
       type: "seed" as const,
@@ -67,6 +69,18 @@ export function PlayersHub({ teams }: { rows: PlayerRow[]; teams: TeamRow[] }) {
       allLabel: t.shared.labels.seed,
       visibleWhen: (v) => !!v.cat,
     },
+    {
+      type: "search" as const,
+      apply: (items: TeamRow[], q: string) => {
+        const lower = q.toLowerCase();
+        return items.filter((r) =>
+          r.member1NameEn.toLowerCase().includes(lower) ||
+          (r.member1NameKo ?? "").toLowerCase().includes(lower) ||
+          (r.member2NameEn ?? "").toLowerCase().includes(lower) ||
+          (r.member2NameKo ?? "").toLowerCase().includes(lower),
+        );
+      },
+    },
   ];
 
   return (
@@ -75,6 +89,7 @@ export function PlayersHub({ teams }: { rows: PlayerRow[]; teams: TeamRow[] }) {
       managedFilters={teamManagedFilters}
       emptyText={p.emptyStateNoTeams}
       rowCountLabel={locale === "ko" ? ["팀", "팀"] : ["team", "teams"]}
+      searchAlwaysOpen
     >
       {(filteredTeams: TeamRow[]) => {
         const isCatFiltered = !!teamCatParams.cat;

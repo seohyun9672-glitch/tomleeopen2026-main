@@ -1,6 +1,7 @@
 import { getImportantDates } from "@/lib/importantDatesData";
 import { contactData } from "@/lib/contactData";
 import { getYear } from "@/lib/utils";
+import { menuLabelForHref } from "./menu";
 
 export type EligibilityGroup = {
   label: string;
@@ -183,7 +184,7 @@ const regPeriodKo = regEntry && regEntry.type === "range" ? (regEntry.valueDispl
 export const registrationPage = {
   en: {
     registrationPage: {
-      heroTitle: "Registration",
+      heroTitle: menuLabelForHref("/registration", "en"),
       manageHeroTitle: "Manage registration",
       notYetOpenTitle: "Registration is not yet open",
       notYetOpenMessage: `Registration opens ${regStartEn}.`,
@@ -270,7 +271,7 @@ export const registrationPage = {
   },
   ko: {
     registrationPage: {
-      heroTitle: "참가 등록",
+      heroTitle: menuLabelForHref("/registration", "ko"),
       manageHeroTitle: "등록 관리",
       notYetOpenTitle: "아직 등록 기간이 아닙니다",
       notYetOpenMessage: `등록은 ${regStartKo}부터 시작됩니다.`,

@@ -4,15 +4,18 @@ import { getClubs } from "@/lib/clubs";
 import { getSponsors } from "@/lib/sponsors";
 import { getCommunityPartners } from "@/lib/getCommunityPartners";
 import { getRegistrationCount, isSeedingComplete } from "@/lib/registrations";
-import { getAllMatches } from "@/lib/matches";
+import { getAllMatches, sortMatchesForDisplay } from "@/lib/matches";
 import { getAllTeams } from "@/lib/teams";
 import { getCategories, getCategoryYearStatusList, categoriesConfirmedForYear } from "@/lib/categories";
 import { getPrizeAmounts } from "@/lib/prizes";
 import { getImportantDates } from "@/lib/importantDatesData";
+import { getCommunityMediaPosts } from "@/lib/communityMedia";
 import { FadeIn } from "@/app/components/animations/FadeIn";
 import { Hero } from "@/app/home/Hero";
 import { TournamentStatsSection } from "@/app/home/TournamentStatsSection";
-import { ScheduleSection } from "@/app/home/ScheduleSection";
+import { TodaysMatchesSection } from "@/app/home/TodaysMatchesSection";
+import { TournamentScheduleSection } from "@/app/home/TournamentScheduleSection";
+import { EventSection } from "@/app/home/EventSection";
 import { SponsorsSection } from "@/app/home/SponsorsSection";
 import { CommunityPartnersSection } from "@/app/home/CommunityPartnersSection";
 import { ClubsSection } from "@/app/home/ClubsSection";
@@ -28,7 +31,7 @@ export default async function Home() {
   const hideAfter = finalEntry?.type === "date" ? (finalEntry.rainDate ?? finalEntry.date) : null;
   const showStats = tournamentStart !== null && hideAfter !== null && today >= tournamentStart && today <= hideAfter;
 
-  const [sponsorsItems, communityPartners, partnerClubs, coachesItems, registrantCount, seedingDone, allMatches, allTeams, categories, categoryStatuses] = await Promise.all([
+  const [sponsorsItems, communityPartners, partnerClubs, coachesItems, registrantCount, seedingDone, allMatches, allTeams, categories, categoryStatuses, eventPhotos] = await Promise.all([
     getSponsors().catch(() => []),
     getCommunityPartners().catch(() => []),
     getClubs().catch(() => []),
@@ -39,12 +42,17 @@ export default async function Home() {
     showStats ? getAllTeams().catch(() => []) : Promise.resolve([]),
     showStats ? getCategories().catch(() => []) : Promise.resolve([]),
     showStats ? getCategoryYearStatusList(currentYear).catch(() => []) : Promise.resolve([]),
+    getCommunityMediaPosts().catch(() => []),
   ]);
+
+  const eventPreviewPhotos = eventPhotos
+    .slice(0, 5)
+    .map((p) => ({ image: p.imageUrl, title: p.title }));
 
   const hasMatchesThisYear = allMatches.some((m) => m.tournamentYear === currentYear);
 
-  const todayMatches = allMatches.filter(
-    (m) => m.tournamentYear === currentYear && m.date === today,
+  const todayMatches = sortMatchesForDisplay(
+    allMatches.filter((m) => m.tournamentYear === currentYear && m.date === today),
   );
 
   let statsProps = null;
@@ -88,9 +96,15 @@ export default async function Home() {
   return (
     <>
       <Hero />
+      <FadeIn>
+        <TodaysMatchesSection todayMatches={todayMatches} />
+      </FadeIn>
+      <FadeIn>
+        <EventSection photos={eventPreviewPhotos} />
+      </FadeIn>
       {statsProps && <TournamentStatsSection {...statsProps} />}
       <FadeIn>
-        <ScheduleSection todayMatches={todayMatches} hasMatchesThisYear={hasMatchesThisYear} />
+        <TournamentScheduleSection />
       </FadeIn>
       <FadeIn>
         <SponsorsSection sponsors={sponsorsItems} />

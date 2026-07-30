@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type ChipProps = {
-  label: string;
+  label: ReactNode;
   size?: "sm" | "md";
   shape?: "circular" | "rounded";
   className?: string;

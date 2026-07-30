@@ -26,6 +26,7 @@ export const shared = {
       labels: {
         coach: "Coach",
         category: "Category",
+        tier: "Tier",
         year: "Year",
         club: "Club",
         allCategories: "Category",
@@ -38,8 +39,11 @@ export const shared = {
         status: "Status",
         allStatuses: "All",
         all: "All",
+        today: "Today",
         allYears: "Year",
         total: "Total",
+        search: "Search",
+        closeSearch: "Close search",
       },
       aria: {
         viewDetail: (name: string) => `View ${name} details`,
@@ -83,6 +87,7 @@ export const shared = {
       labels: {
         coach: "코치",
         category: "카테고리",
+        tier: "등급",
         year: "연도",
         club: "클럽",
         allCategories: "카테고리",
@@ -95,8 +100,11 @@ export const shared = {
         status: "상태",
         allStatuses: "전체 상태",
         all: "전체",
+        today: "오늘",
         allYears: "연도",
         total: "총",
+        search: "검색",
+        closeSearch: "검색 닫기",
       },
       aria: {
         viewDetail: (name: string) => `${name} 자세히 보기`,

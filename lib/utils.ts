@@ -61,6 +61,36 @@ export function formatDateLong(iso: string, style: "short" | "long" = "short", l
   });
 }
 
+/**
+ * Format an ISO date for a compact date-picker value display:
+ * - Within a week of today: relative ("Today" / "Tomorrow" / "Yesterday"), or
+ *   for the rest of that week, "This {weekday}" (ahead) / "Last {weekday}" (behind).
+ * - Otherwise: short absolute format with no year, e.g. "Tue, Jul 14".
+ */
+export function formatDatePickerValue(iso: string, locale: "en" | "ko" = "en"): string {
+  const [ys, ms, ds] = iso.split("-");
+  const y = Number(ys), m = Number(ms), d = Number(ds);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return iso;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (Number.isNaN(dt.getTime())) return iso;
+
+  const [tys, tms, tds] = getToday().split("-").map(Number);
+  const today = new Date(Date.UTC(tys, tms - 1, tds));
+  const diffDays = Math.round((dt.getTime() - today.getTime()) / 86_400_000);
+
+  const intlLocale = locale === "ko" ? "ko-KR" : "en-US";
+  if (Math.abs(diffDays) <= 1) {
+    const relative = new Intl.RelativeTimeFormat(intlLocale, { numeric: "auto" }).format(diffDays, "day");
+    return relative.charAt(0).toUpperCase() + relative.slice(1);
+  }
+  if (Math.abs(diffDays) <= 6) {
+    const weekday = dt.toLocaleDateString(intlLocale, { weekday: "long", timeZone: "UTC" });
+    if (locale === "ko") return diffDays > 0 ? `이번 주 ${weekday}` : `지난주 ${weekday}`;
+    return diffDays > 0 ? `This ${weekday}` : `Last ${weekday}`;
+  }
+  return dt.toLocaleDateString(intlLocale, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 /** Formats a week range like "Jul 1 – Jul 7". Omits the year when both dates share the same year. */
 export function formatWeekRange(start: string, end: string): string {
   const fmt = (iso: string) => {

@@ -11,7 +11,10 @@ export default function TournamentRulesPage() {
         const {
           sectionTitles,
           matchGuidelines,
+          scheduleAndAttendance,
+          retirementAndDisqualification,
           matchRules,
+          conductAndEtiquette,
         } = t.rulesPage;
 
         return (
@@ -24,11 +27,35 @@ export default function TournamentRulesPage() {
               />
             </Section>
 
+            <Section title={sectionTitles.scheduleAndAttendance}>
+              <Table
+                variant="key-value"
+                rows={[...scheduleAndAttendance.table]}
+                alignTop
+              />
+            </Section>
+
+            <Section title={sectionTitles.retirementAndDisqualification}>
+              <Table
+                variant="key-value"
+                rows={[...retirementAndDisqualification.table]}
+                alignTop
+              />
+            </Section>
+
             <Section title={sectionTitles.matchRules}>
               <p className="leading-relaxed text-[var(--color-text-secondary)]">
                 {matchRules.intro}
               </p>
               <Table variant="key-value" rows={[...matchRules.table]} alignTop />
+            </Section>
+
+            <Section title={sectionTitles.conductAndEtiquette}>
+              <Table
+                variant="key-value"
+                rows={[...conductAndEtiquette.table]}
+                alignTop
+              />
             </Section>
           </div>
         );

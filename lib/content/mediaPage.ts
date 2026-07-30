@@ -1,11 +1,15 @@
+import { contactData } from "@/lib/contactData";
+import { menuLabelForHref } from "./menu";
+
 export const mediaPage = {
   en: {
     mediaPage: {
-      heroTitle: "Media",
+      heroTitle: menuLabelForHref("/media", "en"),
       tabs: {
         articles: "Articles",
         videos: "Videos",
         photos: "Photos",
+        photoAlbum: "Photo Album",
       },
       defaultMetaOutlet: "Tomlee Open Final",
       finalYearSectionTitle: (year: number) => `Tomlee Open Final ${year}`,
@@ -19,15 +23,52 @@ export const mediaPage = {
       emptyState: "Media gallery coming soon",
       featuredVideoDescription:
         "Tomlee Open 2025 was Vancouver's Korean tennis festival: two months of play, over 120 matches, and finals across men's, women's, and mixed doubles and singles. Watch the recap for highlights from the tournament.",
+      photoAlbum: {
+        uploadButton: "Upload photo",
+        kakaoCtaText: "Share your photos in our KakaoTalk chat — we'll post them here.",
+        kakaoCtaButton: "Open KakaoTalk",
+        kakaoCtaHref: contactData.kakao.href,
+        defaultNickname: "Tomlee Open",
+        emptyState: "No photos yet — be the first to share one!",
+        likeLabel: "Like",
+        viewsLabel: "Views",
+        commentsLabel: "Comments",
+        noComments: "No comments yet.",
+        uploadModalTitle: "Upload a photo",
+        fields: {
+          nickname: "Nickname",
+          caption: "Caption",
+          photo: "Photo",
+        },
+        photoHelp: "JPG, PNG, or WEBP, up to 10MB.",
+        chooseButton: "Choose photo",
+        removePhoto: "Remove photo",
+        submit: "Upload",
+        submitting: "Uploading…",
+        uploadError: "Upload failed. Please try again.",
+        uploadSuccess: "Your photo is live in the album!",
+        invalidType: "Please choose a JPG, PNG, or WEBP image.",
+        tooLarge: "Image must be under 10MB.",
+        detailModalTitle: "Photo",
+        guestNickname: "Guest",
+        commentForm: {
+          body: "Comment",
+          submit: "Post",
+          submitting: "Posting…",
+          placeholder: "Add a comment…",
+        },
+        by: "by",
+      },
     },
   },
   ko: {
     mediaPage: {
-      heroTitle: "미디어",
+      heroTitle: menuLabelForHref("/media", "ko"),
       tabs: {
         articles: "기사",
         videos: "영상",
         photos: "사진",
+        photoAlbum: "포토 앨범",
       },
       defaultMetaOutlet: "탐리 오픈 결승",
       finalYearSectionTitle: (year: number) => `탐리 오픈 결승 ${year}`,
@@ -41,6 +82,42 @@ export const mediaPage = {
       emptyState: "미디어 갤러리 준비 중입니다",
       featuredVideoDescription:
         "2025 탐리 오픈은 밴쿠버 한인 테니스 축제로, 두 달간 120경기가 넘는 대회가 남·녀 단·복식과 혼합 복식 등 부문별로 펼쳐졌습니다. 결승과 하이라이트는 리캡 영상에서 만나 보세요.",
+      photoAlbum: {
+        uploadButton: "사진 업로드",
+        kakaoCtaText: "카카오톡 채팅방에 사진을 올려주세요 — 앨범에 게시해드립니다.",
+        kakaoCtaButton: "카카오톡 열기",
+        kakaoCtaHref: contactData.kakao.href,
+        defaultNickname: "탐리 오픈",
+        emptyState: "아직 등록된 사진이 없습니다 — 첫 사진을 공유해 보세요!",
+        likeLabel: "좋아요",
+        viewsLabel: "조회수",
+        commentsLabel: "댓글",
+        noComments: "아직 댓글이 없습니다.",
+        uploadModalTitle: "사진 업로드",
+        fields: {
+          nickname: "닉네임",
+          caption: "설명",
+          photo: "사진",
+        },
+        photoHelp: "JPG, PNG, GIF 파일, 최대 10MB.",
+        chooseButton: "사진 선택",
+        removePhoto: "사진 제거",
+        submit: "업로드",
+        submitting: "업로드 중…",
+        uploadError: "업로드에 실패했습니다. 다시 시도해 주세요.",
+        uploadSuccess: "사진이 앨범에 등록되었습니다!",
+        invalidType: "이미지 파일을 선택해 주세요.",
+        tooLarge: "이미지는 10MB 이하여야 합니다.",
+        detailModalTitle: "사진",
+        guestNickname: "게스트",
+        commentForm: {
+          body: "댓글",
+          submit: "게시",
+          submitting: "등록 중…",
+          placeholder: "댓글을 입력하세요…",
+        },
+        by: "작성자",
+      },
     },
   },
 } as const;

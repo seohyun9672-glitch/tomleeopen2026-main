@@ -3,10 +3,8 @@
 import { IconButton } from "@/app/components/ui/Button";
 
 type StageHeaderNav = {
-  onPrev: () => void;
-  onNext: () => void;
-  prevDisabled?: boolean;
-  nextDisabled?: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
   prevLabel: string;
   nextLabel: string;
 };
@@ -62,14 +60,15 @@ export function StageHeader({
 }: StageHeaderProps) {
   return (
     <div className={cx(ROOT_CLASS, className)}>
-      {navigation && (
+      {navigation && (navigation.onPrev ? (
         <NavButton
           direction="prev"
           label={navigation.prevLabel}
-          disabled={navigation.prevDisabled}
           onClick={navigation.onPrev}
         />
-      )}
+      ) : (
+        <span className={NAV_BUTTON_CLASS} aria-hidden />
+      ))}
 
       <div className="m-0 min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 text-center overflow-hidden">
         <h3 className="m-0 text-[var(--color-text-primary)]" style={TITLE_STYLE}>
@@ -82,14 +81,15 @@ export function StageHeader({
         )}
       </div>
 
-      {navigation && (
+      {navigation && (navigation.onNext ? (
         <NavButton
           direction="next"
           label={navigation.nextLabel}
-          disabled={navigation.nextDisabled}
           onClick={navigation.onNext}
         />
-      )}
+      ) : (
+        <span className={NAV_BUTTON_CLASS} aria-hidden />
+      ))}
     </div>
   );
 }

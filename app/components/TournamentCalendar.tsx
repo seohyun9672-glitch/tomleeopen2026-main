@@ -55,6 +55,25 @@ function getAccentClass(index: number): string {
   return CALENDAR_ACCENT_BG[index % CALENDAR_ACCENT_BG.length] ?? CALENDAR_ACCENT_BG[0];
 }
 
+function getAccentVar(index: number): string {
+  return `var(--calendar-accent-${index % CALENDAR_ACCENT_BG.length})`;
+}
+
+/** Background for a day with 2+ overlapping entries: a hard-stop diagonal split for
+ * exactly two, or equal pie wedges via conic-gradient for three or more (rare). */
+function getOverlapBackground(accentIndexes: number[]): string {
+  const colors = accentIndexes.map(getAccentVar);
+  if (colors.length === 2) {
+    return `linear-gradient(135deg, ${colors[1]} 50%, ${colors[0]} 50%)`;
+  }
+  const stops = colors.map((c, i) => {
+    const from = (i / colors.length) * 100;
+    const to = ((i + 1) / colors.length) * 100;
+    return `${c} ${from}% ${to}%`;
+  });
+  return `conic-gradient(${stops.join(", ")})`;
+}
+
 function getHighlightedCellClass(index: number): string {
   return `${getAccentClass(index)} ${CALENDAR_CELL_TEXT}`;
 }
@@ -119,23 +138,23 @@ function getEntrySpanDays(entry: CalendarEntryResolved): number {
   return Math.max(0, (end - start) / 86400000);
 }
 
-function getEntryForDate(
+/** All entries covering a given date, shortest span first (ties broken by source order) —
+ * the same ranking `getEntryForDate` used to pick a single "winner" from, but here every
+ * overlapping entry is kept so the calendar can show all of them, not just one. */
+function getEntriesForDate(
   dateStr: string,
   entries: CalendarEntryResolved[]
-): CalendarEntryResolved | null {
+): CalendarEntryResolved[] {
   const matches = entries.filter((entry) => {
     if (entry.type === "date") return entry.date === dateStr;
     return !!entry.startDate && !!entry.endDate && dateStr >= entry.startDate && dateStr <= entry.endDate;
   });
 
-  if (matches.length === 0) return null;
-  if (matches.length === 1) return matches[0] ?? null;
-
-  return [...matches].sort((a, b) => {
+  return matches.sort((a, b) => {
     const spanDiff = getEntrySpanDays(a) - getEntrySpanDays(b);
     if (spanDiff !== 0) return spanDiff;
     return b.sourceOrder - a.sourceOrder;
-  })[0] ?? null;
+  });
 }
 
 function getEntriesForMonth(
@@ -174,22 +193,46 @@ function hasEntriesInMonth(year: number, month: number, entries: CalendarEntryRe
   return getEntriesForMonth(year, month, entries).length > 0;
 }
 
+function entryStartDate(entry: CalendarEntryResolved): string | undefined {
+  return entry.type === "date" ? entry.date : entry.startDate;
+}
+
+function entryEndDate(entry: CalendarEntryResolved): string | undefined {
+  return entry.type === "date" ? entry.date : entry.endDate;
+}
+
+function toYearMonth(dateStr: string): { year: number; month: number } {
+  const [year, month] = dateStr.split("-").map(Number);
+  return { year, month: month - 1 };
+}
+
 function getInitialCalendarView(entries: CalendarEntryResolved[]): { year: number; month: number } {
-  const todayParts = getToday().split("-").map(Number);
-  const nowYear = todayParts[0];
-  const nowMonth = todayParts[1] - 1;
+  const today = getToday();
+  const todayView = toYearMonth(today);
 
   if (entries.length === 0) {
-    return { year: nowYear, month: nowMonth };
+    return todayView;
   }
 
-  const firstDate = entries[0]?.type === "date" ? entries[0].date : entries[0]?.startDate;
-  if (!firstDate) {
-    return { year: nowYear, month: nowMonth };
+  // Registration always sorts first chronologically (it opens before every
+  // other milestone), so it's the correct "reset to the start" fallback —
+  // entries aren't otherwise guaranteed to be in date order.
+  const registrationStart = entries.find((e) => e.label === "Registration");
+  const fallbackDate = registrationStart ? entryStartDate(registrationStart) : undefined;
+
+  const starts = entries.map(entryStartDate).filter((d): d is string => !!d);
+  const ends = entries.map(entryEndDate).filter((d): d is string => !!d);
+  if (starts.length === 0 || ends.length === 0) {
+    return fallbackDate ? toYearMonth(fallbackDate) : todayView;
   }
 
-  const [year, month] = firstDate.split("-").map(Number);
-  return { year, month: month - 1 };
+  const overallStart = starts.reduce((min, d) => (d < min ? d : min));
+  const overallEnd = ends.reduce((max, d) => (d > max ? d : max));
+  const todayInRange = today >= overallStart && today <= overallEnd;
+  if (todayInRange) return todayView;
+
+  if (fallbackDate) return toYearMonth(fallbackDate);
+  return toYearMonth(overallStart);
 }
 
 type MonthCalendarProps = {
@@ -202,6 +245,7 @@ type MonthCalendarProps = {
 function MonthCalendar({ year, month, weekdayLabels, entries }: MonthCalendarProps) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
+  const today = getToday();
 
   return (
     <div className="grid grid-cols-7 gap-px text-center text-xs">
@@ -218,15 +262,39 @@ function MonthCalendar({ year, month, weekdayLabels, entries }: MonthCalendarPro
       {Array.from({ length: daysInMonth }, (_, index) => {
         const day = index + 1;
         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        const entry = getEntryForDate(dateStr, entries);
+        const dayEntries = getEntriesForDate(dateStr, entries);
+        const isToday = dateStr === today;
+        const tooltip = [
+          ...dayEntries.map((e) => `${e.label}: ${e.valueDisplay}`),
+          isToday ? "Today" : null,
+        ].filter(Boolean).join(" · ") || undefined;
 
+        if (dayEntries.length > 1) {
+          // Overlapping entries: split the cell's background into a colored
+          // region per entry (diagonally for two, equal wedges for three+)
+          // instead of picking a single "winning" entry to fill the whole cell.
+          return (
+            <div
+              key={day}
+              className={`rounded-md py-1.5 font-medium ${CALENDAR_CELL_TEXT} ${
+                isToday ? "ring-2 ring-inset ring-[var(--color-primary-blue-500)]" : ""
+              }`}
+              style={{ backgroundImage: getOverlapBackground(dayEntries.map((e) => e.accentIndex)) }}
+              title={tooltip}
+            >
+              {day}
+            </div>
+          );
+        }
+
+        const entry = dayEntries[0] ?? null;
         return (
           <div
             key={day}
             className={`rounded-md py-1.5 font-medium ${
               entry ? getHighlightedCellClass(entry.accentIndex) : "text-inherit"
-            }`}
-            title={entry ? `${entry.label}: ${entry.valueDisplay}` : undefined}
+            } ${isToday ? "ring-2 ring-inset ring-[var(--color-primary-blue-500)]" : ""}`}
+            title={tooltip}
           >
             {day}
           </div>

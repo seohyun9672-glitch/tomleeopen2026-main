@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 type CardViewProps<T> = {
   items: T[];
   getKey: (item: T) => string | number;
-  renderItem: (item: T) => ReactNode;
+  renderItem: (item: T, index: number) => ReactNode;
   /** Group items by a string key — groups render in insertion order. */
   groupBy?: (item: T) => string;
   renderGroupHeader?: (groupKey: string) => ReactNode;
@@ -53,8 +53,8 @@ export function CardView<T>({
 }: CardViewProps<T>) {
   const grid = (
     <ul className={cn("grid", gridClass, gap)}>
-      {items.map((item) => (
-        <li key={getKey(item)}>{renderItem(item)}</li>
+      {items.map((item, index) => (
+        <li key={getKey(item)}>{renderItem(item, index)}</li>
       ))}
     </ul>
   );
@@ -70,8 +70,8 @@ export function CardView<T>({
         <div key={key} className={cn("flex flex-col", headerGap)}>
           {renderGroupHeader?.(key)}
           <ul className={cn("grid", gridClass, gap)}>
-            {groupItems.map((item) => (
-              <li key={getKey(item)}>{renderItem(item)}</li>
+            {groupItems.map((item, index) => (
+              <li key={getKey(item)}>{renderItem(item, index)}</li>
             ))}
           </ul>
         </div>

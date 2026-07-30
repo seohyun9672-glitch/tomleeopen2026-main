@@ -1,4 +1,5 @@
 import { getImportantDates } from "@/lib/importantDatesData";
+import { menuLabelForHref } from "./menu";
 import { getYear } from "@/lib/utils";
 import { EXTERNAL_LINKS } from "@/lib/externalLinks";
 import { contactData } from "@/lib/contactData";
@@ -50,7 +51,7 @@ const tournamentYear = _tournamentEntry?.type === "range" ? _tournamentEntry.sta
 export const overviewPage = {
   en: {
     overviewPage: {
-      heroTitle: "Overview",
+      heroTitle: menuLabelForHref("/overview", "en"),
       overview: {
         id: "about",
         title: "About",
@@ -137,7 +138,7 @@ export const overviewPage = {
           href: EXTERNAL_LINKS.gatesParkTennisCourts,
           day: "Saturday",
           time: "3:30 – 8:00 PM",
-          dateDisplay: finalDateEn,
+          date: finalDateEn,
         },
         prelimHeaders: ["Location", "Date", "Day", "Time"],
         prelimRows: VENUES.map((v) => venuePrelimRow(v, "en")),
@@ -225,7 +226,7 @@ export const overviewPage = {
   },
   ko: {
     overviewPage: {
-      heroTitle: "개요",
+      heroTitle: menuLabelForHref("/overview", "ko"),
       overview: {
         id: "about",
         title: "대회 요강",
@@ -253,12 +254,12 @@ export const overviewPage = {
         ],
       },
       categoriesTableHeaderCategory: "종목",
-      categoriesTableHeaderTier: "등급",
+      categoriesTableHeaderTier: "부문",
       categoriesTableHeaderNtrp: "NTRP",
-      prizes: {
-        title: "상금",
-        tableHeaders: ["경기 부문", "참가 규모", "1위", "2위", "3위", "4위"],
-      },
+      // prizes: {
+      //   title: "상금",
+      //   tableHeaders: ["경기 부문", "참가 규모", "1위", "2위", "3위", "4위"],
+      // },
       matchLogistics: {
         id: "match-logistics",
         title: "경기 운영 안내",
@@ -311,7 +312,7 @@ export const overviewPage = {
           href: EXTERNAL_LINKS.gatesParkTennisCourts,
           day: "토요일",
           time: "오후 3:30 – 8:00",
-          dateDisplay: finalDateKo,
+          date: finalDateKo,
         },
         prelimHeaders: ["장소", "날짜", "요일", "시간"],
         prelimRows: VENUES.map((v) => venuePrelimRow(v, "ko")),

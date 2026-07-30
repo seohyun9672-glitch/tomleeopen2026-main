@@ -10,6 +10,7 @@ import { schedulePage } from "./schedulePage";
 import { matchUi } from "./matchUi";
 import { mediaPage } from "./mediaPage";
 import { playersPage } from "./playersPage";
+import { recordsPage } from "./recordsPage";
 import { overviewPage } from "./overviewPage";
 import { drawsPage } from "./drawsPage";
 import { honourRollPage } from "./honourRollPage";
@@ -19,6 +20,7 @@ import { rulesPage } from "./rulesPage";
 import { adminPage } from "./adminPage";
 import { courtBookingPage } from "./courtBookingPage";
 import { giveawayPage } from "./giveawayPage";
+import { eventPage } from "./eventPage";
 
 /** Full bilingual site content. Use `siteContent[locale]` in locale-context. */
 export const siteContent = {
@@ -30,6 +32,7 @@ export const siteContent = {
     ...matchUi.en,
     ...mediaPage.en,
     ...playersPage.en,
+    ...recordsPage.en,
     ...overviewPage.en,
     ...drawsPage.en,
     ...honourRollPage.en,
@@ -39,6 +42,7 @@ export const siteContent = {
     ...adminPage.en,
     ...courtBookingPage.en,
     ...giveawayPage.en,
+    ...eventPage.en,
   },
   ko: {
     ...header.ko,
@@ -48,6 +52,7 @@ export const siteContent = {
     ...matchUi.ko,
     ...mediaPage.ko,
     ...playersPage.ko,
+    ...recordsPage.ko,
     ...overviewPage.ko,
     ...drawsPage.ko,
     ...honourRollPage.ko,
@@ -57,6 +62,7 @@ export const siteContent = {
     ...adminPage.ko,
     ...courtBookingPage.ko,
     ...giveawayPage.ko,
+    ...eventPage.ko,
   },
 } as const;
 
@@ -75,4 +81,4 @@ export function resolveLocale(localeParam: string): Locale {
 }
 
 // Named exports for direct per-domain imports
-export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, rulesPage, adminPage, courtBookingPage, giveawayPage };
+export { header, shared, homePage, schedulePage, matchUi, mediaPage, playersPage, recordsPage, overviewPage, drawsPage, honourRollPage, clubs, registrationPage, rulesPage, adminPage, courtBookingPage, giveawayPage, eventPage };

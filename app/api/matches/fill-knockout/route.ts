@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { autoFillKnockoutSlots } from "@/lib/generateMatches";
 
-/** POST /api/matches/fill-knockout — fill empty knockout slots from prelim standings. */
+/** POST /api/matches/fill-knockout — sync not-yet-played knockout slots from prelim standings. */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     }
 
     const result = await autoFillKnockoutSlots(tournamentYear, categoryId, category.prelimFormat);
+    if (result.updated.length > 0) revalidateTag("all-matches", "default");
     return NextResponse.json(result);
   } catch (e) {
     console.error("POST /api/matches/fill-knockout", e);

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Button } from "./Button";
 
 // ─── Shared ────────────────────────────────────────────────────────────────────
@@ -90,6 +91,8 @@ export type CardProps = {
   coverLinkHref?: string | null;
   /** Media variant: wraps the cover image in a button (gallery open). */
   onImageClick?: (() => void) | null;
+  /** Media variant: extra inline content row below the body text (e.g. view/comment/like controls). */
+  cornerAction?: ReactNode;
 };
 
 // ─── Card (default variant) ────────────────────────────────────────────────────
@@ -116,6 +119,7 @@ export function Card({
   photoCount,
   coverLinkHref,
   onImageClick,
+  cornerAction,
 }: CardProps) {
   if (variant === "media") {
     return (
@@ -133,6 +137,7 @@ export function Card({
         cta={cta}
         ctaAriaLabel={ctaAriaLabel}
         className={className}
+        cornerAction={cornerAction}
       />
     );
   }
@@ -146,28 +151,36 @@ export function Card({
     <article
       className={joinClasses(
         "flex w-full min-w-0 flex-col overflow-hidden border border-[color:var(--outline-blue-soft)] bg-white transition-colors hover:border-[color:var(--color-primary-blue-300)]",
-        imageOnly && "h-[140px] md:h-[200px]",
+        imageOnly && !image && "h-[140px] md:h-[200px]",
         !outerLink && className
       )}
     >
-      <div
-        className={joinClasses(
-          "relative w-full bg-[var(--card-placeholder-fill)]",
-          imageOnly ? "h-full flex-1" : "h-[220px] md:h-[280px] shrink-0"
-        )}
-      >
-        {image ? (
-          <Image
-            src={image}
-            alt={alt}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 33vw"
-          />
-        ) : (
-          <div className="h-full w-full opacity-80" style={PLACEHOLDER_STYLE} aria-hidden />
-        )}
-      </div>
+      {imageOnly && image ? (
+        // Hugs the image's natural height instead of a fixed box — `fill`
+        // mode (used below for the non-imageOnly / placeholder cases)
+        // requires a pre-sized ancestor, which is the opposite of hugging
+        // content when the image's real dimensions aren't known ahead of time.
+        <img src={image} alt={alt} className="block w-full h-auto" />
+      ) : (
+        <div
+          className={joinClasses(
+            "relative w-full bg-[var(--card-placeholder-fill)]",
+            imageOnly ? "h-full flex-1" : "h-[220px] md:h-[280px] shrink-0"
+          )}
+        >
+          {image ? (
+            <Image
+              src={image}
+              alt={alt}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="h-full w-full opacity-80" style={PLACEHOLDER_STYLE} aria-hidden />
+          )}
+        </div>
+      )}
 
       {showFooter && (
         <div className="flex flex-col gap-2 border-[color:var(--color-border-card-subtle)] px-3 py-3">
@@ -236,6 +249,7 @@ type MediaVariantProps = {
   cta?: { label: string; href?: string; onClick?: () => void };
   ctaAriaLabel?: string;
   className?: string;
+  cornerAction?: ReactNode;
 };
 
 function MediaVariant({
@@ -252,6 +266,7 @@ function MediaVariant({
   cta,
   ctaAriaLabel,
   className,
+  cornerAction,
 }: MediaVariantProps) {
   const showStack = photoCount >= 2;
   const hasCover = image != null;
@@ -322,9 +337,12 @@ function MediaVariant({
             <p className="text-[var(--color-text-secondary)] line-clamp-2 text-sm">{subtitle}</p>
           )}
           {showSubtext && (
-            <p className="m-0 text-[9px] leading-tight tabular-nums text-[var(--color-text-secondary)] sm:text-[10px]">
+            <p className="m-0 text-[10px] leading-tight tabular-nums text-[var(--color-text-secondary)]">
               {subtext}
             </p>
+          )}
+          {cornerAction && (
+            <div className="mt-1 flex items-center gap-2">{cornerAction}</div>
           )}
           {showCta && (
             cta!.href ? (

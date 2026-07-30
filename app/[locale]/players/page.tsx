@@ -2,9 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { PlayersHub } from "@/app/players/PlayersHub";
 import { PageContainer } from "@/app/components/PageContainer";
 import { orderTeamMembersForDisplay } from "@/lib/utils";
+import { getCategories } from "@/lib/categories";
 
 export default async function PlayersPage() {
-  const [rows, teamRows] = await Promise.all([
+  const [categories, rows, teamRows] = await Promise.all([
+    getCategories(),
     prisma.player.findMany({
       select: {
         id: true,
@@ -76,7 +78,7 @@ export default async function PlayersPage() {
 
   return (
     <PageContainer>
-      <PlayersHub rows={players} teams={teams} />
+      <PlayersHub rows={players} teams={teams} categories={categories} />
     </PageContainer>
   );
 }

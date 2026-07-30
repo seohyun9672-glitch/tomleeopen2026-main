@@ -39,7 +39,7 @@ export async function PATCH(
 
     const isCancelled = typeof body.matchStatus === "string" && /^cancell?ed$/i.test(body.matchStatus);
     data.matchStatus = isCancelled ? "Cancelled" : computeMatchStatus(
-      current.matchStatus,
+      "", // explicit intent (not cancelled) must win over any stale stored status
       ("date" in body ? body.date || null : current.date),
       ("time" in body ? body.time || null : current.time),
       ("location" in body ? body.location || null : current.location),

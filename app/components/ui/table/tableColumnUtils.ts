@@ -8,25 +8,15 @@ export function headerTextAt(headers: readonly (string | ReactNode)[], j: number
   return "";
 }
 
+const STAT_HEADERS = new Set([
+  "W", "L", "W-L", "Win%", "SD", "GD",
+  "승", "패", "승-패", "승률", "세트차", "게임차",
+]);
+
 export function isStatHeader(headers: readonly (string | ReactNode)[], j: number): boolean {
   const s = headerTextAt(headers, j).trim();
   if (!s) return false;
-  return (
-    s === "W" ||
-    s === "L" ||
-    s === "SD" ||
-    s === "GD" ||
-    s === "승" ||
-    s === "패" ||
-    s === "세트차" ||
-    s === "게임차" ||
-    s.startsWith("W") ||
-    s.startsWith("L") ||
-    s.startsWith("SD") ||
-    s.startsWith("GD") ||
-    s.includes("세트차") ||
-    s.includes("게임차")
-  );
+  return STAT_HEADERS.has(s);
 }
 
 function isPlayersHeader(headers: readonly (string | ReactNode)[], j: number): boolean {

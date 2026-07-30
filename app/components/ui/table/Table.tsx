@@ -156,7 +156,15 @@ function DataTable({
   sortConfig,
   columnClass,
   rowIds,
-}: DataTableProps & { columnClass?: readonly (string | undefined)[] }) {
+  highlightRowId,
+}: DataTableProps & { columnClass?: readonly (string | undefined)[]; highlightRowId?: string | null }) {
+  // A scroll gesture (mouse-drag or touch) that starts and ends on the same
+  // row still fires a native click at pointerup — without this, scrolling
+  // the table doubles as "click this row" and pops the edit modal open by
+  // accident. Only treat it as a real row click if the pointer barely moved.
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const ROW_CLICK_DRAG_THRESHOLD = 6;
+
   const { shouldCenter, widthsCh: computedWidths } = computeColumnMeta(headers ?? [], dataRows ?? []);
   const widthsCh = columnWidths
     ? computedWidths.map((w, i) => columnWidths[i] ?? w)
@@ -210,7 +218,7 @@ function DataTable({
                     >
                       {sortKey != null && sortConfig ? (
                         <div
-                          className={`flex max-w-full flex-wrap items-center justify-start gap-1.5 font-[600] ${
+                          className={`flex max-w-full flex-nowrap items-center justify-start gap-1.5 font-[600] ${
                             isActive ? "text-[var(--color-primary)]" : "text-[var(--table-header-text)]"
                           }`}
                         >
@@ -263,11 +271,21 @@ function DataTable({
           <tbody>
             {(dataRows ?? []).map((cells, i) => (
               <tr
-                key={i}
-                className={`${rowBorder} ${rowGroupBreakBefore?.(i) ? "is-table-row-group-start" : ""}`}
+                key={rowIds?.[i] ?? i}
+                className={`${rowBorder} ${rowGroupBreakBefore?.(i) ? "is-table-row-group-start" : ""} ${highlightRowId != null && rowIds?.[i] === highlightRowId ? "bg-[var(--color-primary)]/10 transition-colors duration-1000" : ""}`}
                 data-clickable={onRowClick ? "true" : undefined}
                 data-row-id={rowIds?.[i]}
-                onClick={onRowClick ? () => onRowClick(cells, i) : undefined}
+                onPointerDown={onRowClick ? (e) => { pointerDownRef.current = { x: e.clientX, y: e.clientY }; } : undefined}
+                onClick={onRowClick ? (e) => {
+                  const start = pointerDownRef.current;
+                  pointerDownRef.current = null;
+                  if (start) {
+                    const dx = e.clientX - start.x;
+                    const dy = e.clientY - start.y;
+                    if (Math.hypot(dx, dy) > ROW_CLICK_DRAG_THRESHOLD) return;
+                  }
+                  onRowClick(cells, i);
+                } : undefined}
               >
                 {cells.map((c, j) => {
                   const nowrap = columnNoWrap?.[j] === true;
@@ -376,13 +394,32 @@ export function TableView<T>({
 }: TableViewConfig<T> & { items: T[] }) {
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [prevScrollToId, setPrevScrollToId] = useState(scrollToId ?? null);
   const tableRef = useRef<HTMLDivElement>(null);
 
+  if ((scrollToId ?? null) !== prevScrollToId) {
+    setPrevScrollToId(scrollToId ?? null);
+    setHighlightId(scrollToId ?? null);
+  }
+
+  // Re-applied on every render (not just when `scrollToId` first changes)
+  // for as long as `highlightId` is active — a save typically triggers an
+  // optimistic local update immediately followed by an async server refresh
+  // that can reflow/reorder rows a second time once it lands. Without this,
+  // the one-shot version only corrected the first reflow and let the second
+  // one silently carry the row out of view.
   useEffect(() => {
-    if (!scrollToId) return;
-    const el = tableRef.current?.querySelector(`[data-row-id="${scrollToId}"]`);
+    if (!highlightId) return;
+    const el = tableRef.current?.querySelector(`[data-row-id="${highlightId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [scrollToId]);
+  });
+
+  useEffect(() => {
+    if (!highlightId) return;
+    const timer = setTimeout(() => setHighlightId(null), 1800);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
 
   const sortedItems = useMemo(() => {
     if (!activeSortKey) return items;
@@ -424,6 +461,7 @@ export function TableView<T>({
         onRowClick={onRowClick ? (_, i) => onRowClick(sortedItems[i]) : undefined}
         rowGroupBreakBefore={rowGroupBreakBefore}
         rowIds={getRowId ? sortedItems.map((item) => getRowId(item)) : undefined}
+        highlightRowId={highlightId}
         dataRows={sortedItems.map((item, i) =>
           columns.map((col) => <TableCell {...col.renderCell(item, i, sortedItems.length)} />)
         )}

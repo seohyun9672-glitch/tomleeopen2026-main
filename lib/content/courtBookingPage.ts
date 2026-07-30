@@ -1,9 +1,10 @@
 import { contactData } from "@/lib/contactData";
+import { menuLabelForHref } from "./menu";
 
 export const courtBookingPage = {
   en: {
     courtBookingPage: {
-      heroTitle: "Book a court",
+      heroTitle: menuLabelForHref("/court-booking", "en"),
       manageHeroTitle: "Manage booking",
       description:
         "Courts can be booked up to 7 days in advance. Available slots are first come, first served. Cancellations must be made through the official",
@@ -58,7 +59,7 @@ export const courtBookingPage = {
   },
   ko: {
     courtBookingPage: {
-      heroTitle: "코트 예약",
+      heroTitle: menuLabelForHref("/court-booking", "ko"),
       manageHeroTitle: "예약 관리",
       description:
         "코트는 최대 7일 전부터 선착순으로 예약할 수 있습니다. 취소는 공식",
@@ -86,7 +87,7 @@ export const courtBookingPage = {
         courtAvailable: "예약 가능",
         courtBooked: "예약됨",
         courtCompleted: "완료",
-        courtExpired: "예약 종료",
+        courtExpired: "기한 종료",
         noCourts: "해당 날짜에 예약 가능한 코트가 없습니다.",
         outsideWindow: "오늘부터 7일 이내의 날짜만 예약 가능합니다.",
         courtsNotOpenYet: "코트 예약 시작일:",

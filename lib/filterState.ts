@@ -115,7 +115,13 @@ export function updateFiltersInUrl(
 ): void {
   const next = mergeFilterParams(window.location.search, updates, opts?.clear);
   const qs = next.toString();
-  window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  try {
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  } catch {
+    // Browsers throttle history.replaceState (e.g. Chrome/Firefox cap ~100
+    // calls per 10s) and throw a SecurityError past that limit — harmless to
+    // skip a single URL sync rather than let it crash the page mid-interaction.
+  }
 }
 
 /**

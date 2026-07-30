@@ -30,6 +30,27 @@ export function clubChipClass(clubCode: string): string {
   return `border-0 club-chip-${key === "n/a" ? "na" : key}`;
 }
 
+// Mirrors the `.club-chip-*` rules in app/globals.css ("CLUB CHIP COLORS") —
+// same club → pastel-family mapping, but returning a CSS color value (for
+// chart fills, etc.) instead of a class name.
+const CLUB_COLOR_FAMILY: Record<string, string> = {
+  harang: "sky",
+  vktc: "mint",
+  ctc: "lilac",
+  clayton: "butter",
+  sagol: "peach",
+  machang: "aqua",
+  langley: "pink",
+  na: "slate",
+};
+
+/** Returns the `var(--pastel-*-fg)` color matching a club's chip color (see `clubChipClass`). */
+export function clubChipColorVar(clubCode: string): string {
+  const key = clubCode.trim().toLowerCase();
+  const family = CLUB_COLOR_FAMILY[key === "n/a" ? "na" : key] ?? CLUB_COLOR_FAMILY.na;
+  return `var(--pastel-${family}-fg)`;
+}
+
 export function clubDisplayName(
   club: { name: string; nameKo: string | null },
   locale: import("@/lib/content").Locale

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconButton } from "@/app/components/ui/Button";
-import { formatDateLong } from "@/lib/utils";
+import { formatDatePickerValue } from "@/lib/utils";
 import { useLocale } from "@/lib/locale-context";
 
 export type DatePickerProps = {
@@ -15,6 +16,14 @@ export type DatePickerProps = {
    * When undefined, every date is selectable.
    */
   enabledDates?: Set<string>;
+  /** When there's no selected date yet, open the calendar to this ISO date
+   * instead of today (e.g. the most recent enabled date for a sibling year
+   * filter's current value). */
+  defaultViewDate?: string;
+  /** Whether a selected date can be cleared back to empty via an "×" button.
+   * Set false when a date is always required (e.g. a schedule page that
+   * always shows some date, never "no date"). Defaults to true. */
+  clearable?: boolean;
   placeholder?: string;
   disabled?: boolean;
   "aria-label"?: string;
@@ -23,15 +32,6 @@ export type DatePickerProps = {
   "aria-label-next"?: string;
   className?: string;
 };
-
-function CalendarIcon() {
-  return (
-    <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  );
-}
 
 function ChevronLeftIcon() {
   return (
@@ -72,6 +72,8 @@ export function DatePicker({
   value,
   onChange,
   enabledDates,
+  defaultViewDate,
+  clearable = true,
   placeholder = "Select date",
   disabled = false,
   "aria-label": ariaLabel,
@@ -83,45 +85,62 @@ export function DatePicker({
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; openUpward: boolean }>({ top: 0, left: 0, openUpward: false });
-  const [viewYear, setViewYear] = useState(() => {
-    const base = value ? new Date(value + "T12:00:00") : new Date();
-    return base.getFullYear();
-  });
-  const [viewMonth, setViewMonth] = useState(() => {
-    const base = value ? new Date(value + "T12:00:00") : new Date();
-    return base.getMonth();
-  });
+  const initialView = useCallback(() => {
+    if (value) return new Date(value + "T12:00:00");
+    if (defaultViewDate) return new Date(defaultViewDate + "T12:00:00");
+    return new Date();
+  }, [value, defaultViewDate]);
+  const [viewYear, setViewYear] = useState(() => initialView().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => initialView().getMonth());
 
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    // Use visualViewport on mobile for accurate height (excludes browser chrome)
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const left = Math.min(rect.left, viewportWidth - POPOVER_WIDTH - 8);
+    const spaceBelow = viewportHeight - rect.bottom - 8;
+    const openUpward = spaceBelow < POPOVER_HEIGHT && rect.top > POPOVER_HEIGHT;
+    const top = openUpward ? rect.top - POPOVER_HEIGHT - 4 : rect.bottom + 4;
+    setPopoverPos({ top, left: Math.max(8, left), openUpward });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     function handleOutside(e: MouseEvent) {
-      if (containerRef.current?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      // The calendar is portaled into document.body (so it isn't clipped by
+      // scrollable ancestors), so it's not a DOM descendant of containerRef —
+      // it needs its own containment check or every click inside it (e.g. a
+      // day button) would register as "outside" and close the popover first.
+      if (containerRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function handleResize() { setOpen(false); }
+    // Keep the popover anchored to its trigger as any ancestor scrolls (capture
+    // phase catches scroll on nested scroll containers, e.g. a filter row),
+    // instead of leaving it stranded at its original screen position.
+    function handleScroll() { updatePosition(); }
+    function handleResize() { updatePosition(); }
     document.addEventListener("mousedown", handleOutside);
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
     window.addEventListener("resize", handleResize);
     return () => {
       document.removeEventListener("mousedown", handleOutside);
+      window.removeEventListener("scroll", handleScroll, { capture: true });
       window.removeEventListener("resize", handleResize);
     };
-  }, [open]);
+  }, [open, updatePosition]);
 
   function handleToggle() {
     if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      // Use visualViewport on mobile for accurate height (excludes browser chrome)
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-      const left = Math.min(rect.left, viewportWidth - POPOVER_WIDTH - 8);
-      const spaceBelow = viewportHeight - rect.bottom - 8;
-      const openUpward = spaceBelow < POPOVER_HEIGHT && rect.top > POPOVER_HEIGHT;
-      const top = openUpward ? rect.top - POPOVER_HEIGHT - 4 : rect.bottom + 4;
-      setPopoverPos({ top, left: Math.max(8, left), openUpward });
-      const base = value ? new Date(value + "T12:00:00") : new Date();
+      updatePosition();
+      const base = initialView();
       setViewYear(base.getFullYear());
       setViewMonth(base.getMonth());
     }
@@ -149,30 +168,27 @@ export function DatePicker({
   const nextYear = viewMonth === 11 ? viewYear + 1 : viewYear;
 
   return (
-    <div className={`relative form-control-with-leading-icon ${className}`} ref={containerRef}>
-      <span className="form-control-leading-icon" aria-hidden>
-        <CalendarIcon />
-      </span>
+    <div className={`relative ${className}`} ref={containerRef}>
       <button
         ref={buttonRef}
         id={id}
         type="button"
         onClick={handleToggle}
         disabled={disabled}
-        className="form-input-match form-control-input--with-leading-icon w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+        className="form-input-match w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={ariaLabel}
       >
-        <span className={`block min-w-0 truncate ${value ? "pr-5" : ""}`}>
+        <span className={`block min-w-0 truncate ${value && clearable ? "pr-7" : ""}`}>
           {value ? (
-            formatDateLong(value, "short", locale)
+            formatDatePickerValue(value, locale)
           ) : (
             <span className="text-[var(--color-text-tertiary)]">{placeholder}</span>
           )}
         </span>
       </button>
-      {value && !disabled && (
+      {clearable && value && !disabled && (
         <button
           type="button"
           tabIndex={-1}
@@ -186,8 +202,9 @@ export function DatePicker({
         </button>
       )}
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <div
+          ref={popoverRef}
           role="dialog"
           aria-label={ariaLabelDialog}
           style={{ position: "fixed", top: popoverPos.top, left: popoverPos.left, width: POPOVER_WIDTH, maxHeight: "calc(100dvh - env(safe-area-inset-bottom, 0px) - 16px)", overflowY: "auto" }}
@@ -225,6 +242,7 @@ export function DatePicker({
               const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               const enabled = enabledDates === undefined || enabledDates.has(iso);
               const isSelected = value === iso;
+              const isToday = iso === getTodayIso();
               return (
                 <button
                   key={iso}
@@ -233,6 +251,7 @@ export function DatePicker({
                   onClick={() => selectDate(iso)}
                   className={[
                     "h-8 rounded-lg text-sm font-medium transition-colors",
+                    isToday ? "ring-1 ring-inset ring-[var(--color-primary-blue-500)]" : "",
                     !enabled
                       ? "cursor-not-allowed text-[var(--color-text-tertiary)] opacity-40 hover:bg-transparent"
                       : isSelected
@@ -268,7 +287,8 @@ export function DatePicker({
               </div>
             );
           })()}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -8,15 +8,18 @@ import { buildCategoryByIdMap, categoryLabelForId } from "@/lib/categories";
 import { TabList } from "@/app/components/ui/TabList";
 import { DatabaseLayout } from "@/app/components/database";
 import { Card } from "@/app/components/ui/Card";
+import { PageHero } from "@/app/components/layout/PageHero";
 import { useLocale } from "@/lib/locale-context";
 import { PhotoGalleryLightbox } from "./PhotoGalleryLightbox";
 import { GroupedList } from "@/app/components/GroupedList";
 import { extractYouTubeVideoId, youtubeThumbnailHqUrl } from "@/lib/media";
+import { PhotoAlbumContent } from "./PhotoAlbumContent";
+import type { CommunityMediaPostRecord } from "@/lib/communityMedia";
 
 const VIDEO_HIGHLIGHT_ID = "media-video-2025-recap";
 const VIDEO_FALLBACK_YEAR = 2025;
 
-const TABS = ["videos", "photos", "articles"] as const;
+const TABS = ["videos", "photos", "articles", "photoAlbum"] as const;
 type Tab = (typeof TABS)[number];
 
 const cardGridClass =
@@ -501,10 +504,12 @@ type Props = {
   items: MediaRecord[];
   categories: CategoryRecord[];
   photoManifests?: Record<number, Record<string, string[]>>;
+  communityMediaPosts?: CommunityMediaPostRecord[];
 };
 
-export function MediaHub({ items, categories, photoManifests }: Props) {
+export function MediaHub({ items, categories, photoManifests, communityMediaPosts = [] }: Props) {
   const { t, locale } = useLocale();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const tabDefs = TABS.map((tab) => ({
     value: tab,
@@ -617,19 +622,30 @@ export function MediaHub({ items, categories, photoManifests }: Props) {
           nextLabel={t.mediaPage.galleryNext}
         />
       )}
+      <PageHero title={t.mediaPage.heroTitle} />
       <div className="flex flex-col gap-[var(--grid-gap)] md:gap-[var(--grid-gap-md)]">
         <TabList
           tabs={tabDefs}
           value={currentTab}
           onSelect={(tab) => setCurrentTab(tab as Tab)}
         />
-        <DatabaseLayout
-          isEmpty={displayItems.length === 0}
-          emptyText={t.mediaPage.emptyState}
-          className="text-[var(--section-text)]"
-        >
-          {renderContent()}
-        </DatabaseLayout>
+        {currentTab === "photoAlbum" ? (
+          <PhotoAlbumContent
+            posts={communityMediaPosts}
+            locale={locale}
+            t={t.mediaPage.photoAlbum}
+            uploadOpen={uploadOpen}
+            onUploadOpenChange={setUploadOpen}
+          />
+        ) : (
+          <DatabaseLayout
+            isEmpty={displayItems.length === 0}
+            emptyText={t.mediaPage.emptyState}
+            className="text-[var(--section-text)]"
+          >
+            {renderContent()}
+          </DatabaseLayout>
+        )}
       </div>
     </>
   );

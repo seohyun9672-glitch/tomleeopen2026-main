@@ -3,6 +3,7 @@ import type { Prisma, Round } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { getToday, orderTeamMembersForDisplay, parseTimeToHHMM } from "@/lib/utils";
+import { displayName } from "@/lib/names";
 
 export type Match = {
   id: string;
@@ -172,7 +173,9 @@ export function computeMatchStatus(
   const hasSchedule = Boolean(date) && Boolean(time) && Boolean(location);
   const hasSet1 = Boolean(set1ScoreTeam1) && Boolean(set1ScoreTeam2);
   const hasSet2 = Boolean(set2ScoreTeam1) && Boolean(set2ScoreTeam2);
-  if (hasSchedule && hasSet1 && hasSet2) return "Completed";
+  // A fully-scored match is decided regardless of whether a court/time was
+  // ever recorded — walkovers/withdrawals legitimately have no schedule.
+  if (hasSet1 && hasSet2) return "Completed";
   if (hasSchedule) return "Scheduled";
   return "Pending";
 }
@@ -221,7 +224,7 @@ export const getAllMatches = unstable_cache(
       .sort(comparePublicMatchOrder);
   },
   ["all-matches"],
-  { revalidate: 10, tags: ["all-matches"] }
+  { revalidate: 60, tags: ["all-matches"] }
 );
 
 export function isoDateLocal(d?: Date): string {
@@ -338,18 +341,56 @@ export function matchStatusSortOrder(status: string): number {
   return MATCH_STATUS_SORT_ORDER[matchStatusVariant(status)] ?? 99;
 }
 
+const ADMIN_MATCH_STATUS_SORT_ORDER: Record<string, number> = {
+  pending: 0,
+  scheduled: 1,
+  completed: 2,
+  cancelled: 3,
+};
+
+/** Admin-table status sort order: pending < scheduled < completed < cancelled. */
+export function adminMatchStatusSortOrder(status: string): number {
+  return ADMIN_MATCH_STATUS_SORT_ORDER[matchStatusVariant(status)] ?? 99;
+}
+
 /**
  * Sorts matches for public display: status order (scheduled → pending → completed → cancelled),
- * then time ascending within each status group (nulls last).
+ * then time ascending within each status group (12pm → 3pm → 5pm; nulls last).
+ * This is the single shared sort used everywhere match cards are grouped/listed
+ * (e.g. ScheduleHub, the home page schedule preview).
  */
 export function sortMatchesForDisplay(matches: Match[]): Match[] {
   return [...matches].sort((a, b) => {
     const sd = matchStatusSortOrder(a.matchStatus) - matchStatusSortOrder(b.matchStatus);
     if (sd !== 0) return sd;
-    const ta = parseTimeToHHMM(a.time) || "00:00"; // nulls first when descending
-    const tb = parseTimeToHHMM(b.time) || "00:00";
-    return tb.localeCompare(ta); // descending — most recent time first
+    const ta = parseTimeToHHMM(a.time) || "99:99"; // nulls last when ascending
+    const tb = parseTimeToHHMM(b.time) || "99:99";
+    return ta.localeCompare(tb); // ascending — earliest time first
   });
+}
+
+/**
+ * Resolves a match's stored `ball` value (a free-text name, canonically the
+ * English name going forward) against its roster to display it in the current
+ * locale. Also checks the Korean name lists, to handle rows saved before this
+ * fix (when the stored value could be whichever locale was on screen at save
+ * time). Falls back to the raw stored string if it doesn't match anyone.
+ */
+export function resolveBallPlayerName(
+  m: { ball: string | null; team1Names: string[]; team1NamesKo: string[]; team2Names: string[]; team2NamesKo: string[] },
+  locale: "en" | "ko",
+): string {
+  const value = m.ball ?? "";
+  const rosters = [
+    [m.team1Names, m.team1NamesKo],
+    [m.team2Names, m.team2NamesKo],
+  ] as const;
+  for (const [namesEn, namesKo] of rosters) {
+    let idx = namesEn.indexOf(value);
+    if (idx === -1) idx = namesKo.indexOf(value);
+    if (idx !== -1) return displayName(namesEn[idx], namesKo[idx] ?? null, locale);
+  }
+  return value;
 }
 
 /**

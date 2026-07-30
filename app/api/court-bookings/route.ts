@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { COURT_OPTIONS, deriveCourtBookingStatus, isExcludedDate, type CourtBookingStatus } from "@/lib/content/courts";
 import { addDays, getDayOfWeek, getToday, getYear } from "@/lib/utils";
+import { ROUND_PRE } from "@/lib/round";
 
 /**
  * Extracts the start time from a range string like "7:00 – 9:00 PM" → "7:00 PM".
@@ -135,11 +136,11 @@ export async function GET(request: Request) {
       const matches = await prisma.match.findMany({
         where: {
           tournamentYear: year,
-          round: "Pre",
+          round: ROUND_PRE,
           OR: [{ team1Id: { in: teamIds } }, { team2Id: { in: teamIds } }],
         },
         include: {
-          category: { select: { label: true, labelKo: true } },
+          category: { select: { id: true, label: true, labelKo: true } },
           team1: {
             include: {
               member1: { select: { fullNameEn: true, fullNameKo: true } },
@@ -205,7 +206,7 @@ export async function GET(request: Request) {
                 member2: { select: { fullNameEn: true, fullNameKo: true } },
               },
             },
-            category: { select: { label: true, labelKo: true } },
+            category: { select: { id: true, label: true, labelKo: true } },
           },
         }),
         prisma.team.findMany({
@@ -213,7 +214,7 @@ export async function GET(request: Request) {
           include: {
             member1: { select: { fullNameEn: true, fullNameKo: true } },
             member2: { select: { fullNameEn: true, fullNameKo: true } },
-            category: { select: { label: true, labelKo: true } },
+            category: { select: { id: true, label: true, labelKo: true } },
           },
         }),
         prisma.player.findMany({

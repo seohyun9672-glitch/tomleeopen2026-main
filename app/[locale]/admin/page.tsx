@@ -31,7 +31,7 @@ export default async function AdminPage() {
 
   await applyPostCloseCategoryRules(getYear());
 
-  const [regRows, teamRowsInitial, matchRows, playerRows, catRows, statusRows, adminRows, finalistKeys, rawGiveaways, tumblerOptionRows] = await Promise.all([
+  const [regRows, teamRowsInitial, matchRows, playerRows, catRows, statusRows, adminRows, finalistKeys, rawGiveaways, tumblerOptionRows, mediaRows, communityMediaRows] = await Promise.all([
     prisma.tournamentRegistration.findMany({
       include: {
         player: {
@@ -64,15 +64,15 @@ export default async function AdminPage() {
     prisma.team.findMany({
       include: {
         category: { select: { label: true, labelKo: true, isDoubles: true } },
-        member1: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
-        member2: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
+        member1: { select: { fullNameEn: true, fullNameKo: true, gender: true, clubs: { select: { clubCode: true } } } },
+        member2: { select: { fullNameEn: true, fullNameKo: true, gender: true, clubs: { select: { clubCode: true } } } },
       },
       orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
     }),
     prisma.match.findMany({
       include: {
         category: { select: { label: true, labelKo: true } },
-        roundRef: { select: { code: true, labelEn: true, labelKo: true } },
+        roundRef: { select: { code: true, labelEn: true, labelKo: true, sortOrder: true } },
       },
       orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }, { id: "asc" }],
     }),
@@ -105,6 +105,41 @@ export default async function AdminPage() {
     prisma.tumblerOption.findMany({
       orderBy: { sortOrder: "asc" },
       select: { optionId: true, label: true, imageSrc: true, stock: true },
+    }),
+    prisma.media.findMany({
+      orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { date: "desc" }],
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        titleKo: true,
+        subtitle: true,
+        subtitleKo: true,
+        image: true,
+        media: true,
+        outlet: true,
+        outletKo: true,
+        date: true,
+        categoryId: true,
+        sortOrder: true,
+        tournamentYear: true,
+      },
+    }),
+    prisma.communityMediaPost.findMany({
+      orderBy: [{ isAwardWinner: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        title: true,
+        nickname: true,
+        imageUrl: true,
+        createdAt: true,
+        likeCount: true,
+        viewCount: true,
+        isAwardWinner: true,
+        tournamentYear: true,
+        _count: { select: { comments: true } },
+        comments: { orderBy: { createdAt: "asc" } },
+      },
     }),
   ]);
 
@@ -141,8 +176,8 @@ export default async function AdminPage() {
     teamRows = await prisma.team.findMany({
       include: {
         category: { select: { label: true, labelKo: true, isDoubles: true } },
-        member1: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
-        member2: { select: { fullNameEn: true, fullNameKo: true, gender: true } },
+        member1: { select: { fullNameEn: true, fullNameKo: true, gender: true, clubs: { select: { clubCode: true } } } },
+        member2: { select: { fullNameEn: true, fullNameKo: true, gender: true, clubs: { select: { clubCode: true } } } },
       },
       orderBy: [{ tournamentYear: "desc" }, { categoryId: "asc" }],
     });
@@ -233,6 +268,7 @@ export default async function AdminPage() {
 
   // Team member lookup for matches: keyed by "${tournamentYear}-${teamId}"
   const teamMemberMap = new Map<string, { namesEn: string[]; namesKo: string[] }>();
+  const teamClubMap = new Map<string, string[]>();
   for (const t of teamRows) {
     const [m1, m2] = orderTeamMembersForDisplay(t.member1, t.member2);
     teamMemberMap.set(`${t.tournamentYear}-${t.id}`, {
@@ -245,6 +281,9 @@ export default async function AdminPage() {
         m2 ? (m2.fullNameKo?.trim() || m2.fullNameEn.trim() || null) : null,
       ].filter(Boolean) as string[],
     });
+    teamClubMap.set(`${t.tournamentYear}-${t.id}`, [
+      ...new Set([...t.member1.clubs, ...(t.member2?.clubs ?? [])].map((c) => c.clubCode)),
+    ]);
   }
 
   const matches = matchRows.map((r) => {
@@ -259,11 +298,16 @@ export default async function AdminPage() {
     roundCode: r.roundRef?.code ?? null,
     roundLabel: r.roundRef?.labelEn ?? null,
     roundLabelKo: r.roundRef?.labelKo ?? null,
+    roundSortOrder: r.roundRef?.sortOrder ?? null,
     group: extractGroup(r.id),
+    team1Id: r.team1Id,
+    team2Id: r.team2Id,
     team1Names: t1?.namesEn ?? [],
     team1NamesKo: t1?.namesKo ?? [],
     team2Names: t2?.namesEn ?? [],
     team2NamesKo: t2?.namesKo ?? [],
+    team1Clubs: r.team1Id ? teamClubMap.get(`${r.tournamentYear}-${r.team1Id}`) ?? [] : [],
+    team2Clubs: r.team2Id ? teamClubMap.get(`${r.tournamentYear}-${r.team2Id}`) ?? [] : [],
     matchStatus: r.matchStatus,
     date: r.date,
     time: r.time,
@@ -280,6 +324,8 @@ export default async function AdminPage() {
     };
   }).sort((a, b) => {
     if (b.tournamentYear !== a.tournamentYear) return b.tournamentYear - a.tournamentYear;
+    const rd = (a.roundSortOrder ?? 99) - (b.roundSortOrder ?? 99);
+    if (rd !== 0) return rd;
     if (a.categoryId !== b.categoryId) return a.categoryId.localeCompare(b.categoryId);
     return naturalMatchIdSort(a.id, b.id);
   });
@@ -356,6 +402,42 @@ export default async function AdminPage() {
     stock: o.stock,
   }));
 
+  const mediaItems = mediaRows.map((m) => ({
+    id: m.id,
+    type: m.type,
+    title: m.title,
+    titleKo: m.titleKo,
+    subtitle: m.subtitle,
+    subtitleKo: m.subtitleKo,
+    image: m.image,
+    media: m.media,
+    outlet: m.outlet,
+    outletKo: m.outletKo,
+    date: m.date ? m.date.toISOString() : null,
+    categoryId: m.categoryId,
+    sortOrder: m.sortOrder,
+    tournamentYear: m.tournamentYear,
+  }));
+
+  const communityMediaPosts = communityMediaRows.map((p) => ({
+    id: p.id,
+    title: p.title,
+    nickname: p.nickname,
+    imageUrl: p.imageUrl,
+    createdAt: p.createdAt.toISOString(),
+    likeCount: p.likeCount,
+    viewCount: p.viewCount,
+    isAwardWinner: p.isAwardWinner,
+    tournamentYear: p.tournamentYear,
+    commentCount: p._count.comments,
+    comments: p.comments.map((c) => ({
+      id: c.id,
+      nickname: c.nickname,
+      body: c.body,
+      createdAt: c.createdAt.toISOString(),
+    })),
+  }));
+
   return (
     <AdminHub
       registrations={registrations}
@@ -371,6 +453,8 @@ export default async function AdminPage() {
       giveaways={giveaways}
       tumblerOptions={tumblerOptions}
       drawsPublished={hasDrawPublishDatePassed()}
+      mediaItems={mediaItems}
+      communityMediaPosts={communityMediaPosts}
     />
   );
 }

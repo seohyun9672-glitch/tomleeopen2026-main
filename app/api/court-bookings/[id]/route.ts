@@ -45,9 +45,19 @@ export async function DELETE(
     await prisma.$transaction(async (tx) => {
       await tx.courtBooking.delete({ where: { id } });
       if (booking?.matchId) {
+        const existingMatch = await tx.match.findUnique({
+          where: { id: booking.matchId },
+          select: { matchStatus: true, set1ScoreTeam1: true, set1ScoreTeam2: true, set2ScoreTeam1: true, set2ScoreTeam2: true },
+        });
+        const clearedStatus = computeMatchStatus(
+          existingMatch?.matchStatus ?? "Pending",
+          null, null, null,
+          existingMatch?.set1ScoreTeam1 ?? null, existingMatch?.set1ScoreTeam2 ?? null,
+          existingMatch?.set2ScoreTeam1 ?? null, existingMatch?.set2ScoreTeam2 ?? null,
+        );
         await tx.match.update({
           where: { id: booking.matchId },
-          data: { date: null, time: null, location: null, matchStatus: "Pending" },
+          data: { date: null, time: null, location: null, matchStatus: clearedStatus },
         });
       }
     });
@@ -92,6 +102,22 @@ export async function PATCH(
     const existing = await prisma.courtBooking.findUnique({ where: { id } });
 
     const updated = await prisma.$transaction(async (tx) => {
+      // `matchId` is unique across CourtBooking — if this match is being
+      // moved here from a different court/date, that other booking still
+      // holds the same matchId and must be freed first, both to satisfy the
+      // unique constraint and so the old court slot actually reflects that
+      // it's open again instead of silently still showing as booked.
+      if (typeof data.match === "object" && data.match && "connect" in data.match) {
+        const newMatchId = (data.match as { connect: { id: string } }).connect.id;
+        const conflicting = await tx.courtBooking.findUnique({ where: { matchId: newMatchId } });
+        if (conflicting && conflicting.id !== id) {
+          await tx.courtBooking.update({
+            where: { id: conflicting.id },
+            data: { match: { disconnect: true }, teamId: null, status: "Available", bookedByPlayer: { disconnect: true } },
+          });
+        }
+      }
+
       const result = await tx.courtBooking.update({ where: { id }, data });
 
       const oldMatchId = existing?.matchId ?? null;
@@ -100,9 +126,19 @@ export async function PATCH(
 
       // Clear old match's schedule if the match changed or booking was cancelled
       if (oldMatchId && (oldMatchId !== newMatchId || newStatus === "Available")) {
+        const oldMatch = await tx.match.findUnique({
+          where: { id: oldMatchId },
+          select: { matchStatus: true, set1ScoreTeam1: true, set1ScoreTeam2: true, set2ScoreTeam1: true, set2ScoreTeam2: true },
+        });
+        const clearedStatus = computeMatchStatus(
+          oldMatch?.matchStatus ?? "Pending",
+          null, null, null,
+          oldMatch?.set1ScoreTeam1 ?? null, oldMatch?.set1ScoreTeam2 ?? null,
+          oldMatch?.set2ScoreTeam1 ?? null, oldMatch?.set2ScoreTeam2 ?? null,
+        );
         await tx.match.update({
           where: { id: oldMatchId },
-          data: { date: null, time: null, location: null, matchStatus: "Pending" },
+          data: { date: null, time: null, location: null, matchStatus: clearedStatus },
         });
       }
 
