@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getCommunityMediaPosts } from "@/lib/communityMedia";
+import { uploadToR2 } from "@/lib/r2";
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -51,12 +51,7 @@ export async function POST(request: Request) {
       null;
 
     const extension = photo.type.split("/")[1] ?? "jpg";
-    const blob = await put(`community-media/${crypto.randomUUID()}.${extension}`, photo, {
-      access: "public",
-      contentType: photo.type,
-      token: process.env.tomlee_READ_WRITE_TOKEN,
-    });
-    const imageUrl = blob.url;
+    const imageUrl = await uploadToR2(`community-media/${crypto.randomUUID()}.${extension}`, photo);
 
     const post = await prisma.communityMediaPost.create({
       data: {

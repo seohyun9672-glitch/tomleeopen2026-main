@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
   experimental: {
     staleTimes: { dynamic: 0, static: 0 },
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "pub-7cd50ebcfa544478acb6545cc8dadf40.r2.dev",
+      },
+    ],
+  },
   webpack(config, { dev }) {
     if (dev && config.watchOptions) {
       config.watchOptions.ignored = [

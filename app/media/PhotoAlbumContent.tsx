@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card } from "@/app/components/ui/Card";
 import { Button } from "@/app/components/ui/Button";
@@ -92,6 +93,30 @@ function formatDate(d: Date | string, locale: "en" | "ko"): string {
   });
 }
 
+const COMPRESS_MAX_DIMENSION = 1600;
+const COMPRESS_QUALITY = 0.85;
+
+async function compressImage(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, COMPRESS_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", COMPRESS_QUALITY));
+    if (!blob || blob.size >= file.size) return file;
+    const name = file.name.replace(/\.[^.]+$/, "") + ".webp";
+    return new File([blob], name, { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
 function readIdSet(key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
@@ -136,7 +161,7 @@ function LikeControl({
       }}
       aria-label={ariaLabel}
       aria-pressed={liked}
-      className={"inline-flex items-center gap-1" + (size === "md" ? " text-base" : " text-sm")}
+      className={"inline-flex items-center gap-1" + (size === "md" ? " text-[length:var(--text-h4-size)]" : " text-[length:var(--text-body-size)]")}
     >
       <span
         className="inline-flex shrink-0 items-center justify-center text-[var(--status-error-fg,#e11d48)]"
@@ -144,7 +169,7 @@ function LikeControl({
       >
         <HeartIcon filled={liked} size={iconSize} />
       </span>
-      <span className="tabular-nums text-[var(--color-text-primary)]">{count}</span>
+      <span className="tabular-nums text-foreground">{count}</span>
     </button>
   );
 }
@@ -154,9 +179,9 @@ function ViewControl({ count, size = "sm", ariaLabel }: { count: number; size?: 
   return (
     <span
       aria-label={ariaLabel}
-      className={"inline-flex items-center gap-1 text-[var(--color-text-primary)]" + (size === "md" ? " text-base" : " text-sm")}
+      className={"inline-flex items-center gap-1 text-foreground" + (size === "md" ? " text-[length:var(--text-h4-size)]" : " text-[length:var(--text-body-size)]")}
     >
-      <span className="inline-flex shrink-0 items-center justify-center text-[var(--color-text-secondary)]" style={{ width: iconSize, height: iconSize }}>
+      <span className="inline-flex shrink-0 items-center justify-center text-muted-foreground" style={{ width: iconSize, height: iconSize }}>
         <EyeIcon size={iconSize} />
       </span>
       <span className="tabular-nums">{count}</span>
@@ -200,7 +225,7 @@ export function UploadPhotoModal({
     onClose();
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setError(null);
     if (!f) {
@@ -220,9 +245,10 @@ export function UploadPhotoModal({
       setPreviewUrl(null);
       return;
     }
+    const compressed = await compressImage(f);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    setFile(compressed);
+    setPreviewUrl(URL.createObjectURL(compressed));
   }
 
   function handleClearFile() {
@@ -256,9 +282,9 @@ export function UploadPhotoModal({
     <Modal open={open} onClose={handleClose} title={t.uploadModalTitle} maxWidthClass="max-w-lg">
       <form id="upload-photo-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="upload-photo-file" className="block mb-1.5 text-sm font-medium [color:var(--section-text)]">
+          <label htmlFor="upload-photo-file" className="block mb-1.5 text-[length:var(--text-body-size)] font-medium [color:var(--color-foreground)]">
             {t.fields.photo}
-            <span className="text-[var(--form-required-mark)]"> *</span>
+            <span className="text-[var(--color-destructive)]"> *</span>
           </label>
           <input
             ref={fileInputRef}
@@ -281,13 +307,13 @@ export function UploadPhotoModal({
                 type="button"
                 onClick={handleClearFile}
                 aria-label={t.removePhoto}
-                className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-surface-card)_85%,transparent)] text-[var(--color-text-primary)] shadow-sm ring-1 ring-[color:var(--color-border-ui)]"
+                className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-card)_85%,transparent)] text-foreground shadow-sm ring-1 ring-[color:var(--color-border)]"
               >
                 <XIcon />
               </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[color:var(--color-border-ui)] px-6 py-10 text-center">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-10 text-center">
               <Button
                 type="button"
                 variant="secondary"
@@ -298,7 +324,7 @@ export function UploadPhotoModal({
               </Button>
             </div>
           )}
-          <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">{t.photoHelp}</p>
+          <p className="mt-1 text-[length:var(--text-label-size)] text-muted-foreground">{t.photoHelp}</p>
         </div>
         <Field
           variant="text"
@@ -353,16 +379,17 @@ function PhotoDetailModal({
   return (
     <Modal open onClose={onClose} title={t.detailModalTitle} maxWidthClass="max-w-2xl">
       <div className="flex flex-col gap-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={post.imageUrl} alt={post.title} className="w-full rounded-lg object-cover" />
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg">
+          <Image src={post.imageUrl} alt={post.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 672px" />
+        </div>
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-h3 m-0 min-w-0">{post.title}</h3>
+          <h3 className="m-0 min-w-0">{post.title}</h3>
           <div className="flex shrink-0 items-center gap-3">
             <LikeControl count={post.likeCount} liked={liked} onLike={() => onLike(post.id)} ariaLabel={t.likeLabel} size="md" />
             <ViewControl count={post.viewCount} size="md" ariaLabel={t.viewsLabel} />
           </div>
         </div>
-        <p className="m-0 -mt-2 text-sm text-[var(--color-text-secondary)]">
+        <p className="m-0 -mt-2 text-[length:var(--text-body-size)] text-muted-foreground">
           {t.by} {post.nickname} · {formatDate(post.createdAt, locale)}
         </p>
       </div>
@@ -374,16 +401,16 @@ function PhotoDetailModal({
 
 function EmptyState({ t, onUpload }: { t: Messages["mediaPage"]["photoAlbum"]; onUpload: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[color:var(--color-border-ui)] px-6 py-16 text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-[var(--color-surface-strong)] text-[var(--color-text-tertiary)]">
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-16 text-center">
+      <div className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <ImagePlaceholderIcon />
       </div>
-      <p className="m-0 text-[var(--section-text)]">{t.emptyState}</p>
+      <p className="m-0 text-[var(--color-foreground)]">{t.emptyState}</p>
       <Button
         variant="transparent"
         size="medium"
         onClick={onUpload}
-        className="!text-[var(--color-primary-blue)] hover:!bg-[color-mix(in_srgb,var(--color-primary-blue)_12%,transparent)] hover:!text-[var(--color-primary-blue)]"
+        className="!text-[var(--color-primary)] hover:!bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] hover:!text-[var(--color-primary)]"
       >
         <PlusIcon /> {t.uploadButton}
       </Button>
@@ -416,7 +443,23 @@ export function PhotoAlbumContent({
   useEffect(() => {
     setLikedIds(readIdSet(LIKED_IDS_STORAGE_KEY));
     setViewedIds(readIdSet(VIEWED_IDS_STORAGE_KEY));
-  }, []);
+
+    const ids = posts.map((p) => p.id);
+    if (ids.length === 0) return;
+    const controller = new AbortController();
+    fetch(`/api/community-media/like-status?ids=${ids.join(",")}`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { likedIds: string[] } | null) => {
+        if (!data) return;
+        const serverLiked = new Set(data.likedIds);
+        setLikedIds(serverLiked);
+        writeIdSet(LIKED_IDS_STORAGE_KEY, serverLiked);
+      })
+      .catch(() => {
+        // best-effort; localStorage-seeded state remains as fallback
+      });
+    return () => controller.abort();
+  }, [posts]);
 
   async function handleLike(id: string) {
     const alreadyLiked = likedIds.has(id);
@@ -431,7 +474,18 @@ export function PhotoAlbumContent({
       prev.map((p) => (p.id === id ? { ...p, likeCount: Math.max(0, p.likeCount + (alreadyLiked ? -1 : 1)) } : p)),
     );
     try {
-      await fetch(`/api/community-media/${id}/like`, { method: alreadyLiked ? "DELETE" : "POST" });
+      const res = await fetch(`/api/community-media/${id}/like`, { method: alreadyLiked ? "DELETE" : "POST" });
+      if (res.ok) {
+        const data: { liked: boolean; likeCount: number } = await res.json();
+        setLikedIds((prev) => {
+          const next = new Set(prev);
+          if (data.liked) next.add(id);
+          else next.delete(id);
+          writeIdSet(LIKED_IDS_STORAGE_KEY, next);
+          return next;
+        });
+        setLocalPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likeCount: data.likeCount } : p)));
+      }
     } catch {
       // best-effort; server refresh will reconcile
     }
@@ -466,7 +520,7 @@ export function PhotoAlbumContent({
               variant="transparent"
               size="small"
               onClick={() => onUploadOpenChange(true)}
-              className="!text-[var(--color-primary-blue)] hover:!bg-[color-mix(in_srgb,var(--color-primary-blue)_12%,transparent)] hover:!text-[var(--color-primary-blue)]"
+              className="!text-[var(--color-primary)] hover:!bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] hover:!text-[var(--color-primary)]"
             >
               <PlusIcon /> {t.uploadButton}
             </Button>
